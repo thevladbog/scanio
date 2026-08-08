@@ -66,6 +66,21 @@ public sealed class AnalyzerPipelineTests
         Assert.AreEqual("Plain text", results[1].Format);
     }
 
+    [TestMethod]
+    public void Analyze_RunsStructuredAnalyzersBeforeFallbackRegardlessOfTheirOrderValue()
+    {
+        var pipeline = new ScanAnalyzerPipeline(new IScanAnalyzer[]
+        {
+            new PlainTextAnalyzer(),
+            new LateStructuredAnalyzer()
+        });
+
+        var results = pipeline.Analyze(TextDecoder.Decode("late format"u8, PayloadTextEncoding.Utf8));
+
+        Assert.HasCount(1, results);
+        Assert.AreEqual("Late structured", results[0].Format);
+    }
+
     private sealed class ThrowingAnalyzer : IScanAnalyzer
     {
         public string Name => "Throwing";
@@ -75,5 +90,21 @@ public sealed class AnalyzerPipelineTests
         public bool IsFallback => false;
 
         public AnalysisResult? Analyze(DecodedPayload payload) => throw new InvalidOperationException("Expected test failure.");
+    }
+
+    private sealed class LateStructuredAnalyzer : IScanAnalyzer
+    {
+        public string Name => "Late structured";
+
+        public int Order => 10_001;
+
+        public bool IsFallback => false;
+
+        public AnalysisResult Analyze(DecodedPayload payload) => AnalysisResult.Match(
+            Name,
+            "Late structured",
+            AnalysisConfidence.Exact,
+            "The test analyzer matched after the conventional fallback order.",
+            "Structured result.");
     }
 }

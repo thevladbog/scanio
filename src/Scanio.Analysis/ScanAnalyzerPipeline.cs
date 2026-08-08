@@ -13,7 +13,8 @@ public sealed class ScanAnalyzerPipeline
 
         _analyzers = analyzers
             .Select(analyzer => analyzer ?? throw new ArgumentException("An analyzer pipeline cannot contain null.", nameof(analyzers)))
-            .OrderBy(analyzer => analyzer.Order)
+            .OrderBy(analyzer => analyzer.IsFallback)
+            .ThenBy(analyzer => analyzer.Order)
             .ThenBy(analyzer => analyzer.Name, StringComparer.Ordinal)
             .ToImmutableArray();
     }
