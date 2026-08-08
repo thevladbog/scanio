@@ -57,6 +57,8 @@ public sealed class ScanAssembler
         return Complete(ScanCompletionReason.SilenceTimeout, _buffer.Count);
     }
 
+    public void DiscardPending() => _buffer.Clear();
+
     private bool EndsWithTerminator()
     {
         if (_options.Terminator.IsEmpty || _buffer.Count < _options.Terminator.Length)
