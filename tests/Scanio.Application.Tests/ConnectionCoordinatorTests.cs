@@ -107,6 +107,28 @@ public sealed class ConnectionCoordinatorTests
     }
 
     [TestMethod]
+    public async Task ProcessingFailure_PreservesDeviceRemovedWhenCleanupThrows()
+    {
+        var transport = new FakeTransport("COM7") { ThrowOnClose = true };
+        var coordinator = new ConnectionCoordinator(new DeviceRemovedFailingPipeline());
+        var removalPublished = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        coordinator.StatusChanged += (_, status) =>
+        {
+            if (status.State == ConnectionState.DeviceRemoved)
+            {
+                removalPublished.TrySetResult();
+            }
+        };
+
+        await coordinator.ConnectAsync(transport, CancellationToken.None);
+        await removalPublished.Task.WaitAsync(TimeSpan.FromSeconds(1));
+
+        Assert.AreEqual(ConnectionState.DeviceRemoved, coordinator.Events[^1].State);
+        Assert.AreEqual(1, transport.CloseCount);
+        Assert.AreEqual(1, transport.DisposeCount);
+    }
+
+    [TestMethod]
     public async Task ShutdownAsync_DoesNotReturnUntilTheTransportHasClosed()
     {
         var pipeline = new ControllablePipeline();
@@ -177,6 +199,8 @@ public sealed class ConnectionCoordinatorTests
 
         public bool BlockClose { get; init; }
 
+        public bool ThrowOnClose { get; init; }
+
         public int OpenCount { get; private set; }
 
         public int CloseCount { get; private set; }
@@ -214,6 +238,11 @@ public sealed class ConnectionCoordinatorTests
             if (BlockClose)
             {
                 await _closePermission.Task.WaitAsync(cancellationToken);
+            }
+
+            if (ThrowOnClose)
+            {
+                throw new IOException("Expected close failure.");
             }
 
             State = ConnectionState.Disconnected;

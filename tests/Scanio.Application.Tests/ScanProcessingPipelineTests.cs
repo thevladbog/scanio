@@ -183,6 +183,122 @@ public sealed class ScanProcessingPipelineTests
         Assert.IsEmpty(monitor.Events);
     }
 
+    [TestMethod]
+    public async Task ProcessAsync_CancellationWaitsForPendingReadBeforeDisposalAndAlwaysThrowsCancellation()
+    {
+        for (var iteration = 0; iteration < 20; iteration++)
+        {
+            var monitor = new LiveMonitor();
+            var pipeline = CreatePipeline(monitor, new PlainTextAnalyzer());
+            var transport = new CancellationSensitiveTransport();
+            using var cancellation = new CancellationTokenSource();
+            var processing = pipeline.ProcessAsync(transport, cancellation.Token);
+
+            await transport.SecondMoveStarted.Task.WaitAsync(TimeSpan.FromSeconds(1));
+            cancellation.Cancel();
+            await transport.ReadCancellationObserved.Task.WaitAsync(TimeSpan.FromSeconds(1));
+
+            var earlyDisposal = await Task.WhenAny(
+                transport.EnumeratorDisposed.Task,
+                Task.Delay(TimeSpan.FromMilliseconds(5)));
+            transport.AllowReadCancellationToFinish.TrySetResult();
+
+            await Assert.ThrowsAsync<OperationCanceledException>(async () => await processing);
+            Assert.AreNotSame(transport.EnumeratorDisposed.Task, earlyDisposal, $"Iteration {iteration}");
+            Assert.IsFalse(transport.DisposedWhileMoveNextInFlight, $"Iteration {iteration}");
+            Assert.AreEqual(1, transport.EnumeratorDisposeCount, $"Iteration {iteration}");
+            Assert.IsEmpty(monitor.Events);
+        }
+    }
+
+    [TestMethod]
+    public async Task ProcessAsync_LateChunkAfterCompletedDeadlineStartsANewScan()
+    {
+        var monitor = new LiveMonitor();
+        var clock = new ManualProcessingClock();
+        var pipeline = CreatePipeline(monitor, clock, new PlainTextAnalyzer());
+        var transport = new ManualChunkTransport();
+        using var cancellation = new CancellationTokenSource();
+        var twoEvents = WaitForEventCountAsync(monitor, 2);
+        var processing = pipeline.ProcessAsync(transport, cancellation.Token);
+
+        transport.Add(RawChunk.Create(1, "old"u8, DateTimeOffset.UnixEpoch, clock.Timestamp, Identity));
+        await clock.WaitForNextTimerAsync();
+        var deadline = clock.Timestamp + ManualProcessingClock.ToStopwatchTicks(TimeSpan.FromMilliseconds(100));
+        clock.BeforeCompletingNextDelay = () => transport.Add(
+            RawChunk.Create(2, "new\r"u8, DateTimeOffset.UnixEpoch, deadline + 1, Identity));
+        clock.Advance(TimeSpan.FromMilliseconds(100));
+        await twoEvents.WaitAsync(TimeSpan.FromSeconds(1));
+
+        Assert.HasCount(2, monitor.Events);
+        Assert.AreEqual("old", monitor.Events[0].Decoded.Text);
+        Assert.AreEqual(ScanCompletionReason.SilenceTimeout, monitor.Events[0].Scan.CompletionReason);
+        Assert.AreEqual("new", monitor.Events[1].Decoded.Text);
+        Assert.AreEqual(ScanCompletionReason.Terminator, monitor.Events[1].Scan.CompletionReason);
+
+        cancellation.Cancel();
+        await Assert.ThrowsAsync<OperationCanceledException>(async () => await processing);
+    }
+
+    [TestMethod]
+    public async Task ProcessAsync_TerminatorAtDeadlineKeepsTerminatorPrecedence()
+    {
+        var monitor = new LiveMonitor();
+        var clock = new ManualProcessingClock();
+        var pipeline = CreatePipeline(monitor, clock, new PlainTextAnalyzer());
+        var transport = new ManualChunkTransport();
+        using var cancellation = new CancellationTokenSource();
+        var appended = NextAppendAsync(monitor);
+        var processing = pipeline.ProcessAsync(transport, cancellation.Token);
+
+        transport.Add(RawChunk.Create(1, "old"u8, DateTimeOffset.UnixEpoch, clock.Timestamp, Identity));
+        await clock.WaitForNextTimerAsync();
+        var deadline = clock.Timestamp + ManualProcessingClock.ToStopwatchTicks(TimeSpan.FromMilliseconds(100));
+        clock.BeforeCompletingNextDelay = () => transport.Add(
+            RawChunk.Create(2, [0x0D], DateTimeOffset.UnixEpoch, deadline, Identity));
+        clock.Advance(TimeSpan.FromMilliseconds(100));
+        await appended.WaitAsync(TimeSpan.FromSeconds(1));
+
+        Assert.HasCount(1, monitor.Events);
+        Assert.AreEqual("old", monitor.Events[0].Decoded.Text);
+        Assert.AreEqual(ScanCompletionReason.Terminator, monitor.Events[0].Scan.CompletionReason);
+
+        cancellation.Cancel();
+        await Assert.ThrowsAsync<OperationCanceledException>(async () => await processing);
+    }
+
+    [TestMethod]
+    public async Task ProcessAsync_EmptyChunkDoesNotResetSilenceDeadline()
+    {
+        var monitor = new LiveMonitor();
+        var clock = new ManualProcessingClock();
+        var pipeline = CreatePipeline(monitor, clock, new PlainTextAnalyzer());
+        var transport = new ControlledChunkTransport();
+        using var cancellation = new CancellationTokenSource();
+        var processing = pipeline.ProcessAsync(transport, cancellation.Token);
+
+        transport.Add(RawChunk.Create(1, "data"u8, DateTimeOffset.UnixEpoch, clock.Timestamp, Identity));
+        await clock.WaitForNextTimerAsync();
+        await transport.WaitForConsumedChunkAsync();
+        clock.Advance(TimeSpan.FromMilliseconds(50));
+        transport.Add(RawChunk.Create(2, [], DateTimeOffset.UnixEpoch, clock.Timestamp, Identity));
+        await transport.WaitForConsumedChunkAsync();
+
+        Assert.AreEqual(1, clock.ScheduledCount);
+        clock.Advance(TimeSpan.FromMilliseconds(49));
+        Assert.IsEmpty(monitor.Events);
+        var appended = NextAppendAsync(monitor);
+        clock.Advance(TimeSpan.FromMilliseconds(1));
+        await appended.WaitAsync(TimeSpan.FromSeconds(1));
+
+        Assert.HasCount(1, monitor.Events);
+        Assert.AreEqual("data", monitor.Events[0].Decoded.Text);
+        Assert.AreEqual(ScanCompletionReason.SilenceTimeout, monitor.Events[0].Scan.CompletionReason);
+
+        cancellation.Cancel();
+        await Assert.ThrowsAsync<OperationCanceledException>(async () => await processing);
+    }
+
     private static ScanProcessingPipeline CreatePipeline(LiveMonitor monitor, params IScanAnalyzer[] analyzers) =>
         new(
             new ScanAssembler(new ScanFramingOptions([0x0D], TimeSpan.FromMilliseconds(100), 65_536)),
@@ -207,6 +323,24 @@ public sealed class ScanProcessingPipelineTests
         EventHandler? handler = null;
         handler = (_, _) =>
         {
+            monitor.Changed -= handler;
+            completion.TrySetResult();
+        };
+        monitor.Changed += handler;
+        return completion.Task;
+    }
+
+    private static Task WaitForEventCountAsync(LiveMonitor monitor, int expectedCount)
+    {
+        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        EventHandler? handler = null;
+        handler = (_, _) =>
+        {
+            if (monitor.Events.Length < expectedCount)
+            {
+                return;
+            }
+
             monitor.Changed -= handler;
             completion.TrySetResult();
         };
@@ -278,6 +412,7 @@ public sealed class ScanProcessingPipelineTests
     private sealed class ControlledChunkTransport : IScannerTransport
     {
         private readonly Channel<RawChunk> _chunks = Channel.CreateUnbounded<RawChunk>();
+        private readonly SemaphoreSlim _consumed = new(0);
 
         public TransportIdentity Identity => ScanProcessingPipelineTests.Identity;
 
@@ -287,12 +422,194 @@ public sealed class ScanProcessingPipelineTests
 
         public ValueTask OpenAsync(CancellationToken cancellationToken) => ValueTask.CompletedTask;
 
-        public IAsyncEnumerable<RawChunk> ReadAllAsync(CancellationToken cancellationToken) =>
-            _chunks.Reader.ReadAllAsync(cancellationToken);
+        public async IAsyncEnumerable<RawChunk> ReadAllAsync(
+            [EnumeratorCancellation] CancellationToken cancellationToken)
+        {
+            await foreach (var chunk in _chunks.Reader.ReadAllAsync(cancellationToken))
+            {
+                yield return chunk;
+                _consumed.Release();
+            }
+        }
+
+        public async Task WaitForConsumedChunkAsync() =>
+            Assert.IsTrue(await _consumed.WaitAsync(TimeSpan.FromSeconds(1)));
 
         public ValueTask CloseAsync(CancellationToken cancellationToken) => ValueTask.CompletedTask;
 
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+    }
+
+    private sealed class CancellationSensitiveTransport : IScannerTransport
+    {
+        public TaskCompletionSource SecondMoveStarted { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public TaskCompletionSource ReadCancellationObserved { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public TaskCompletionSource AllowReadCancellationToFinish { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public TaskCompletionSource EnumeratorDisposed { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public bool DisposedWhileMoveNextInFlight { get; private set; }
+
+        public int EnumeratorDisposeCount { get; private set; }
+
+        public TransportIdentity Identity => ScanProcessingPipelineTests.Identity;
+
+        public ConnectionState State => ConnectionState.Connected;
+
+        public ValueTask OpenAsync(CancellationToken cancellationToken) => ValueTask.CompletedTask;
+
+        public IAsyncEnumerable<RawChunk> ReadAllAsync(CancellationToken cancellationToken) =>
+            new CancellationSensitiveEnumerable(this);
+
+        public ValueTask CloseAsync(CancellationToken cancellationToken) => ValueTask.CompletedTask;
+
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+
+        private sealed class CancellationSensitiveEnumerable(CancellationSensitiveTransport owner)
+            : IAsyncEnumerable<RawChunk>, IAsyncEnumerator<RawChunk>
+        {
+            private CancellationToken _cancellationToken;
+            private bool _returnedFirst;
+            private bool _moveNextInFlight;
+
+            public RawChunk Current { get; private set; } = null!;
+
+            public IAsyncEnumerator<RawChunk> GetAsyncEnumerator(CancellationToken cancellationToken = default)
+            {
+                _cancellationToken = cancellationToken;
+                return this;
+            }
+
+            public ValueTask<bool> MoveNextAsync()
+            {
+                if (!_returnedFirst)
+                {
+                    _returnedFirst = true;
+                    Current = RawChunk.Create(
+                        1,
+                        "partial"u8,
+                        DateTimeOffset.UnixEpoch,
+                        System.Diagnostics.Stopwatch.GetTimestamp(),
+                        owner.Identity);
+                    return ValueTask.FromResult(true);
+                }
+
+                return new ValueTask<bool>(WaitForCancellationAsync());
+            }
+
+            public ValueTask DisposeAsync()
+            {
+                owner.EnumeratorDisposeCount++;
+                owner.DisposedWhileMoveNextInFlight |= _moveNextInFlight;
+                owner.EnumeratorDisposed.TrySetResult();
+                return new ValueTask(Task.FromException(
+                    new IOException("Expected disposal failure after cancellation.")));
+            }
+
+            private async Task<bool> WaitForCancellationAsync()
+            {
+                _moveNextInFlight = true;
+                owner.SecondMoveStarted.TrySetResult();
+                try
+                {
+                    await Task.Delay(Timeout.InfiniteTimeSpan, _cancellationToken);
+                    return false;
+                }
+                catch (OperationCanceledException)
+                {
+                    owner.ReadCancellationObserved.TrySetResult();
+                    await owner.AllowReadCancellationToFinish.Task;
+                    throw;
+                }
+                finally
+                {
+                    _moveNextInFlight = false;
+                }
+            }
+        }
+    }
+
+    private sealed class ManualChunkTransport : IScannerTransport, IAsyncEnumerable<RawChunk>, IAsyncEnumerator<RawChunk>
+    {
+        private readonly object _gate = new();
+        private readonly Queue<RawChunk> _queued = new();
+        private TaskCompletionSource<bool>? _pendingMove;
+        private CancellationTokenRegistration _pendingCancellation;
+
+        public TransportIdentity Identity => ScanProcessingPipelineTests.Identity;
+
+        public ConnectionState State => ConnectionState.Connected;
+
+        public RawChunk Current { get; private set; } = null!;
+
+        public void Add(RawChunk chunk)
+        {
+            TaskCompletionSource<bool>? pending;
+            lock (_gate)
+            {
+                pending = _pendingMove;
+                if (pending is null)
+                {
+                    _queued.Enqueue(chunk);
+                    return;
+                }
+
+                _pendingMove = null;
+                _pendingCancellation.Dispose();
+                Current = chunk;
+            }
+
+            pending.TrySetResult(true);
+        }
+
+        public ValueTask OpenAsync(CancellationToken cancellationToken) => ValueTask.CompletedTask;
+
+        public IAsyncEnumerable<RawChunk> ReadAllAsync(CancellationToken cancellationToken) => this;
+
+        public IAsyncEnumerator<RawChunk> GetAsyncEnumerator(CancellationToken cancellationToken = default)
+        {
+            PendingCancellationToken = cancellationToken;
+            return this;
+        }
+
+        private CancellationToken PendingCancellationToken { get; set; }
+
+        public ValueTask<bool> MoveNextAsync()
+        {
+            lock (_gate)
+            {
+                if (_queued.Count > 0)
+                {
+                    Current = _queued.Dequeue();
+                    return ValueTask.FromResult(true);
+                }
+
+                _pendingMove = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                _pendingCancellation = PendingCancellationToken.Register(
+                    () => _pendingMove?.TrySetCanceled(PendingCancellationToken));
+                return new ValueTask<bool>(_pendingMove.Task);
+            }
+        }
+
+        public ValueTask CloseAsync(CancellationToken cancellationToken) => ValueTask.CompletedTask;
+
+        ValueTask IAsyncDisposable.DisposeAsync()
+        {
+            _pendingCancellation.Dispose();
+            return ValueTask.CompletedTask;
+        }
+
+        public ValueTask DisposeAsync()
+        {
+            _pendingCancellation.Dispose();
+            return ValueTask.CompletedTask;
+        }
     }
 
     private sealed class ManualProcessingClock : IScanProcessingClock
@@ -302,6 +619,8 @@ public sealed class ScanProcessingPipelineTests
         private readonly SemaphoreSlim _scheduled = new(0);
 
         public int ScheduledCount { get; private set; }
+
+        public Action? BeforeCompletingNextDelay { get; set; }
 
         public long Timestamp { get; private set; }
 
@@ -341,11 +660,17 @@ public sealed class ScanProcessingPipelineTests
             foreach (var request in due)
             {
                 request.CancellationRegistration.Dispose();
+                if (!request.Completion.Task.IsCompleted && BeforeCompletingNextDelay is { } beforeCompletion)
+                {
+                    BeforeCompletingNextDelay = null;
+                    beforeCompletion();
+                }
+
                 request.Completion.TrySetResult();
             }
         }
 
-        private static long ToStopwatchTicks(TimeSpan duration) =>
+        public static long ToStopwatchTicks(TimeSpan duration) =>
             (long)Math.Ceiling(duration.TotalSeconds * System.Diagnostics.Stopwatch.Frequency);
 
         private sealed class DelayRequest(long dueTimestamp, TaskCompletionSource completion)

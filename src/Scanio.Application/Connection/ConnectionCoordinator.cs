@@ -224,7 +224,10 @@ public sealed class ConnectionCoordinator
             }
             catch
             {
-                terminalState = ConnectionState.TransportError;
+                if (terminalState != ConnectionState.DeviceRemoved)
+                {
+                    terminalState = ConnectionState.TransportError;
+                }
             }
 
             ClearActive(session);

@@ -58,14 +58,18 @@ public sealed class ScanProcessingPipeline : IScanProcessingPipeline
     {
         ArgumentNullException.ThrowIfNull(transport);
 
-        await using var reader = transport.ReadAllAsync(cancellationToken).GetAsyncEnumerator(cancellationToken);
+        using var readCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        var reader = transport.ReadAllAsync(readCancellation.Token).GetAsyncEnumerator(readCancellation.Token);
         CancellationTokenSource? silenceCancellation = null;
         Task? silenceDelay = null;
         long? lastChunkTimestamp = null;
+        long? silenceDeadlineTimestamp = null;
+        Task<bool>? moveNext = null;
+        var externalCancellationObserved = false;
 
         try
         {
-            var moveNext = reader.MoveNextAsync().AsTask();
+            moveNext = reader.MoveNextAsync().AsTask();
             while (true)
             {
                 if (silenceDelay is null)
@@ -79,35 +83,81 @@ public sealed class ScanProcessingPipeline : IScanProcessingPipeline
 
                 cancellationToken.ThrowIfCancellationRequested();
 
-                // At the exact timeout boundary, a chunk that already arrived
-                // takes precedence. This lets its terminator complete the scan
-                // before the silence path can observe the same pending bytes.
                 if (moveNext.IsCompleted)
                 {
-                    await CancelSilenceDelayAsync(silenceCancellation, silenceDelay).ConfigureAwait(false);
-                    silenceCancellation = null;
-                    silenceDelay = null;
-
                     if (!await moveNext.ConfigureAwait(false))
                     {
                         break;
                     }
 
                     var chunk = reader.Current;
+
+                    if (chunk.Bytes.IsEmpty)
+                    {
+                        if (silenceDelay?.IsCompleted == true)
+                        {
+                            await silenceDelay.ConfigureAwait(false);
+                            silenceCancellation!.Dispose();
+                            silenceCancellation = null;
+                            silenceDelay = null;
+                            silenceDeadlineTimestamp = null;
+                            cancellationToken.ThrowIfCancellationRequested();
+
+                            if (CompleteOnSilence(_clock.GetTimestamp()))
+                            {
+                                lastChunkTimestamp = null;
+                            }
+                            else if (_assembler.HasPending && lastChunkTimestamp is not null)
+                            {
+                                (silenceCancellation, silenceDelay, silenceDeadlineTimestamp) =
+                                    StartSilenceDelay(lastChunkTimestamp.Value, cancellationToken);
+                            }
+                        }
+
+                        moveNext = reader.MoveNextAsync().AsTask();
+                        continue;
+                    }
+
+                    var deadlineReached = silenceDeadlineTimestamp is not null &&
+                        _clock.GetTimestamp() >= silenceDeadlineTimestamp.Value;
+                    var startsNewScan = deadlineReached &&
+                        chunk.MonotonicTimestamp > silenceDeadlineTimestamp!.Value;
+
+                    if (silenceDelay is not null)
+                    {
+                        await CancelSilenceDelayAsync(silenceCancellation, silenceDelay).ConfigureAwait(false);
+                        silenceCancellation = null;
+                        silenceDelay = null;
+                        cancellationToken.ThrowIfCancellationRequested();
+
+                        if (startsNewScan && CompleteOnSilence(silenceDeadlineTimestamp!.Value))
+                        {
+                            lastChunkTimestamp = null;
+                        }
+
+                        silenceDeadlineTimestamp = null;
+                    }
+
+                    // A chunk timestamp at or before the deadline belongs to the
+                    // pending scan, so its terminator takes precedence. A strictly
+                    // later chunk is processed only after the old scan completes.
                     lastChunkTimestamp = chunk.MonotonicTimestamp;
                     foreach (var scan in _assembler.Push(chunk))
                     {
                         Append(scan);
                     }
 
-                    moveNext = reader.MoveNextAsync().AsTask();
                     if (_assembler.HasPending)
                     {
-                        (silenceCancellation, silenceDelay) = StartSilenceDelay(
-                            lastChunkTimestamp.Value,
-                            cancellationToken);
+                        (silenceCancellation, silenceDelay, silenceDeadlineTimestamp) =
+                            StartSilenceDelay(lastChunkTimestamp.Value, cancellationToken);
+                    }
+                    else
+                    {
+                        lastChunkTimestamp = null;
                     }
 
+                    moveNext = reader.MoveNextAsync().AsTask();
                     continue;
                 }
 
@@ -115,48 +165,76 @@ public sealed class ScanProcessingPipeline : IScanProcessingPipeline
                 silenceCancellation!.Dispose();
                 silenceCancellation = null;
                 silenceDelay = null;
+                silenceDeadlineTimestamp = null;
                 cancellationToken.ThrowIfCancellationRequested();
 
-                var completed = _assembler.CompleteOnSilence(_clock.GetTimestamp());
-                if (completed is not null)
+                if (CompleteOnSilence(_clock.GetTimestamp()))
                 {
-                    Append(completed);
                     lastChunkTimestamp = null;
                 }
                 else if (_assembler.HasPending && lastChunkTimestamp is not null)
                 {
-                    (silenceCancellation, silenceDelay) = StartSilenceDelay(
-                        lastChunkTimestamp.Value,
-                        cancellationToken);
+                    (silenceCancellation, silenceDelay, silenceDeadlineTimestamp) =
+                        StartSilenceDelay(lastChunkTimestamp.Value, cancellationToken);
                 }
             }
         }
+        catch (Exception) when (cancellationToken.IsCancellationRequested)
+        {
+            externalCancellationObserved = true;
+        }
         finally
         {
+            readCancellation.Cancel();
             await CancelSilenceDelayAsync(silenceCancellation, silenceDelay).ConfigureAwait(false);
+            await ObservePendingReadAsync(moveNext).ConfigureAwait(false);
             // A partial scan belongs to this connection only. Disconnecting or
             // removing the device must never merge its bytes into a later session.
             _assembler.DiscardPending();
+
+            try
+            {
+                await reader.DisposeAsync().ConfigureAwait(false);
+            }
+            catch when (cancellationToken.IsCancellationRequested)
+            {
+                externalCancellationObserved = true;
+            }
+        }
+
+        if (externalCancellationObserved || cancellationToken.IsCancellationRequested)
+        {
+            throw new OperationCanceledException(cancellationToken);
         }
     }
 
-    private (CancellationTokenSource Cancellation, Task Delay) StartSilenceDelay(
+    private (CancellationTokenSource Cancellation, Task Delay, long DeadlineTimestamp) StartSilenceDelay(
         long lastChunkTimestamp,
         CancellationToken cancellationToken)
     {
+        var deadlineTimestamp = AddStopwatchDuration(
+            lastChunkTimestamp,
+            _assembler.Framing.SilenceTimeout);
         var now = _clock.GetTimestamp();
-        var elapsed = now < lastChunkTimestamp
+        var remaining = now >= deadlineTimestamp
             ? TimeSpan.Zero
-            : Stopwatch.GetElapsedTime(lastChunkTimestamp, now);
-        var remaining = _assembler.Framing.SilenceTimeout - elapsed;
-        if (remaining < TimeSpan.Zero)
-        {
-            remaining = TimeSpan.Zero;
-        }
+            : Stopwatch.GetElapsedTime(now, deadlineTimestamp);
 
         var silenceCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         var delay = _clock.DelayAsync(remaining, silenceCancellation.Token).AsTask();
-        return (silenceCancellation, delay);
+        return (silenceCancellation, delay, deadlineTimestamp);
+    }
+
+    private bool CompleteOnSilence(long timestamp)
+    {
+        var completed = _assembler.CompleteOnSilence(timestamp);
+        if (completed is null)
+        {
+            return false;
+        }
+
+        Append(completed);
+        return true;
     }
 
     private void Append(Scanio.Domain.Capture.CompletedScan scan)
@@ -191,6 +269,32 @@ public sealed class ScanProcessingPipeline : IScanProcessingPipeline
         {
             cancellation.Dispose();
         }
+    }
+
+    private static async Task ObservePendingReadAsync(Task<bool>? moveNext)
+    {
+        if (moveNext is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await moveNext.ConfigureAwait(false);
+        }
+        catch
+        {
+            // Cancellation or a transport failure is already represented by the
+            // pipeline outcome. The read must still be observed before disposal.
+        }
+    }
+
+    private static long AddStopwatchDuration(long timestamp, TimeSpan duration)
+    {
+        var ticks = (long)Math.Ceiling(duration.TotalSeconds * Stopwatch.Frequency);
+        return timestamp > long.MaxValue - ticks
+            ? long.MaxValue
+            : timestamp + ticks;
     }
 
     private sealed class StopwatchProcessingClock : IScanProcessingClock
