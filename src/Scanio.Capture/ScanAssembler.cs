@@ -16,6 +16,10 @@ public sealed class ScanAssembler
         _framing = _options.CreateSnapshot();
     }
 
+    public bool HasPending => _buffer.Count > 0;
+
+    public ScanFramingSnapshot Framing => _framing;
+
     public IReadOnlyList<CompletedScan> Push(RawChunk chunk)
     {
         ArgumentNullException.ThrowIfNull(chunk);

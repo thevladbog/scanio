@@ -81,6 +81,32 @@ public sealed class ConnectionCoordinatorTests
     }
 
     [TestMethod]
+    public async Task ProcessingFailure_PreservesDeviceRemovedAsTheTerminalState()
+    {
+        var transport = new FakeTransport("COM7");
+        var coordinator = new ConnectionCoordinator(new DeviceRemovedFailingPipeline());
+        var removalPublished = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        coordinator.StatusChanged += (_, status) =>
+        {
+            if (status.State == ConnectionState.DeviceRemoved)
+            {
+                removalPublished.TrySetResult();
+            }
+        };
+
+        await coordinator.ConnectAsync(transport, CancellationToken.None);
+        await removalPublished.Task.WaitAsync(TimeSpan.FromSeconds(1));
+
+        Assert.AreEqual(ConnectionState.DeviceRemoved, coordinator.Events[^1].State);
+        CollectionAssert.DoesNotContain(
+            coordinator.Events.SkipWhile(status => status.State != ConnectionState.Connected).Skip(1)
+                .Select(status => status.State).ToArray(),
+            ConnectionState.TransportError);
+        Assert.AreEqual(1, transport.CloseCount);
+        Assert.AreEqual(1, transport.DisposeCount);
+    }
+
+    [TestMethod]
     public async Task ShutdownAsync_DoesNotReturnUntilTheTransportHasClosed()
     {
         var pipeline = new ControllablePipeline();
@@ -126,6 +152,15 @@ public sealed class ConnectionCoordinatorTests
             _completion.Task.WaitAsync(cancellationToken);
 
         public void Complete() => _completion.TrySetResult();
+    }
+
+    private sealed class DeviceRemovedFailingPipeline : IScanProcessingPipeline
+    {
+        public Task ProcessAsync(IScannerTransport transport, CancellationToken cancellationToken)
+        {
+            ((FakeTransport)transport).State = ConnectionState.DeviceRemoved;
+            return Task.FromException(new IOException("The scanner was removed during a read."));
+        }
     }
 
     private sealed class FakeTransport(string stableId) : IScannerTransport

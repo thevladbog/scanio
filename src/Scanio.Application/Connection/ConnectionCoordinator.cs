@@ -192,7 +192,6 @@ public sealed class ConnectionCoordinator
 
     private async Task ObserveCompletionAsync(ActiveSession session)
     {
-        Exception? processingFailure = null;
         try
         {
             await session.Processing.ConfigureAwait(false);
@@ -201,9 +200,10 @@ public sealed class ConnectionCoordinator
         {
             return;
         }
-        catch (Exception exception)
+        catch
         {
-            processingFailure = exception;
+            // The transport state below distinguishes physical removal from
+            // other processing failures while preserving deterministic cleanup.
         }
 
         await _lifecycle.WaitAsync().ConfigureAwait(false);
@@ -214,7 +214,7 @@ public sealed class ConnectionCoordinator
                 return;
             }
 
-            var terminalState = processingFailure is null && session.Transport.State == ConnectionState.DeviceRemoved
+            var terminalState = session.Transport.State == ConnectionState.DeviceRemoved
                 ? ConnectionState.DeviceRemoved
                 : ConnectionState.TransportError;
 
