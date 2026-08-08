@@ -1,0 +1,19 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Scanio.Analysis/Scanio.Analysis.csproj" />
+    <Project Path="src/Scanio.Application/Scanio.Application.csproj" />
+    <Project Path="src/Scanio.Capture/Scanio.Capture.csproj" />
+    <Project Path="src/Scanio.Domain/Scanio.Domain.csproj" />
+    <Project Path="src/Scanio.Platform.Windows/Scanio.Platform.Windows.csproj" />
+    <Project Path="src/Scanio.Presentation/Scanio.Presentation.csproj" />
+    <Project Path="src/Scanio.Transports/Scanio.Transports.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Scanio.Analysis.Tests/Scanio.Analysis.Tests.csproj" />
+    <Project Path="tests/Scanio.Application.Tests/Scanio.Application.Tests.csproj" />
+    <Project Path="tests/Scanio.Capture.Tests/Scanio.Capture.Tests.csproj" />
+    <Project Path="tests/Scanio.Platform.Windows.Tests/Scanio.Platform.Windows.Tests.csproj" />
+    <Project Path="tests/Scanio.Presentation.Tests/Scanio.Presentation.Tests.csproj" />
+    <Project Path="tests/Scanio.Transports.Tests/Scanio.Transports.Tests.csproj" />
+  </Folder>
+</Solution>

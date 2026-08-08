@@ -1,0 +1,44 @@
+{
+  "version": 1,
+  "dependencies": {
+    "net10.0-windows10.0.19041": {
+      "scanio.analysis": {
+        "type": "Project",
+        "dependencies": {
+          "Scanio.Domain": "[1.0.0, )"
+        }
+      },
+      "scanio.application": {
+        "type": "Project",
+        "dependencies": {
+          "Scanio.Analysis": "[1.0.0, )",
+          "Scanio.Capture": "[1.0.0, )",
+          "Scanio.Domain": "[1.0.0, )",
+          "Scanio.Transports": "[1.0.0, )"
+        }
+      },
+      "scanio.capture": {
+        "type": "Project",
+        "dependencies": {
+          "Scanio.Domain": "[1.0.0, )"
+        }
+      },
+      "scanio.domain": {
+        "type": "Project"
+      },
+      "scanio.platform.windows": {
+        "type": "Project",
+        "dependencies": {
+          "Scanio.Domain": "[1.0.0, )"
+        }
+      },
+      "scanio.transports": {
+        "type": "Project",
+        "dependencies": {
+          "Scanio.Domain": "[1.0.0, )"
+        }
+      }
+    },
+    "net10.0-windows10.0.19041/win-x64": {}
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "dependencies": {
+    "net10.0": {
+      "scanio.analysis": {
+        "type": "Project",
+        "dependencies": {
+          "Scanio.Domain": "[1.0.0, )"
+        }
+      },
+      "scanio.capture": {
+        "type": "Project",
+        "dependencies": {
+          "Scanio.Domain": "[1.0.0, )"
+        }
+      },
+      "scanio.domain": {
+        "type": "Project"
+      },
+      "scanio.transports": {
+        "type": "Project",
+        "dependencies": {
+          "Scanio.Domain": "[1.0.0, )"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\Scanio.Domain\Scanio.Domain.csproj" />
+    <ProjectReference Include="..\Scanio.Application\Scanio.Application.csproj" />
+    <ProjectReference Include="..\Scanio.Platform.Windows\Scanio.Platform.Windows.csproj" />
+  </ItemGroup>
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <OutputType>WinExe</OutputType>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+  </PropertyGroup>
+</Project>
