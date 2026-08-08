@@ -9,6 +9,7 @@ public sealed class SerialTransport : IScannerTransport
 {
     private const int ReadBufferSize = 4_096;
     private readonly ISerialPortAdapter _adapter;
+    private readonly Action? _beforeReadRegistration;
     private readonly object _gate = new();
     private CancellationTokenSource? _lifetimeCancellation;
     private TaskCompletionSource<bool>? _activeReadCompletion;
@@ -29,6 +30,15 @@ public sealed class SerialTransport : IScannerTransport
         TransportIdentity identity,
         SerialConnectionOptions options,
         ISerialPortAdapter adapter)
+        : this(identity, options, adapter, beforeReadRegistration: null)
+    {
+    }
+
+    internal SerialTransport(
+        TransportIdentity identity,
+        SerialConnectionOptions options,
+        ISerialPortAdapter adapter,
+        Action? beforeReadRegistration)
     {
         ArgumentNullException.ThrowIfNull(identity);
         ArgumentNullException.ThrowIfNull(options);
@@ -42,6 +52,7 @@ public sealed class SerialTransport : IScannerTransport
         Identity = identity;
         Options = options;
         _adapter = adapter;
+        _beforeReadRegistration = beforeReadRegistration;
     }
 
     public TransportIdentity Identity { get; }
@@ -76,14 +87,14 @@ public sealed class SerialTransport : IScannerTransport
             {
                 _adapter.Open();
             }
-            catch (UnauthorizedAccessException)
+            catch (SerialPortOpenException exception)
             {
-                _state = ConnectionState.AccessDenied;
-                throw;
-            }
-            catch (IOException)
-            {
-                _state = ConnectionState.Busy;
+                _state = exception.FailureKind switch
+                {
+                    SerialPortOpenFailureKind.AccessDenied => ConnectionState.AccessDenied,
+                    SerialPortOpenFailureKind.Busy => ConnectionState.Busy,
+                    _ => ConnectionState.TransportError
+                };
                 throw;
             }
             catch
@@ -130,9 +141,16 @@ public sealed class SerialTransport : IScannerTransport
             while (true)
             {
                 linkedCancellation.Token.ThrowIfCancellationRequested();
+                _beforeReadRegistration?.Invoke();
                 var readCompletion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
                 lock (_gate)
                 {
+                    if (_state != ConnectionState.Connected || linkedCancellation.IsCancellationRequested)
+                    {
+                        linkedCancellation.Token.ThrowIfCancellationRequested();
+                        throw new InvalidOperationException("The serial transport is not open.");
+                    }
+
                     _activeReadCompletion = readCompletion;
                 }
 

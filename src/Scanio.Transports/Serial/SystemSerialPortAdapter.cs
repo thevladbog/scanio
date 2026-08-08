@@ -4,6 +4,10 @@ namespace Scanio.Transports.Serial;
 
 public sealed class SystemSerialPortAdapter : ISerialPortAdapter
 {
+    private const int ErrorAccessDenied = 5;
+    private const int ErrorSharingViolation = 32;
+    private const int ErrorLockViolation = 33;
+    private const int ErrorBusy = 170;
     private readonly SerialPort _serialPort;
 
     public SystemSerialPortAdapter(SerialConnectionOptions options)
@@ -23,7 +27,17 @@ public sealed class SystemSerialPortAdapter : ISerialPortAdapter
         };
     }
 
-    public void Open() => _serialPort.Open();
+    public void Open()
+    {
+        try
+        {
+            _serialPort.Open();
+        }
+        catch (Exception exception) when (exception is UnauthorizedAccessException or IOException)
+        {
+            throw ClassifyOpenException(exception);
+        }
+    }
 
     public ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken) =>
         _serialPort.BaseStream.ReadAsync(buffer, cancellationToken);
@@ -31,6 +45,26 @@ public sealed class SystemSerialPortAdapter : ISerialPortAdapter
     public void Close() => _serialPort.Close();
 
     public void Dispose() => _serialPort.Dispose();
+
+    internal static SerialPortOpenException ClassifyOpenException(Exception exception)
+    {
+        ArgumentNullException.ThrowIfNull(exception);
+
+        var nativeErrorCode = exception.HResult & 0xFFFF;
+        var failureKind = nativeErrorCode switch
+        {
+            ErrorSharingViolation or ErrorLockViolation or ErrorBusy => SerialPortOpenFailureKind.Busy,
+            ErrorAccessDenied => SerialPortOpenFailureKind.AccessDenied,
+            _ when exception is UnauthorizedAccessException => SerialPortOpenFailureKind.AccessDenied,
+            _ => SerialPortOpenFailureKind.Busy
+        };
+
+        return new SerialPortOpenException(
+            failureKind,
+            nativeErrorCode,
+            exception.Message,
+            exception);
+    }
 
     private static Parity MapParity(SerialParity parity) => parity switch
     {

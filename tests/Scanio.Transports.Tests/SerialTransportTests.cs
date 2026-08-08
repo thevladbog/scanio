@@ -107,15 +107,18 @@ public sealed class SerialTransportTests
     }
 
     [TestMethod]
-    public async Task OpenAsync_MapsUnauthorizedAccessWithoutRetrying()
+    public async Task OpenAsync_MapsTypedAccessDeniedFailureWithoutRetrying()
     {
         var adapter = new FakeSerialPortAdapter
         {
-            OpenException = new UnauthorizedAccessException("Access denied.")
+            OpenException = new SerialPortOpenException(
+                SerialPortOpenFailureKind.AccessDenied,
+                nativeErrorCode: 5,
+                "Access denied.")
         };
         await using var transport = CreateTransport(adapter);
 
-        await Assert.ThrowsExactlyAsync<UnauthorizedAccessException>(async () =>
+        await Assert.ThrowsExactlyAsync<SerialPortOpenException>(async () =>
             await transport.OpenAsync(CancellationToken.None));
 
         Assert.AreEqual(ConnectionState.AccessDenied, transport.State);
@@ -123,19 +126,46 @@ public sealed class SerialTransportTests
     }
 
     [TestMethod]
-    public async Task OpenAsync_MapsBusyOrSharingFailureWithoutRetrying()
+    public async Task OpenAsync_MapsTypedBusyOrSharingFailureWithoutRetrying()
     {
         var adapter = new FakeSerialPortAdapter
         {
-            OpenException = new IOException("The port is already in use.")
+            OpenException = new SerialPortOpenException(
+                SerialPortOpenFailureKind.Busy,
+                nativeErrorCode: 32,
+                "The port is already in use.")
         };
         await using var transport = CreateTransport(adapter);
 
-        await Assert.ThrowsExactlyAsync<IOException>(async () =>
+        await Assert.ThrowsExactlyAsync<SerialPortOpenException>(async () =>
             await transport.OpenAsync(CancellationToken.None));
 
         Assert.AreEqual(ConnectionState.Busy, transport.State);
         Assert.AreEqual(1, adapter.OpenCount);
+    }
+
+    [TestMethod]
+    public void SystemAdapter_ClassifiesWindowsAccessDeniedHResult()
+    {
+        var source = new WindowsUnauthorizedAccessException(errorCode: 5);
+
+        var classified = SystemSerialPortAdapter.ClassifyOpenException(source);
+
+        Assert.AreEqual(SerialPortOpenFailureKind.AccessDenied, classified.FailureKind);
+        Assert.AreEqual(5, classified.NativeErrorCode);
+        Assert.AreSame(source, classified.InnerException);
+    }
+
+    [TestMethod]
+    public void SystemAdapter_ClassifiesWindowsSharingViolationHResultAsBusy()
+    {
+        var source = new WindowsUnauthorizedAccessException(errorCode: 32);
+
+        var classified = SystemSerialPortAdapter.ClassifyOpenException(source);
+
+        Assert.AreEqual(SerialPortOpenFailureKind.Busy, classified.FailureKind);
+        Assert.AreEqual(32, classified.NativeErrorCode);
+        Assert.AreSame(source, classified.InnerException);
     }
 
     [TestMethod]
@@ -189,6 +219,37 @@ public sealed class SerialTransportTests
         Assert.AreEqual(1, adapter.DisposeCount);
     }
 
+    [TestMethod]
+    [Timeout(2_000, CooperativeCancellation = true)]
+    public async Task CloseAsync_CannotCloseBeforeReadRegistrationThenAllowAnAdapterRead()
+    {
+        var adapter = new FakeSerialPortAdapter { BlockReads = true };
+        var readerReachedRegistration = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        using var allowRegistration = new ManualResetEventSlim();
+        var transport = new SerialTransport(
+            Identity,
+            SerialConnectionOptions.Default("COM7"),
+            adapter,
+            beforeReadRegistration: () =>
+            {
+                readerReachedRegistration.TrySetResult(true);
+                allowRegistration.Wait(TimeSpan.FromSeconds(1));
+            });
+        await transport.OpenAsync(CancellationToken.None);
+        await using var chunks = transport.ReadAllAsync(CancellationToken.None).GetAsyncEnumerator();
+        var pendingRead = Task.Run(async () => await chunks.MoveNextAsync());
+        await readerReachedRegistration.Task.WaitAsync(TimeSpan.FromSeconds(1));
+
+        await transport.CloseAsync(CancellationToken.None).AsTask().WaitAsync(TimeSpan.FromSeconds(1));
+        allowRegistration.Set();
+
+        await Assert.ThrowsAsync<OperationCanceledException>(async () => await pendingRead);
+        Assert.AreEqual(0, adapter.ReadCount);
+        Assert.AreEqual(1, adapter.CloseCount);
+        await transport.DisposeAsync();
+    }
+
     private static SerialConnectionOptions CreateOptions(
         string portName = "COM7",
         int baudRate = 9_600,
@@ -222,6 +283,8 @@ public sealed class SerialTransportTests
 
         public int DisposeCount { get; private set; }
 
+        public int ReadCount { get; private set; }
+
         public bool ReadWasCancelled { get; private set; }
 
         public TaskCompletionSource<bool> ReadStarted { get; } =
@@ -238,6 +301,7 @@ public sealed class SerialTransportTests
 
         public async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken)
         {
+            ReadCount++;
             ReadStarted.TrySetResult(true);
 
             if (ReadException is not null)
@@ -272,5 +336,13 @@ public sealed class SerialTransportTests
         public void Close() => CloseCount++;
 
         public void Dispose() => DisposeCount++;
+    }
+
+    private sealed class WindowsUnauthorizedAccessException : UnauthorizedAccessException
+    {
+        public WindowsUnauthorizedAccessException(int errorCode)
+        {
+            HResult = unchecked((int)(0x80070000U | (uint)errorCode));
+        }
     }
 }
