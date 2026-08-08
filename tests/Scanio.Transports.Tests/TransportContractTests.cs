@@ -1,6 +1,8 @@
 using Scanio.Domain.Capture;
 using Scanio.Domain.Transport;
 using Scanio.Transports;
+using System.Collections.Immutable;
+using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
 
 namespace Scanio.Transports.Tests;
@@ -9,6 +11,8 @@ namespace Scanio.Transports.Tests;
 public sealed class TransportContractTests
 {
     private static readonly TransportIdentity Identity = new(TransportKind.Serial, "scanner-1", "Test scanner");
+    private static readonly ScanFramingSnapshot Framing =
+        ScanFramingSnapshot.Create(new byte[] { 0x0D }, TimeSpan.FromMilliseconds(100), 65_536);
 
     [TestMethod]
     public void TransportIdentity_UsesAClassifiedNonEmptyStableIdentity()
@@ -50,6 +54,70 @@ public sealed class TransportContractTests
         source[0] = 0x39;
 
         CollectionAssert.AreEqual(new byte[] { 0x31, 0x0D }, chunk.Bytes.ToArray());
+    }
+
+    [TestMethod]
+    public void RawChunk_ConstructorCopiesTheImmutableArrayBackingBytes()
+    {
+        var source = new byte[] { 0x31, 0x0D };
+        var bytes = ImmutableCollectionsMarshal.AsImmutableArray(source);
+
+        var chunk = new RawChunk(1, bytes, DateTimeOffset.UnixEpoch, 10, Identity);
+        source[0] = 0x39;
+
+        CollectionAssert.AreEqual(new byte[] { 0x31, 0x0D }, chunk.Bytes.ToArray());
+    }
+
+    [TestMethod]
+    public void CompletedScan_ConstructorCopiesRawAndPayloadBackingBytes()
+    {
+        var rawSource = new byte[] { 0x31, 0x0D };
+        var payloadSource = new byte[] { 0x31 };
+        var chunk = RawChunk.Create(1, rawSource, DateTimeOffset.UnixEpoch, 10, Identity);
+
+        var scan = new CompletedScan(
+            1,
+            ImmutableCollectionsMarshal.AsImmutableArray(rawSource),
+            ImmutableCollectionsMarshal.AsImmutableArray(payloadSource),
+            ImmutableArray.Create(chunk),
+            DateTimeOffset.UnixEpoch,
+            DateTimeOffset.UnixEpoch,
+            10,
+            10,
+            ScanCompletionReason.Terminator,
+            Framing,
+            Identity);
+        rawSource[0] = 0x39;
+        payloadSource[0] = 0x39;
+
+        CollectionAssert.AreEqual(new byte[] { 0x31, 0x0D }, scan.RawBytes.ToArray());
+        CollectionAssert.AreEqual(new byte[] { 0x31 }, scan.PayloadBytes.ToArray());
+    }
+
+    [TestMethod]
+    public void CompletedScan_CreateCopiesRawAndPayloadBytes()
+    {
+        var rawSource = new byte[] { 0x31, 0x0D };
+        var payloadSource = new byte[] { 0x31 };
+        var chunk = RawChunk.Create(1, rawSource, DateTimeOffset.UnixEpoch, 10, Identity);
+
+        var scan = CompletedScan.Create(
+            1,
+            rawSource,
+            payloadSource,
+            new[] { chunk },
+            DateTimeOffset.UnixEpoch,
+            DateTimeOffset.UnixEpoch,
+            10,
+            10,
+            ScanCompletionReason.Terminator,
+            Framing,
+            Identity);
+        rawSource[0] = 0x39;
+        payloadSource[0] = 0x39;
+
+        CollectionAssert.AreEqual(new byte[] { 0x31, 0x0D }, scan.RawBytes.ToArray());
+        CollectionAssert.AreEqual(new byte[] { 0x31 }, scan.PayloadBytes.ToArray());
     }
 
     [TestMethod]
