@@ -6,11 +6,7 @@ namespace Scanio.Analysis.Tests;
 [TestClass]
 public sealed class AnalyzerPipelineTests
 {
-    private static readonly ScanAnalyzerPipeline Pipeline = new(new IScanAnalyzer[]
-    {
-        new PlainTextAnalyzer(),
-        new EanUpcAnalyzer()
-    });
+    private static readonly ScanAnalyzerPipeline Pipeline = BuiltInAnalyzers.CreatePipeline();
 
     [TestMethod]
     public void Analyze_RecognizesAValidEan13WithoutClaimingPhysicalSymbology()
@@ -79,6 +75,31 @@ public sealed class AnalyzerPipelineTests
 
         Assert.HasCount(1, results);
         Assert.AreEqual("Late structured", results[0].Format);
+    }
+
+    [TestMethod]
+    public void BuiltIns_RecognizeEverySupportedFormatWithoutClaimingPhysicalSymbology()
+    {
+        var fixtures = new Dictionary<string, string>
+        {
+            ["GS1 element string"] = "(01)04601234567893(10)LOT-7",
+            ["EAN-8"] = "96385074",
+            ["IATA BCBP"] = "M1DOE/IVAN".PadRight(22) + "E" + "ABC123 "+ "SVO" + "LED" + "SU " + "00123" + "123" + "C" + "12A " + "00001" + "1" + "00",
+            ["URL"] = "https://scanio.example/monitor",
+            ["Plain text"] = "scanner diagnostics"
+        };
+
+        foreach (var fixture in fixtures)
+        {
+            var results = Pipeline.Analyze(DecodedPayload.Create(
+                System.Text.Encoding.UTF8.GetBytes(fixture.Value),
+                PayloadTextEncoding.Utf8,
+                fixture.Value,
+                fixture.Value));
+
+            Assert.IsTrue(results.Any(result => result.Format == fixture.Key), $"Missing {fixture.Key} result.");
+            Assert.IsTrue(results.All(result => result.PhysicalSymbology is null));
+        }
     }
 
     private sealed class ThrowingAnalyzer : IScanAnalyzer

@@ -17,7 +17,7 @@ public partial class App : System.Windows.Application
 
         var monitor = new LiveMonitor();
         var assembler = new ScanAssembler();
-        var analyzers = new ScanAnalyzerPipeline([new EanUpcAnalyzer(), new PlainTextAnalyzer()]);
+        var analyzers = BuiltInAnalyzers.CreatePipeline();
         var pipeline = new ScanProcessingPipeline(assembler, PayloadTextEncoding.Utf8, analyzers, monitor);
         var coordinator = new ConnectionCoordinator(pipeline);
         var connection = new ConnectionService(coordinator);
