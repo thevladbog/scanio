@@ -34,6 +34,17 @@ public sealed record LiveScanEvent
     public int DuplicateCount { get; init; }
 }
 
+public sealed class LiveScanEventAppendedEventArgs : EventArgs
+{
+    public LiveScanEventAppendedEventArgs(LiveScanEvent scanEvent)
+    {
+        ArgumentNullException.ThrowIfNull(scanEvent);
+        ScanEvent = scanEvent;
+    }
+
+    public LiveScanEvent ScanEvent { get; }
+}
+
 public sealed class LiveMonitor
 {
     public const int Capacity = 1_000;
@@ -45,6 +56,8 @@ public sealed class LiveMonitor
     private bool _isFollowingLatest = true;
 
     public event EventHandler? Changed;
+
+    public event EventHandler<LiveScanEventAppendedEventArgs>? EventAppended;
 
     public ImmutableArray<LiveScanEvent> Events
     {
@@ -119,6 +132,7 @@ public sealed class LiveMonitor
         }
 
         NotifyChanged();
+        NotifyEventAppended(appended);
         return appended;
     }
 
@@ -217,6 +231,28 @@ public sealed class LiveMonitor
             catch
             {
                 // A presentation observer must not interrupt capture processing.
+            }
+        }
+    }
+
+    private void NotifyEventAppended(LiveScanEvent appended)
+    {
+        var subscribers = EventAppended;
+        if (subscribers is null)
+        {
+            return;
+        }
+
+        var args = new LiveScanEventAppendedEventArgs(appended);
+        foreach (EventHandler<LiveScanEventAppendedEventArgs> subscriber in subscribers.GetInvocationList())
+        {
+            try
+            {
+                subscriber(this, args);
+            }
+            catch
+            {
+                // Persistence and presentation observers must not interrupt capture processing.
             }
         }
     }

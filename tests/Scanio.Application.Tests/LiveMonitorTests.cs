@@ -92,6 +92,36 @@ public sealed class LiveMonitorTests
         Assert.HasCount(1, observed[0]);
     }
 
+    [TestMethod]
+    public void EventAppended_EmitsEveryOccurrenceInOrderAfterTheMonitorOwnsIt()
+    {
+        var monitor = new LiveMonitor();
+        var observed = new List<(LiveScanEvent Event, bool IsOwned)>();
+        monitor.EventAppended += (_, args) =>
+            observed.Add((args.ScanEvent, monitor.Events.Any(item => item.Id == args.ScanEvent.Id)));
+
+        monitor.Append(CreateScan(1, [0x31]), CreateDecoded(1), []);
+        monitor.Append(CreateScan(2, [0x31]), CreateDecoded(2), []);
+
+        Assert.HasCount(2, observed);
+        CollectionAssert.AreEqual(new long[] { 1, 2 }, observed.Select(item => item.Event.Scan.Sequence).ToArray());
+        Assert.IsTrue(observed.All(item => item.IsOwned));
+    }
+
+    [TestMethod]
+    public void EventAppended_WhenOneSubscriberThrows_NotifiesRemainingSubscribersAndReturnsNormally()
+    {
+        var monitor = new LiveMonitor();
+        LiveScanEvent? observed = null;
+        monitor.EventAppended += (_, _) => throw new InvalidOperationException("observer failure");
+        monitor.EventAppended += (_, args) => observed = args.ScanEvent;
+
+        var appended = monitor.Append(CreateScan(1, [0x31]), CreateDecoded(1), []);
+
+        Assert.AreSame(appended, observed);
+        Assert.HasCount(1, monitor.Events);
+    }
+
     private static CompletedScan CreateScan(long sequence, byte[] payload) =>
         CompletedScan.Create(
             sequence,
