@@ -71,6 +71,50 @@ public sealed class ShellLayoutContractTests
             $"The Connect action has only {contrastRatio:F2}:1 contrast against its status panel, so it is not visibly discoverable.");
     }
 
+    [TestMethod]
+    public void HeaderNavigation_ExposesExactlyOneActiveDestination()
+    {
+        var layoutDirectory = Path.Combine(AppContext.BaseDirectory, "LayoutContracts");
+        var window = XDocument.Load(Path.Combine(layoutDirectory, "MainWindow.xaml"));
+        var controls = XDocument.Load(Path.Combine(layoutDirectory, "Controls.xaml"));
+
+        var navigation = window.Descendants(Presentation + "StackPanel")
+            .Single(element => (string?)element.Attribute("Grid.Column") == "1")
+            .Elements()
+            .ToArray();
+
+        Assert.IsNotEmpty(navigation);
+        Assert.IsTrue(
+            navigation.All(element => element.Name == Presentation + "RadioButton"),
+            "Header destinations must form one selectable navigation group instead of independent action buttons.");
+        Assert.AreEqual(
+            1,
+            navigation.Count(element => string.Equals((string?)element.Attribute("IsChecked"), "True", StringComparison.OrdinalIgnoreCase)),
+            "Exactly one destination must be visibly active when the window opens.");
+        Assert.AreEqual(
+            1,
+            navigation.Select(element => (string?)element.Attribute("GroupName")).Distinct(StringComparer.Ordinal).Count(),
+            "All header destinations must share one radio group so selecting another destination clears the old active state.");
+
+        var styleKey = ExtractResourceKey(navigation[0].Attribute("Style")!.Value);
+        var navigationStyle = controls.Descendants(Presentation + "Style")
+            .Single(element => (string?)element.Attribute(Xaml + "Key") == styleKey);
+        var checkedTrigger = navigationStyle.Descendants(Presentation + "Trigger")
+            .Single(element =>
+                (string?)element.Attribute("Property") == "IsChecked" &&
+                string.Equals((string?)element.Attribute("Value"), "True", StringComparison.OrdinalIgnoreCase));
+        var checkedSetters = checkedTrigger.Elements(Presentation + "Setter")
+            .ToDictionary(
+                element => element.Attribute("Property")!.Value,
+                element => element.Attribute("Value")!.Value,
+                StringComparer.Ordinal);
+
+        Assert.AreEqual("{DynamicResource Brush.Signal}", checkedSetters["BorderBrush"]);
+        Assert.AreEqual("0,0,0,4", checkedSetters["BorderThickness"]);
+        Assert.AreEqual("{DynamicResource Brush.TextPrimary}", checkedSetters["Foreground"]);
+        Assert.AreEqual("SemiBold", checkedSetters["FontWeight"]);
+    }
+
     private static Dictionary<string, string> LoadResources(string path) =>
         XDocument.Load(path).Root!.Elements()
             .Where(element => element.Attribute(Xaml + "Key") is not null)

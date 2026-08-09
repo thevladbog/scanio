@@ -20,11 +20,11 @@
                 </Grid.ColumnDefinitions>
                 <Image Source="Assets/scanio-logo-ru.png" Width="160" HorizontalAlignment="Left" Stretch="Uniform" />
                 <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center">
-                    <Button x:Name="ConnectionNavigation" Content="Подключение" Click="ShowConnection" Style="{DynamicResource CommandButton}" Margin="4,0" />
-                    <Button x:Name="MonitorNavigation" Content="Монитор" Click="ShowMonitor" Style="{DynamicResource CommandButton}" Margin="4,0" />
-                    <Button x:Name="NotebookNavigation" Content="Блокнот" Click="ShowNotebook" Style="{DynamicResource CommandButton}" Margin="4,0" />
-                    <Button x:Name="HistoryNavigation" Content="История" Click="ShowHistory" Style="{DynamicResource CommandButton}" Margin="4,0" />
-                    <Button Content="Настройки" IsEnabled="False" Style="{DynamicResource CommandButton}" Margin="4,0" />
+                    <RadioButton x:Name="ConnectionNavigation" GroupName="PrimaryNavigation" IsChecked="True" Content="Подключение" Click="ShowConnection" Style="{DynamicResource NavigationButton}" Margin="4,0" />
+                    <RadioButton x:Name="MonitorNavigation" GroupName="PrimaryNavigation" Content="Монитор" Click="ShowMonitor" Style="{DynamicResource NavigationButton}" Margin="4,0" />
+                    <RadioButton x:Name="NotebookNavigation" GroupName="PrimaryNavigation" Content="Блокнот" Click="ShowNotebook" Style="{DynamicResource NavigationButton}" Margin="4,0" />
+                    <RadioButton x:Name="HistoryNavigation" GroupName="PrimaryNavigation" Content="История" Click="ShowHistory" Style="{DynamicResource NavigationButton}" Margin="4,0" />
+                    <RadioButton GroupName="PrimaryNavigation" Content="Настройки" IsEnabled="False" Style="{DynamicResource NavigationButton}" Margin="4,0" />
                 </StackPanel>
                 <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
                     <TextBlock Text="{Binding Monitor.ConnectionLabel}" VerticalAlignment="Center" Margin="0,0,12,0" />
