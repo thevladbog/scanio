@@ -46,9 +46,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          $notes = "docs/releases/${{ github.ref_name }}.md"
+          if (-not (Test-Path $notes)) {
+            throw "Release notes not found: $notes"
+          }
           gh release create "${{ github.ref_name }}" `
             artifacts/Scanio-*-win-x64-portable.zip `
             artifacts/SHA256SUMS.txt `
             --title "Scanio ${{ github.ref_name }}" `
-            --notes-file docs/releases/v0.1.0-alpha.1.md `
+            --notes-file $notes `
             --prerelease
