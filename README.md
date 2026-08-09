@@ -22,12 +22,20 @@ The package is self-contained and does not require a preinstalled .NET runtime. 
 - terminator, silence-timeout, and overflow framing with original bytes retained;
 - live scan ledger with duplicate counts, RAW, HEX, framing reason, and read chunks;
 - UTF-8, ASCII, Windows-1251, and Latin-1 decoding;
-- EAN-13 check-digit validation and plain-text fallback;
+- GS1 application-identifier parsing with FNC1/GS separator handling and validation;
+- offline Честный знак field extraction with conservative local product-group candidates;
+- EAN-8, EAN-13, and UPC-A check-digit validation;
+- IATA BCBP mandatory-field parsing with partial-data diagnostics;
+- safe HTTP/HTTPS URL recognition without automatic navigation;
+- structured fields, confidence, evidence, errors, and warnings in the Monitor;
+- plain-text fallback for unstructured decoded data;
 - deterministic port release on Disconnect and application exit.
 
 ## Not included in this alpha
 
-Direct USB HID/POS, keyboard-wedge capture, GS1/Честный знак parsing, IATA BCBP parsing, Notebook, History, persistence, exports, installer, automatic updates, telemetry, accounts, cloud sync, Linux, and macOS support are not included.
+Direct USB HID/POS, keyboard-wedge capture, Notebook, History, persistence, exports, installer, automatic updates, telemetry, accounts, cloud sync, Linux, and macOS application support are not included.
+
+Payload structure does not prove the physical barcode symbology. Scanio only reports exact physical symbology when future transport/AIM evidence provides it. Честный знак analysis is fully offline, does not contact official services, does not verify cryptographic validity, and returns multiple candidates or `Not determined` when local structural rules are ambiguous.
 
 Physical Datalogic and Zebra verification is intentionally marked **not run** until tested on real Windows hardware. Use [the acceptance matrix](docs/acceptance/com-capture-matrix.md) to record results.
 

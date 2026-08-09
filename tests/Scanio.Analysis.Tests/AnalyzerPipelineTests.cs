@@ -84,7 +84,7 @@ public sealed class AnalyzerPipelineTests
         {
             ["GS1 element string"] = "(01)04601234567893(10)LOT-7",
             ["EAN-8"] = "96385074",
-            ["IATA BCBP"] = "M1DOE/IVAN".PadRight(22) + "E" + "ABC123 "+ "SVO" + "LED" + "SU " + "00123" + "123" + "C" + "12A " + "00001" + "1" + "00",
+            ["IATA BCBP"] = "M1DOE/IVAN".PadRight(22) + "E" + "ABC123 " + "SVO" + "LED" + "SU " + "00123" + "123" + "C" + "12A " + "00001" + "1" + "00",
             ["URL"] = "https://scanio.example/monitor",
             ["Plain text"] = "scanner diagnostics"
         };
