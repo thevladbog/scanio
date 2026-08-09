@@ -197,46 +197,45 @@ public sealed class ConnectionViewModelTests
 
     [TestMethod]
     [Timeout(5_000, CooperativeCancellation = true)]
-    public async Task ConnectionService_DelayedOldKeyboardTerminalCannotClearNewGeneration()
+    public async Task ConnectionService_AutomaticOldKeyboardTerminalCannotClearQueuedNewGeneration()
     {
-        var coordinator = new ConnectionCoordinator(new BlockingPipeline());
-        var delayedStatusEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        using var releaseDelayedStatus = new ManualResetEventSlim();
-        var delayOldDetectedStatus = false;
+        var pipeline = new TwoGenerationPipeline();
+        var coordinator = new ConnectionCoordinator(pipeline);
+        var oldTerminalEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var releaseOldTerminal = new ManualResetEventSlim();
         coordinator.StatusChanged += (_, status) =>
         {
-            if (delayOldDetectedStatus && status.State == ConnectionState.Detected)
+            if (status.State == ConnectionState.TransportError && oldTerminalEntered.TrySetResult())
             {
-                delayedStatusEntered.TrySetResult();
-                releaseDelayedStatus.Wait(TimeSpan.FromSeconds(4));
+                releaseOldTerminal.Wait(TimeSpan.FromSeconds(4));
             }
         };
         var service = new ConnectionService(coordinator);
         await service.ConnectKeyboardAsync(CancellationToken.None);
-        var oldIdentity = service.CurrentSnapshot!.Identity;
-        await service.DisconnectAsync(CancellationToken.None);
-        delayOldDetectedStatus = true;
-        var delayedNotification = Task.Run(() => coordinator.ReportDetected(oldIdentity));
-        await delayedStatusEntered.Task.WaitAsync(TimeSpan.FromSeconds(1));
+        var oldInput = service.KeyboardInput;
+        pipeline.CompleteFirstGeneration();
+        await oldTerminalEntered.Task.WaitAsync(TimeSpan.FromSeconds(1));
+        var reconnecting = service.ConnectKeyboardAsync(CancellationToken.None);
 
         try
         {
-            await service.ConnectKeyboardAsync(CancellationToken.None);
+            Assert.IsFalse(reconnecting.IsCompleted);
+
+            releaseOldTerminal.Set();
+            await reconnecting.WaitAsync(TimeSpan.FromSeconds(1));
             var newInput = service.KeyboardInput;
             var newSnapshot = service.CurrentSnapshot;
 
-            releaseDelayedStatus.Set();
-            await delayedNotification.WaitAsync(TimeSpan.FromSeconds(1));
-
             Assert.IsNotNull(newInput);
-            Assert.AreSame(newInput, service.KeyboardInput);
-            Assert.AreSame(newSnapshot, service.CurrentSnapshot);
-            Assert.AreEqual(ConnectionState.Connected, service.CurrentSnapshot?.State);
+            Assert.AreNotSame(oldInput, newInput);
+            Assert.IsTrue(newInput.AppendText("new-generation"));
+            Assert.IsNotNull(newSnapshot);
+            Assert.AreEqual(TransportKind.KeyboardCapture, newSnapshot.Identity.Kind);
+            Assert.AreEqual(ConnectionState.Connected, newSnapshot.State);
         }
         finally
         {
-            releaseDelayedStatus.Set();
-            await delayedNotification.WaitAsync(TimeSpan.FromSeconds(1));
+            releaseOldTerminal.Set();
             await service.DisconnectAsync(CancellationToken.None);
         }
     }
@@ -309,6 +308,20 @@ public sealed class ConnectionViewModelTests
     {
         public async Task ProcessAsync(IScannerTransport transport, CancellationToken cancellationToken) =>
             await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+    }
+
+    private sealed class TwoGenerationPipeline : IScanProcessingPipeline
+    {
+        private readonly TaskCompletionSource _firstGenerationCompletion =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private int _generation;
+
+        public Task ProcessAsync(IScannerTransport transport, CancellationToken cancellationToken) =>
+            Interlocked.Increment(ref _generation) == 1
+                ? _firstGenerationCompletion.Task
+                : Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+
+        public void CompleteFirstGeneration() => _firstGenerationCompletion.TrySetResult();
     }
 
     private sealed class FakeScannerTransport : IScannerTransport

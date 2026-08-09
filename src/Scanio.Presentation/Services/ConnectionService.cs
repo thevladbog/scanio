@@ -16,7 +16,7 @@ public sealed class ConnectionService : IConnectionService
     private ConnectionState _state = ConnectionState.Detected;
     private ConnectionPresentationSnapshot? _currentSnapshot;
     private IKeyboardCaptureInput? _keyboardInput;
-    private object? _snapshotOwner;
+    private PendingConnectionAttempt? _pendingAttempt;
     private long _lastStatusSequence;
 
     public ConnectionService(
@@ -84,15 +84,13 @@ public sealed class ConnectionService : IConnectionService
                 device.HardwareId,
                 device.PortName);
             var transport = _transportFactory(identity, options);
-            var attemptOwner = new object();
-            ConnectionPresentationSnapshot? previousSnapshot;
-            object? previousSnapshotOwner;
+            var attempt = new PendingConnectionAttempt(
+                new ConnectionPresentationSnapshot(identity, ConnectionState.Connecting, options),
+                KeyboardInput: null,
+                transport.Identity);
             lock (_presentationGate)
             {
-                previousSnapshot = _currentSnapshot;
-                previousSnapshotOwner = _snapshotOwner;
-                _currentSnapshot = new ConnectionPresentationSnapshot(identity, ConnectionState.Connecting, options);
-                _snapshotOwner = attemptOwner;
+                _pendingAttempt = attempt;
             }
 
             try
@@ -103,10 +101,9 @@ public sealed class ConnectionService : IConnectionService
             {
                 lock (_presentationGate)
                 {
-                    if (ReferenceEquals(_snapshotOwner, attemptOwner))
+                    if (ReferenceEquals(_pendingAttempt, attempt))
                     {
-                        _currentSnapshot = previousSnapshot;
-                        _snapshotOwner = previousSnapshotOwner;
+                        _pendingAttempt = null;
                     }
                 }
 
@@ -130,18 +127,13 @@ public sealed class ConnectionService : IConnectionService
                 "Keyboard scanner",
                 endpoint: "Keyboard");
             var transport = new KeyboardCaptureTransport(identity);
-            var attemptOwner = new object();
-            ConnectionPresentationSnapshot? previousSnapshot;
-            object? previousSnapshotOwner;
-            IKeyboardCaptureInput? previousKeyboardInput;
+            var attempt = new PendingConnectionAttempt(
+                new ConnectionPresentationSnapshot(identity, ConnectionState.Connecting, Options: null),
+                transport,
+                transport.Identity);
             lock (_presentationGate)
             {
-                previousSnapshot = _currentSnapshot;
-                previousSnapshotOwner = _snapshotOwner;
-                previousKeyboardInput = _keyboardInput;
-                _currentSnapshot = new ConnectionPresentationSnapshot(identity, ConnectionState.Connecting, Options: null);
-                _snapshotOwner = attemptOwner;
-                _keyboardInput = transport;
+                _pendingAttempt = attempt;
             }
 
             try
@@ -152,15 +144,9 @@ public sealed class ConnectionService : IConnectionService
             {
                 lock (_presentationGate)
                 {
-                    if (ReferenceEquals(_snapshotOwner, attemptOwner))
+                    if (ReferenceEquals(_pendingAttempt, attempt))
                     {
-                        _currentSnapshot = previousSnapshot;
-                        _snapshotOwner = previousSnapshotOwner;
-                    }
-
-                    if (ReferenceEquals(_keyboardInput, transport))
-                    {
-                        _keyboardInput = previousKeyboardInput;
+                        _pendingAttempt = null;
                     }
                 }
 
@@ -210,6 +196,19 @@ public sealed class ConnectionService : IConnectionService
 
             _lastStatusSequence = status.Sequence;
             _state = status.State;
+            if (status.State == ConnectionState.Connecting &&
+                _pendingAttempt is { } pending &&
+                pending.CoordinatorIdentity == status.Identity)
+            {
+                _currentSnapshot = pending.Snapshot with
+                {
+                    Identity = status.Identity,
+                    State = status.State
+                };
+                _keyboardInput = pending.KeyboardInput;
+                _pendingAttempt = null;
+            }
+
             if (status.Identity.Kind == TransportKind.KeyboardCapture && IsTerminal(status.State))
             {
                 _keyboardInput = null;
@@ -218,7 +217,6 @@ public sealed class ConnectionService : IConnectionService
             if (status.State is ConnectionState.Disconnected or ConnectionState.Detected)
             {
                 _currentSnapshot = null;
-                _snapshotOwner = null;
             }
             else if (_currentSnapshot is not null)
             {
@@ -227,10 +225,6 @@ public sealed class ConnectionService : IConnectionService
                     Identity = status.Identity ?? _currentSnapshot.Identity,
                     State = status.State
                 };
-                if (IsTerminal(status.State))
-                {
-                    _snapshotOwner = null;
-                }
             }
         }
 
@@ -239,4 +233,9 @@ public sealed class ConnectionService : IConnectionService
 
     private static bool IsTerminal(ConnectionState state) =>
         state is not (ConnectionState.Connecting or ConnectionState.Connected or ConnectionState.Disconnecting);
+
+    private sealed record PendingConnectionAttempt(
+        ConnectionPresentationSnapshot Snapshot,
+        IKeyboardCaptureInput? KeyboardInput,
+        TransportIdentity CoordinatorIdentity);
 }
