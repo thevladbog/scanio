@@ -8,7 +8,7 @@ public sealed class BuiltInFixtureCoverageTests
     private static readonly ScanAnalyzerPipeline Pipeline = BuiltInAnalyzers.CreatePipeline();
 
     [TestMethod]
-    [DataRow("Честный знак", "(01)04601234567893(21)ABC1234567890(91)ABCD(92)CRYPTO")]
+    [DataRow("GS1 DataMatrix", "(01)04601234567893(21)ABC1234567890(91)ABCD(92)CRYPTO")]
     [DataRow("GS1 element string", "(01)04601234567893(10)LOT-7")]
     [DataRow("EAN-8", "96385074")]
     [DataRow("UPC-A", "036000291452")]

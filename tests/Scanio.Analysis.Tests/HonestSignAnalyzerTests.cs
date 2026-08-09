@@ -13,7 +13,7 @@ public sealed class HonestSignAnalyzerTests
         var result = Analyze("(01)04601234567893(21)ABC1234567890(91)ABCD(92)CRYPTO-SIGNATURE");
 
         Assert.IsNotNull(result);
-        Assert.AreEqual("Честный знак", result.Format);
+        Assert.AreEqual("GS1 DataMatrix", result.Format);
         Assert.AreEqual("04601234567893", Field(result, "01").Value);
         Assert.AreEqual("ABC1234567890", Field(result, "21").Value);
         Assert.AreEqual("ABCD", Field(result, "91").Value);

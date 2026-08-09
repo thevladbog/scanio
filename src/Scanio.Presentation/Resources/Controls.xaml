@@ -165,10 +165,22 @@
     <Style x:Key="DensityAwareLedgerRow" TargetType="ListBoxItem" BasedOn="{StaticResource LedgerRow}">
         <Setter Property="MinHeight"
                 Value="{Binding Source={x:Static settings:DisplaySettingsSource.Current}, Path=LedgerRowHeight}" />
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding Source={x:Static settings:DisplaySettingsSource.Current}, Path=IsCompact}"
+                         Value="True">
+                <Setter Property="Padding" Value="8,4" />
+            </DataTrigger>
+        </Style.Triggers>
     </Style>
     <Style x:Key="DensityAwareDeviceRow" TargetType="ListViewItem" BasedOn="{StaticResource {x:Type ListViewItem}}">
         <Setter Property="MinHeight"
                 Value="{Binding Source={x:Static settings:DisplaySettingsSource.Current}, Path=LedgerRowHeight}" />
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding Source={x:Static settings:DisplaySettingsSource.Current}, Path=IsCompact}"
+                         Value="True">
+                <Setter Property="Padding" Value="8,4" />
+            </DataTrigger>
+        </Style.Triggers>
     </Style>
     <Style x:Key="AdaptiveRecordRow" TargetType="ListBoxItem" BasedOn="{StaticResource LedgerRow}">
         <Setter Property="MinHeight" Value="48" />

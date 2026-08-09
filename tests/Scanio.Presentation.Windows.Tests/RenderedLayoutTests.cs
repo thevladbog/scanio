@@ -160,6 +160,7 @@ public sealed class RenderedLayoutTests
     {
         WpfTestHost.Run(() =>
         {
+            var renderedHeights = new Dictionary<(UiLanguage Language, ShellDestination Destination, ListDensity Density), double[]>();
             foreach (var variant in RenderedEvidenceMatrix.Density)
             {
                 using var fixture = CPlusFixtureFactory.Create(variant);
@@ -177,13 +178,47 @@ public sealed class RenderedLayoutTests
                     .ToArray();
                 Assert.IsNotEmpty(lists, $"{label} exposes no visible list using {styleName}.");
 
-                var expectedHeight = variant.ListDensity == ListDensity.Compact ? 54d : 66d;
+                var expectedHeight = variant.ListDensity == ListDensity.Compact ? 48d : 66d;
+                var expectedPadding = variant.ListDensity == ListDensity.Compact
+                    ? new Thickness(8d, 4d, 8d, 4d)
+                    : styleName == "DensityAwareDeviceRow"
+                        ? new Thickness(12d)
+                        : new Thickness(12d, 8d, 12d, 8d);
+                var actualHeights = new List<double>();
                 foreach (var list in lists)
                 {
-                    var firstRow = list.ItemContainerGenerator.ContainerFromIndex(0) as FrameworkElement;
+                    var firstRow = list.ItemContainerGenerator.ContainerFromIndex(0) as Control;
                     Assert.IsNotNull(firstRow, $"{label} did not materialize the first density-aware row.");
                     Assert.AreEqual(expectedHeight, firstRow.MinHeight, 0.01d,
                         $"{label} renders a {firstRow.MinHeight:0.##}-DIP row instead of {expectedHeight:0.##} DIP.");
+                    Assert.AreEqual(expectedPadding, firstRow.Padding,
+                        $"{label} uses {firstRow.Padding} padding instead of {expectedPadding}.");
+                    actualHeights.Add(firstRow.ActualHeight);
+                }
+
+                renderedHeights[(variant.Language, variant.Destination, variant.ListDensity)] = actualHeights.ToArray();
+            }
+
+            foreach (var language in new[] { UiLanguage.Russian, UiLanguage.English })
+            {
+                foreach (var destination in new[]
+                         {
+                             ShellDestination.Connection,
+                             ShellDestination.Monitor,
+                             ShellDestination.Notebook,
+                             ShellDestination.History
+                         })
+                {
+                    var compact = renderedHeights[(language, destination, ListDensity.Compact)];
+                    var comfortable = renderedHeights[(language, destination, ListDensity.Comfortable)];
+                    Assert.HasCount(comfortable.Length, compact, $"{language}/{destination} list count changed between densities.");
+                    for (var index = 0; index < compact.Length; index++)
+                    {
+                        Assert.IsGreaterThanOrEqualTo(
+                            12d,
+                            comfortable[index] - compact[index],
+                            $"{language}/{destination} row {index} changes by only {comfortable[index] - compact[index]:0.##} DIP.");
+                    }
                 }
             }
         });
@@ -261,7 +296,7 @@ public sealed class RenderedLayoutTests
                 var expectedBinding = variant.ListDensity == ListDensity.Compact
                     ? nameof(SettingsViewModel.IsCompact)
                     : nameof(SettingsViewModel.IsComfortable);
-                var expectedHeight = variant.ListDensity == ListDensity.Compact ? 54d : 66d;
+                var expectedHeight = variant.ListDensity == ListDensity.Compact ? 48d : 66d;
                 Assert.AreEqual(expectedBinding, binding.ParentBinding.Path.Path, label);
                 Assert.AreEqual(expectedHeight, DisplaySettingsSource.Current.LedgerRowHeight, 0.01d, label);
             }

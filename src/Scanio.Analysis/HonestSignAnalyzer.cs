@@ -62,7 +62,7 @@ public sealed class HonestSignAnalyzer : IScanAnalyzer
 
         return AnalysisResult.Match(
             Name,
-            "Честный знак",
+            "GS1 DataMatrix",
             parsed.HasExplicitSyntax ? AnalysisConfidence.Exact : AnalysisConfidence.Inferred,
             "GTIN AI 01 and serial AI 21 are present in a GS1-shaped payload. No network lookup or cryptographic verification was performed.",
             summary,

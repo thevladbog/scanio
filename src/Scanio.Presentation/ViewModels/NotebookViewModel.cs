@@ -14,7 +14,9 @@ public sealed class NotebookViewModel : ObservableObject
     private readonly Func<TimeSpan, Task> _delay;
     private readonly SynchronizationContext? _synchronizationContext = SynchronizationContext.Current;
     private readonly List<NotebookRecord> _occurrences = [];
+    private readonly DateTime _defaultSessionTimestamp = DateTime.Now;
     private string _sessionName;
+    private bool _usesAutomaticSessionName = true;
     private static readonly TimeSpan ArrivalPulseDuration = TimeSpan.FromMilliseconds(600);
 
     public NotebookViewModel(
@@ -29,7 +31,7 @@ public sealed class NotebookViewModel : ObservableObject
         _interaction = interaction;
         _localizer = localizer;
         _delay = delay ?? (duration => Task.Delay(duration));
-        _sessionName = $"{(_localizer?["Notebook.DefaultSession"] ?? "Сессия")} {DateTime.Now:yyyy-MM-dd HH-mm}";
+        _sessionName = BuildDefaultSessionName();
         StartCommand = new AsyncCommand(_ => ExecuteSafelyAsync(StartAsync), () => CanStart);
         PauseCommand = new AsyncCommand(_ => ExecuteSafelyAsync(PauseAsync), () => CanPause);
         ResumeCommand = new AsyncCommand(_ => ExecuteSafelyAsync(ResumeAsync), () => CanResume);
@@ -47,6 +49,11 @@ public sealed class NotebookViewModel : ObservableObject
         {
             _localizer.PropertyChanged += (_, _) => RunOnUi(() =>
             {
+                if (_usesAutomaticSessionName)
+                {
+                    SetProperty(ref _sessionName, BuildDefaultSessionName(), nameof(SessionName));
+                }
+
                 Records.Clear();
                 foreach (var item in NotebookRecordGrouping.Build(_occurrences, _localizer))
                 {
@@ -69,6 +76,7 @@ public sealed class NotebookViewModel : ObservableObject
         {
             if (SetProperty(ref _sessionName, value))
             {
+                _usesAutomaticSessionName = false;
                 StartCommand.RaiseCanExecuteChanged();
             }
         }
@@ -285,4 +293,7 @@ public sealed class NotebookViewModel : ObservableObject
         var invalid = Path.GetInvalidFileNameChars();
         return string.Concat(value.Trim().Select(character => invalid.Contains(character) ? '_' : character));
     }
+
+    private string BuildDefaultSessionName() =>
+        $"{(_localizer?["Notebook.DefaultSession"] ?? "Сессия")} {_defaultSessionTimestamp:yyyy-MM-dd HH-mm}";
 }

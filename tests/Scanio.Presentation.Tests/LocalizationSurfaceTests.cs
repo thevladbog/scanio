@@ -15,7 +15,7 @@ public sealed class LocalizationSurfaceTests
 
     private static readonly HashSet<string> RussianNeutralWords = new(StringComparer.Ordinal)
     {
-        "AI", "BCBP", "COM", "CSV", "EAN/UPC", "English", "Enter", "GS", "GS1", "GTIN",
+        "AI", "BCBP", "COM", "CSV", "DataMatrix", "EAN/UPC", "English", "Enter", "GS", "GS1", "GTIN",
         "GitHub", "HEX", "HTTP", "HTTPS", "IATA", "JSON", "RAW", "Releases", "RTS", "Scanio", "SQLite",
         "SSCC", "Tab", "TXT", "URL", "USB", "UTF-8", "Windows", "XON/XOFF"
     };
@@ -126,6 +126,7 @@ public sealed class LocalizationSurfaceTests
             "Точный формат данных",
             "Предположение по структуре",
             "Строка элементов GS1",
+            "Честный знак",
             "ЖИВАЯ ЛЕНТА",
             "Сканы",
             "ФАКТ",

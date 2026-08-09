@@ -134,7 +134,7 @@ public sealed class MonitorLayoutContractTests
     }
 
     [TestMethod]
-    public void DensityAwareStylesBindExactRowHeightFromTheSharedSettingsSource()
+    public void DensityAwareStylesBindHeightAndCompactPaddingFromTheSharedSettingsSource()
     {
         var controls = XDocument.Load(Path.Combine(AppContext.BaseDirectory, "LayoutContracts", "Controls.xaml"));
 
@@ -148,6 +148,12 @@ public sealed class MonitorLayoutContractTests
                 "{Binding Source={x:Static settings:DisplaySettingsSource.Current}, Path=LedgerRowHeight}",
                 (string?)minHeight.Attribute("Value"),
                 styleName);
+            var compactTrigger = style.Descendants(Presentation + "DataTrigger")
+                .Single(element => ((string?)element.Attribute("Binding"))?.Contains("Path=IsCompact", StringComparison.Ordinal) == true);
+            Assert.AreEqual("True", (string?)compactTrigger.Attribute("Value"), styleName);
+            var padding = compactTrigger.Elements(Presentation + "Setter")
+                .Single(element => (string?)element.Attribute("Property") == "Padding");
+            Assert.AreEqual("8,4", (string?)padding.Attribute("Value"), styleName);
         }
     }
 

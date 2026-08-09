@@ -133,7 +133,7 @@ public sealed class MonitorViewModelTests
     {
         var analysis = AnalysisResult.Match(
             "HonestSign",
-            "Честный знак",
+            "GS1 DataMatrix",
             AnalysisConfidence.Inferred,
             "Serialized GS1 structure.",
             "Marking payload.",
@@ -167,7 +167,7 @@ public sealed class MonitorViewModelTests
     public void SelectedEventRetainsAllOrderedAnalyzerInterpretations()
     {
         var first = AnalysisResult.Match(
-            "HonestSign", "Честный знак", AnalysisConfidence.Inferred,
+            "HonestSign", "GS1 DataMatrix", AnalysisConfidence.Inferred,
             "Serialized GS1 structure.", "Marking payload.");
         var second = AnalysisResult.Match(
             "GS1", "GS1 element string", AnalysisConfidence.Exact,
@@ -179,9 +179,9 @@ public sealed class MonitorViewModelTests
 
         var selected = viewModel.SelectedEvent!;
         CollectionAssert.AreEqual(
-            new[] { "Честный знак", "Данные GS1" },
+            new[] { "GS1 DataMatrix", "Данные GS1" },
             selected.Analyses.Select(item => item.Format).ToArray());
-        Assert.AreEqual("Честный знак", selected.Format);
+        Assert.AreEqual("GS1 DataMatrix", selected.Format);
     }
 
     [TestMethod]
@@ -219,7 +219,7 @@ public sealed class MonitorViewModelTests
     {
         var analysis = AnalysisResult.Match(
             "HonestSign",
-            "Честный знак",
+            "GS1 DataMatrix",
             AnalysisConfidence.Exact,
             "Serialized marking structure.",
             "Marking code.");
@@ -234,8 +234,8 @@ public sealed class MonitorViewModelTests
             new FakeClipboardService(),
             localizer);
 
-        Assert.AreEqual("Honest Sign", viewModel.SelectedEvent!.Format);
-        Assert.AreEqual("Honest Sign", viewModel.SelectedEvent.Analyses.Single().Format);
+        Assert.AreEqual("GS1 DataMatrix", viewModel.SelectedEvent!.Format);
+        Assert.AreEqual("GS1 DataMatrix", viewModel.SelectedEvent.Analyses.Single().Format);
     }
 
     [TestMethod]

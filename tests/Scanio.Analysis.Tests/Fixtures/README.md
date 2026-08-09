@@ -5,7 +5,7 @@ Scanio's fixture suite uses compact, synthetic payloads that exercise published 
 Covered format families:
 
 - GS1 element strings in parenthesized and raw group-separator forms;
-- serialized Честный знак-shaped GS1 payloads, including ambiguous local product-group classification;
+- serialized GS1 DataMatrix marking payloads, including ambiguous local product-group classification;
 - EAN-8, UPC-A, and EAN-13 values with valid and invalid check digits;
 - IATA BCBP mandatory sections, multiple legs, truncation, and preserved conditional data;
 - absolute HTTP/HTTPS URLs and rejected unsafe schemes;
