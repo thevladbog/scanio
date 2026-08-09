@@ -30,9 +30,9 @@ public sealed class IataBcbpAnalyzer : IScanAnalyzer
         var errors = new List<string>();
         var warnings = new List<string>();
 
-        if (text.Length < 2 || text[1] is < '1' or > '9')
+        if (text.Length < 2 || text[1] is < '1' or > '4')
         {
-            errors.Add("BCBP number of legs must be a digit from 1 to 9.");
+            errors.Add("BCBP number of legs must be a digit from 1 to 4.");
             return Result(fields, errors, warnings);
         }
 
@@ -61,39 +61,39 @@ public sealed class IataBcbpAnalyzer : IScanAnalyzer
             AddLegFields(fields, leg, segment);
             ValidateLeg(errors, leg, segment);
             position += LegLength;
-        }
 
-        if (text.Length - position < 2)
-        {
-            errors.Add("BCBP conditional-field length is missing.");
-            return Result(fields, errors, warnings);
-        }
-
-        var lengthText = text.AsSpan(position, 2);
-        position += 2;
-        if (!int.TryParse(lengthText, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var conditionalLength))
-        {
-            errors.Add("BCBP conditional-field length is not hexadecimal.");
-            return Result(fields, errors, warnings);
-        }
-
-        var remaining = text.Length - position;
-        if (remaining < conditionalLength)
-        {
-            errors.Add($"BCBP declares {conditionalLength} conditional character(s), but only {remaining} remain.");
-            if (remaining > 0)
+            if (text.Length - position < 2)
             {
-                fields.Add(new("conditional-data", "Conditional data", text[position..]));
+                errors.Add($"BCBP conditional-field length for leg {leg} is missing.");
+                return Result(fields, errors, warnings);
             }
 
-            return Result(fields, errors, warnings);
-        }
+            var lengthText = text.AsSpan(position, 2);
+            position += 2;
+            if (!int.TryParse(lengthText, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var conditionalLength))
+            {
+                errors.Add($"BCBP conditional-field length for leg {leg} is not hexadecimal.");
+                return Result(fields, errors, warnings);
+            }
 
-        if (conditionalLength > 0)
-        {
-            fields.Add(new("conditional-data", "Conditional data", text.Substring(position, conditionalLength)));
-            warnings.Add("Conditional BCBP data is preserved but not decoded in this version.");
-            position += conditionalLength;
+            var remaining = text.Length - position;
+            if (remaining < conditionalLength)
+            {
+                errors.Add($"BCBP declares {conditionalLength} conditional character(s), but only {remaining} remain.");
+                if (remaining > 0)
+                {
+                    fields.Add(new($"leg-{leg}-conditional-data", $"Leg {leg} conditional data", text[position..]));
+                }
+
+                return Result(fields, errors, warnings);
+            }
+
+            if (conditionalLength > 0)
+            {
+                fields.Add(new($"leg-{leg}-conditional-data", $"Leg {leg} conditional data", text.Substring(position, conditionalLength)));
+                warnings.Add("Conditional BCBP data is preserved but not decoded in this version.");
+                position += conditionalLength;
+            }
         }
 
         if (position < text.Length)

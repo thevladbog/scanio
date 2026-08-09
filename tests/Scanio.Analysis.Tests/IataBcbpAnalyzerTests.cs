@@ -55,7 +55,16 @@ public sealed class IataBcbpAnalyzerTests
         var result = Analyze("MX" + "DOE/IVAN".PadRight(20) + "E");
 
         Assert.IsNotNull(result);
-        CollectionAssert.Contains(result.ValidationErrors.ToArray(), "BCBP number of legs must be a digit from 1 to 9.");
+        CollectionAssert.Contains(result.ValidationErrors.ToArray(), "BCBP number of legs must be a digit from 1 to 4.");
+    }
+
+    [TestMethod]
+    public void Analyze_MoreThanFourLegs_ReportsUnsupportedLegCount()
+    {
+        var result = Analyze("M5" + "DOE/IVAN".PadRight(20) + "E");
+
+        Assert.IsNotNull(result);
+        CollectionAssert.Contains(result.ValidationErrors.ToArray(), "BCBP number of legs must be a digit from 1 to 4.");
     }
 
     [TestMethod]
@@ -70,7 +79,7 @@ public sealed class IataBcbpAnalyzerTests
     [TestMethod]
     public void Analyze_ConditionalLengthBeyondPayload_ReportsIncompleteSection()
     {
-        var value = BuildMandatory(1, Leg("ABC123", "SVO", "LED", "SU", "0123", "123", "C", "12A", "00001", "1")) + "0AABC";
+        var value = Header(1) + Leg("ABC123", "SVO", "LED", "SU", "0123", "123", "C", "12A", "00001", "1") + "0AABC";
 
         var result = Analyze(value);
 
@@ -81,12 +90,12 @@ public sealed class IataBcbpAnalyzerTests
     [TestMethod]
     public void Analyze_ConditionalData_IsPreservedWithUnsupportedWarning()
     {
-        var value = BuildMandatory(1, Leg("ABC123", "SVO", "LED", "SU", "0123", "123", "C", "12A", "00001", "1")) + "03XYZ";
+        var value = Header(1) + Leg("ABC123", "SVO", "LED", "SU", "0123", "123", "C", "12A", "00001", "1") + "03XYZ";
 
         var result = Analyze(value);
 
         Assert.IsNotNull(result);
-        Assert.AreEqual("XYZ", Field(result, "conditional-data"));
+        Assert.AreEqual("XYZ", Field(result, "leg-1-conditional-data"));
         CollectionAssert.Contains(result.ValidationWarnings.ToArray(), "Conditional BCBP data is preserved but not decoded in this version.");
     }
 
@@ -106,10 +115,10 @@ public sealed class IataBcbpAnalyzerTests
     private static string Field(AnalysisResult result, string code) =>
         result.Fields.Single(field => field.Code == code).Value;
 
-    private static string Build(int legs, params string[] segments) => BuildMandatory(legs, segments) + "00";
+    private static string Build(int legs, params string[] segments) =>
+        Header(legs) + string.Concat(segments.Select(segment => segment + "00"));
 
-    private static string BuildMandatory(int legs, params string[] segments) =>
-        "M" + legs + "DOE/IVAN".PadRight(20) + "E" + string.Concat(segments);
+    private static string Header(int legs) => "M" + legs + "DOE/IVAN".PadRight(20) + "E";
 
     private static string Leg(
         string pnr,
