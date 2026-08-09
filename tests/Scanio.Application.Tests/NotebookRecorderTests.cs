@@ -31,6 +31,48 @@ public sealed class NotebookRecorderTests
     }
 
     [TestMethod]
+    public async Task DuplicateCount_IsByteExactAndScopedToEachNotebookSession()
+    {
+        var monitor = new LiveMonitor();
+        var repository = new RecordingRepository();
+        await using var recorder = new NotebookRecorder(repository, monitor, () => DateTimeOffset.UnixEpoch);
+
+        monitor.Append(CreateScan(1, [0x31, 0x1D]), CreateDecoded("same"), []);
+        recorder.Start("First");
+        monitor.Append(CreateScan(2, [0x31, 0x1D]), CreateDecoded("same"), []);
+        monitor.Append(CreateScan(3, [0x31, 0x1D]), CreateDecoded("same"), []);
+        recorder.Pause();
+        recorder.Resume();
+        monitor.Append(CreateScan(4, [0x31, 0x1D]), CreateDecoded("same"), []);
+        await recorder.StopAsync();
+
+        recorder.Start("Second");
+        monitor.Append(CreateScan(5, [0x31, 0x1D]), CreateDecoded("same"), []);
+        await recorder.StopAsync();
+
+        CollectionAssert.AreEqual(
+            new[] { 1, 2, 3, 1 },
+            repository.Records.Select(record => record.DuplicateCount).ToArray());
+    }
+
+    [TestMethod]
+    public async Task DuplicateCount_TreatsDifferentPayloadBytesWithIdenticalDecodedTextAsDistinct()
+    {
+        var monitor = new LiveMonitor();
+        var repository = new RecordingRepository();
+        await using var recorder = new NotebookRecorder(repository, monitor, () => DateTimeOffset.UnixEpoch);
+        recorder.Start("Session");
+
+        monitor.Append(CreateScan(1, [0x31]), CreateDecoded("same"), []);
+        monitor.Append(CreateScan(2, [0x32]), CreateDecoded("same"), []);
+        await recorder.StopAsync();
+
+        CollectionAssert.AreEqual(
+            new[] { 1, 1 },
+            repository.Records.Select(record => record.DuplicateCount).ToArray());
+    }
+
+    [TestMethod]
     public async Task StopAsync_WaitsUntilAllEarlierScansArePersistedBeforeCompletingSession()
     {
         var monitor = new LiveMonitor();

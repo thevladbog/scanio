@@ -10,6 +10,7 @@ public sealed class NotebookRecorder : IAsyncDisposable
     private readonly LiveMonitor _monitor;
     private readonly Func<DateTimeOffset> _clock;
     private readonly Channel<WorkItem> _queue;
+    private readonly Dictionary<string, int> _sessionOccurrences = new(StringComparer.Ordinal);
     private readonly Task _worker;
     private NotebookRecordingState _state;
     private NotebookSession? _session;
@@ -95,6 +96,7 @@ public sealed class NotebookRecorder : IAsyncDisposable
             lock (_gate)
             {
                 _session = session;
+                _sessionOccurrences.Clear();
                 _nextSequence = 1;
                 _lastError = null;
                 _state = NotebookRecordingState.Recording;
@@ -220,13 +222,16 @@ public sealed class NotebookRecorder : IAsyncDisposable
                 return;
             }
 
+            var key = Convert.ToBase64String(args.ScanEvent.Scan.PayloadBytes.AsSpan());
+            var count = _sessionOccurrences.TryGetValue(key, out var previous) ? previous + 1 : 1;
+            _sessionOccurrences[key] = count;
             record = NotebookRecord.Create(
                 _nextSequence++,
                 _session.Id,
                 args.ScanEvent.Scan,
                 args.ScanEvent.Decoded,
                 args.ScanEvent.Analyses,
-                args.ScanEvent.DuplicateCount,
+                count,
                 _clock());
         }
 
