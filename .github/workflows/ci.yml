@@ -26,6 +26,7 @@ jobs:
           dotnet test tests/Scanio.Analysis.Tests/Scanio.Analysis.Tests.csproj -c Release --no-restore --logger "trx;LogFileName=analysis.trx"
           dotnet test tests/Scanio.Transports.Tests/Scanio.Transports.Tests.csproj -c Release --no-restore --logger "trx;LogFileName=transports.trx"
           dotnet test tests/Scanio.Application.Tests/Scanio.Application.Tests.csproj -c Release --no-restore --logger "trx;LogFileName=application.trx"
+          dotnet test tests/Scanio.Storage.Tests/Scanio.Storage.Tests.csproj -c Release --no-restore --logger "trx;LogFileName=storage.trx"
           dotnet test tests/Scanio.Presentation.Tests/Scanio.Presentation.Tests.csproj -c Release --no-restore --logger "trx;LogFileName=presentation.trx"
       - name: Upload test results
         if: always()

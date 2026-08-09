@@ -4,14 +4,14 @@ Scanio is a local Windows diagnostic utility for barcode scanners. The current a
 
 ## Download and run
 
-Download `Scanio-0.1.0-alpha.1-win-x64-portable.zip` and `SHA256SUMS.txt` from GitHub Releases.
+Download `Scanio-0.3.0-alpha.3-win-x64-portable.zip` and `SHA256SUMS.txt` from GitHub Releases.
 
 1. Verify the ZIP SHA-256 checksum.
 2. Extract the complete ZIP to a writable directory.
 3. Run `Scanio.exe`.
 4. If Windows SmartScreen warns, inspect the publisher and checksum before choosing whether to run it. The alpha is intentionally unsigned and never disables Windows protections.
 
-The package is self-contained and does not require a preinstalled .NET runtime. Keep the adjacent `data` directory with the application; persistence is not active in this alpha yet.
+The package is self-contained and does not require a preinstalled .NET runtime. Keep `portable.flag` and the adjacent `Data` directory with the application. Notebook sessions are stored locally in `Data/scanio.db` for this portable package.
 
 ## Current capabilities
 
@@ -29,15 +29,19 @@ The package is self-contained and does not require a preinstalled .NET runtime. 
 - safe HTTP/HTTPS URL recognition without automatic navigation;
 - structured fields, confidence, evidence, errors, and warnings in the Monitor;
 - plain-text fallback for unstructured decoded data;
+- named local Notebook sessions with Record, Pause, Resume, and Stop controls;
+- SQLite persistence of exact raw bytes, chunks, framing, transport identity, decoded values, and structured analyses;
+- local History with session rename and confirmed cascade deletion;
+- clipboard copy plus atomic UTF-8 TXT, RFC 4180 CSV, and structured JSON export;
 - deterministic port release on Disconnect and application exit.
 
 ## Not included in this alpha
 
-Direct USB HID/POS, keyboard-wedge capture, Notebook, History, persistence, exports, installer, automatic updates, telemetry, accounts, cloud sync, Linux, and macOS application support are not included.
+Direct USB HID/POS, keyboard-wedge capture, installer, automatic updates, telemetry, accounts, cloud sync, Linux, and macOS application support are not included.
 
 Payload structure does not prove the physical barcode symbology. Scanio only reports exact physical symbology when future transport/AIM evidence provides it. Честный знак analysis is fully offline, does not contact official services, does not verify cryptographic validity, and returns multiple candidates or `Not determined` when local structural rules are ambiguous.
 
-Physical Datalogic and Zebra verification is intentionally marked **not run** until tested on real Windows hardware. Use [the acceptance matrix](docs/acceptance/com-capture-matrix.md) to record results.
+Physical Datalogic and Zebra verification is intentionally marked **not run** until tested on real Windows hardware. Use [the acceptance matrix](docs/acceptance/com-capture-matrix.md) to record results. See [Notebook and export](docs/notebook-and-export.md) for persistence paths, formats, and recovery boundaries.
 
 ## Development
 

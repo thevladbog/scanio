@@ -32,7 +32,8 @@ jobs:
             --no-restore `
             -p:PublishSingleFile=false `
             -o $folder
-          New-Item -ItemType Directory -Force -Path "$folder/data" | Out-Null
+          New-Item -ItemType Directory -Force -Path "$folder/Data" | Out-Null
+          [System.IO.File]::WriteAllText((Join-Path $PWD "$folder/portable.flag"), "", [System.Text.UTF8Encoding]::new($false))
           Copy-Item README.md "$folder/README.md"
           Compress-Archive -Path "$folder/*" -DestinationPath "artifacts/Scanio-$version-win-x64-portable.zip"
           $hash = (Get-FileHash "artifacts/Scanio-$version-win-x64-portable.zip" -Algorithm SHA256).Hash.ToLowerInvariant()
