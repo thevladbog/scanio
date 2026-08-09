@@ -16,6 +16,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="..\Scanio.Presentation.Windows.Tests\RenderedContentFit.cs"
+             Link="RenderedContentFit.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\src\Scanio.Presentation\Scanio.Presentation.csproj" />
   </ItemGroup>
 

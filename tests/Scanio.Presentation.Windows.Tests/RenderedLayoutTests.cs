@@ -1,8 +1,8 @@
+using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Media;
-using System.Globalization;
 using Scanio.Presentation.Settings;
 using Scanio.Presentation.ViewModels;
 using Scanio.Presentation.Windows.Tests.Fixtures;
@@ -56,15 +56,20 @@ public sealed class RenderedLayoutTests
                 using var fixture = CPlusFixtureFactory.Create(language, destination);
                 Prepare(fixture.Window, 1024, 700);
                 var label = $"{language}/{destination}/1024x700";
-                var readableActions = Descendants<Button>(fixture.Window)
+                var expectedLabels = language == UiLanguage.English
+                    ? new[] { "Copy as readable text (<GS>)", "Export readable TXT (<GS>)" }
+                    : new[] { "Копировать как текст (<GS>)", "Экспорт TXT как текст (<GS>)" };
+                var visibleButtons = Descendants<Button>(fixture.Window)
                     .Where(button => button.IsVisible)
-                    .Where(button => ButtonText(button)?.Contains("<GS>", StringComparison.Ordinal) == true)
                     .ToArray();
 
-                Assert.HasCount(2, readableActions, $"{label} must expose both readable-text actions.");
-                foreach (var button in readableActions)
+                foreach (var expectedLabel in expectedLabels)
                 {
-                    AssertButtonContentFits(button, fixture.Window, language, label);
+                    var button = visibleButtons.SingleOrDefault(candidate =>
+                        candidate.Content is TextBlock textBlock &&
+                        string.Equals(textBlock.Text, expectedLabel, StringComparison.Ordinal));
+                    Assert.IsNotNull(button, $"{label} must expose the full label '{expectedLabel}'.");
+                    AssertButtonContentFits(button, fixture.Window, language, label, expectedLabel);
                 }
             }
         });
@@ -112,43 +117,46 @@ public sealed class RenderedLayoutTests
         Button button,
         Window window,
         UiLanguage language,
-        string label)
+        string label,
+        string expectedText)
     {
-        var text = ButtonText(button);
-        Assert.IsNotNull(text);
-        var presenter = Descendants<ContentPresenter>(button).Single();
-        var presenterBounds = Bounds(presenter, window);
+        var textBlock = button.Content as TextBlock;
+        Assert.IsNotNull(textBlock);
+        Assert.AreEqual(expectedText, textBlock.Text, $"{label} measures the wrong readable label.");
+        var textBounds = Bounds(textBlock, window);
         var buttonBounds = Bounds(button, window);
         Assert.IsTrue(
-            buttonBounds.Contains(presenterBounds.TopLeft) && buttonBounds.Contains(presenterBounds.BottomRight),
-            $"{label} clips the content presenter for '{text}' at {presenterBounds} inside {buttonBounds}.");
+            buttonBounds.Contains(textBounds.TopLeft) && buttonBounds.Contains(textBounds.BottomRight),
+            $"{label} clips readable label '{expectedText}' at {textBounds} inside {buttonBounds}.");
+        Assert.IsTrue(textBlock.ActualWidth > 0 && textBlock.ActualHeight > 0,
+            $"{label} gives readable label '{expectedText}' empty content bounds.");
 
-        var textBlock = button.Content as TextBlock;
         var formatted = new FormattedText(
-            text,
+            expectedText,
             CultureInfo.GetCultureInfo(language == UiLanguage.English ? "en-US" : "ru-RU"),
             button.FlowDirection,
             new Typeface(
-                textBlock?.FontFamily ?? button.FontFamily,
-                textBlock?.FontStyle ?? button.FontStyle,
-                textBlock?.FontWeight ?? button.FontWeight,
-                textBlock?.FontStretch ?? button.FontStretch),
-            textBlock?.FontSize ?? button.FontSize,
+                textBlock.FontFamily,
+                textBlock.FontStyle,
+                textBlock.FontWeight,
+                textBlock.FontStretch),
+            textBlock.FontSize,
             Brushes.Black,
-            VisualTreeHelper.GetDpi(button).PixelsPerDip);
-        if (textBlock?.TextWrapping != TextWrapping.NoWrap)
+            VisualTreeHelper.GetDpi(textBlock).PixelsPerDip)
         {
-            formatted.MaxTextWidth = presenter.ActualWidth;
-        }
+            MaxTextWidth = textBlock.ActualWidth,
+            Trimming = TextTrimming.None
+        };
 
-        Assert.IsGreaterThanOrEqualTo(
-            formatted.WidthIncludingTrailingWhitespace - 0.5,
-            presenter.ActualWidth,
-            $"{label} clips readable label '{text}' horizontally.");
-        Assert.IsGreaterThanOrEqualTo(
-            formatted.Height - 0.5,
-            presenter.ActualHeight,
-            $"{label} clips readable label '{text}' vertically.");
+        Assert.IsTrue(
+            RenderedContentFit.Fits(
+                textBlock.ActualWidth,
+                textBlock.ActualHeight,
+                formatted.WidthIncludingTrailingWhitespace,
+                formatted.Height),
+            $"{label} clips readable label '{expectedText}' inside " +
+            $"{textBlock.ActualWidth:0.#}x{textBlock.ActualHeight:0.#}; " +
+            $"required {formatted.WidthIncludingTrailingWhitespace:0.#}x{formatted.Height:0.#}.");
     }
 
     private static void AssertSiblingControlsDoNotOverlap(Window window, string label)
@@ -191,11 +199,4 @@ public sealed class RenderedLayoutTests
         element.TransformToAncestor(window)
             .TransformBounds(new Rect(0, 0, element.ActualWidth, element.ActualHeight));
 
-    private static string? ButtonText(Button button) => button.Content switch
-    {
-        string value => value,
-        TextBlock textBlock => textBlock.Text,
-        AccessText accessText => accessText.Text,
-        _ => null
-    };
 }
