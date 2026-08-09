@@ -141,8 +141,14 @@
   <data name="Analysis.Format.HonestSign" xml:space="preserve"><value>Honest Sign</value></data>
   <data name="Analysis.Generic.Evidence" xml:space="preserve"><value>Structure identified by a local analyzer.</value></data>
   <data name="Analysis.Generic.Summary" xml:space="preserve"><value>Structural analysis result.</value></data>
-  <data name="Analysis.ValidationError" xml:space="preserve"><value>Validation error</value></data>
-  <data name="Analysis.ValidationWarning" xml:space="preserve"><value>Validation warning</value></data>
+  <data name="Analysis.ValidationError" xml:space="preserve"><value>Validation error: {0}</value></data>
+  <data name="Analysis.ValidationWarning" xml:space="preserve"><value>Validation warning: {0}</value></data>
+  <data name="Analysis.Warning.VariableLengthAiAtEnd" xml:space="preserve"><value>Variable-length AI {0} reaches the end of the payload. A missing GS separator may make following fields ambiguous.</value></data>
+  <data name="Analysis.Warning.VerificationKeyMissing" xml:space="preserve"><value>Verification key AI 91 is not present.</value></data>
+  <data name="Analysis.Warning.CryptoTailMissing" xml:space="preserve"><value>Crypto tail AI 92 is not present.</value></data>
+  <data name="Analysis.Warning.ProductGroupOffline" xml:space="preserve"><value>Product-group candidates use bundled structural rules only; official online validity was not checked.</value></data>
+  <data name="Analysis.Warning.IataConditionalUnsupported" xml:space="preserve"><value>Conditional BCBP data is preserved but not decoded in this version.</value></data>
+  <data name="Analysis.Warning.IataTrailingUnsupported" xml:space="preserve"><value>Trailing BCBP data is preserved but not decoded in this version.</value></data>
   <data name="Analysis.EAN/UPC.Evidence" xml:space="preserve"><value>Numeric length matches the format and the check digit was evaluated.</value></data>
   <data name="Analysis.EAN/UPC.Summary" xml:space="preserve"><value>EAN/UPC product code.</value></data>
   <data name="Analysis.GS1.Evidence" xml:space="preserve"><value>A supported GS1 application identifier structure was detected.</value></data>

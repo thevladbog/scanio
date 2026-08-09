@@ -153,8 +153,14 @@
   <data name="Analysis.PlainText.Summary" xml:space="preserve"><value>Неструктурированный текст.</value></data>
   <data name="Analysis.Generic.Evidence" xml:space="preserve"><value>Структура определена локальным анализатором.</value></data>
   <data name="Analysis.Generic.Summary" xml:space="preserve"><value>Результат структурного анализа.</value></data>
-  <data name="Analysis.ValidationError" xml:space="preserve"><value>Ошибка проверки</value></data>
-  <data name="Analysis.ValidationWarning" xml:space="preserve"><value>Предупреждение проверки</value></data>
+  <data name="Analysis.ValidationError" xml:space="preserve"><value>Ошибка проверки: {0}</value></data>
+  <data name="Analysis.ValidationWarning" xml:space="preserve"><value>Предупреждение проверки: {0}</value></data>
+  <data name="Analysis.Warning.VariableLengthAiAtEnd" xml:space="preserve"><value>Поле переменной длины AI {0} дошло до конца данных. Возможно, пропущен разделитель GS, поэтому следующие поля могут быть разобраны неоднозначно.</value></data>
+  <data name="Analysis.Warning.VerificationKeyMissing" xml:space="preserve"><value>В данных нет ключа проверки с идентификатором применения AI 91.</value></data>
+  <data name="Analysis.Warning.CryptoTailMissing" xml:space="preserve"><value>В данных нет криптографического хвоста с идентификатором применения AI 92.</value></data>
+  <data name="Analysis.Warning.ProductGroupOffline" xml:space="preserve"><value>Товарная группа определена только по встроенным структурным правилам; официальная онлайн-проверка не выполнялась.</value></data>
+  <data name="Analysis.Warning.IataConditionalUnsupported" xml:space="preserve"><value>Дополнительные данные BCBP сохранены, но эта версия Сканио пока не разбирает их структуру.</value></data>
+  <data name="Analysis.Warning.IataTrailingUnsupported" xml:space="preserve"><value>Хвостовые данные BCBP сохранены, но эта версия Сканио пока не разбирает их структуру.</value></data>
   <data name="Analysis.Field.data" xml:space="preserve"><value>Данные</value></data>
   <data name="Analysis.Field.check-digit" xml:space="preserve"><value>Контрольная цифра</value></data>
   <data name="Analysis.Field.Text" xml:space="preserve"><value>Текст</value></data>

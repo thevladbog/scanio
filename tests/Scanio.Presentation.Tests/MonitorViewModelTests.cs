@@ -80,8 +80,39 @@ public sealed class MonitorViewModelTests
         var displayed = viewModel.SelectedEvent.Analyses.Single();
         Assert.AreEqual("Предположение по структуре", displayed.Confidence);
         Assert.AreEqual("04601234567893", displayed.Fields.Single().Value);
-        CollectionAssert.Contains(displayed.Errors.ToArray(), "Ошибка проверки 1");
-        CollectionAssert.Contains(displayed.Warnings.ToArray(), "Предупреждение проверки 1");
+        CollectionAssert.Contains(displayed.Errors.ToArray(), "Ошибка проверки: Fixture error.");
+        CollectionAssert.Contains(displayed.Warnings.ToArray(), "Предупреждение проверки: Fixture warning.");
+    }
+
+    [TestMethod]
+    public void RussianHonestSignWarnings_ExplainTheActualValidationConcern()
+    {
+        var analysis = AnalysisResult.Match(
+            "HonestSign",
+            "Честный знак",
+            AnalysisConfidence.Inferred,
+            "Serialized GS1 structure.",
+            "Marking payload.",
+            validationWarnings:
+            [
+                "Variable-length AI 21 reaches the end of the payload; a missing GS separator may make following fields ambiguous.",
+                "Verification key AI 91 is not present.",
+                "Crypto tail AI 92 is not present.",
+                "Product-group candidates use bundled structural rules only; official online validity was not checked."
+            ]);
+        var localizer = new UiLocalizer(new TestSettingsService());
+
+        var displayed = new AnalysisItemViewModel(analysis, localizer);
+
+        CollectionAssert.AreEqual(
+            new[]
+            {
+                "Поле переменной длины AI 21 дошло до конца данных. Возможно, пропущен разделитель GS, поэтому следующие поля могут быть разобраны неоднозначно.",
+                "В данных нет ключа проверки с идентификатором применения AI 91.",
+                "В данных нет криптографического хвоста с идентификатором применения AI 92.",
+                "Товарная группа определена только по встроенным структурным правилам; официальная онлайн-проверка не выполнялась."
+            },
+            displayed.Warnings.ToArray());
     }
 
     [TestMethod]
