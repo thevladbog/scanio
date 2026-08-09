@@ -10,6 +10,7 @@ using Scanio.Presentation.ViewModels;
 namespace Scanio.Presentation.Tests;
 
 [TestClass]
+[DoNotParallelize]
 public sealed class MonitorViewModelTests
 {
     [TestMethod]
@@ -48,6 +49,22 @@ public sealed class MonitorViewModelTests
     }
 
     [TestMethod]
+    public void Activate_ReturnsSelectionToTheLatestRetainedScan()
+    {
+        var monitor = new LiveMonitor();
+        monitor.Append(Scan(1, "first"), Decoded("first"), []);
+        monitor.Append(Scan(2, "second"), Decoded("second"), []);
+        var viewModel = CreateViewModel(monitor, new FakeConnectionService());
+        viewModel.SelectedEvent = viewModel.Events[0];
+        monitor.Append(Scan(3, "third"), Decoded("third"), []);
+
+        viewModel.Activate();
+
+        Assert.AreEqual("third", viewModel.SelectedEvent?.Payload);
+        Assert.IsFalse(viewModel.ShowReturnToLatest);
+    }
+
+    [TestMethod]
     public void SelectedEventExposesPersistentRawAndHexEvidence()
     {
         var monitor = new LiveMonitor();
@@ -57,6 +74,33 @@ public sealed class MonitorViewModelTests
         Assert.AreEqual("A", viewModel.SelectedEvent?.Payload);
         Assert.AreEqual("41 0D", viewModel.SelectedEvent?.Hex);
         Assert.AreEqual("A<CR>", viewModel.SelectedEvent?.Raw);
+    }
+
+    [TestMethod]
+    public void EscapedControlSetting_RebuildsPresentationWithoutChangingSelectionOrRawBytes()
+    {
+        var monitor = new LiveMonitor();
+        var first = Scan(1, "first\r");
+        var selected = Scan(2, "A\u001DB\r");
+        monitor.Append(first, Decoded("first"), []);
+        monitor.Append(selected, Decoded("A\u001DB"), []);
+        var settings = new TestSettingsService();
+        DisplaySettingsSource.Initialize(settings);
+        var viewModel = new MonitorViewModel(
+            monitor,
+            new FakeConnectionService(),
+            new FakeClipboardService(),
+            new UiLocalizer(settings));
+        var selectedId = viewModel.SelectedEvent!.Id;
+        var immutableBytes = viewModel.SelectedEvent.Source.Scan.RawBytes.ToArray();
+
+        Assert.AreEqual("A<GS>B<CR>", viewModel.SelectedEvent.Raw);
+
+        settings.Update(value => value with { ShowEscapedControls = false });
+
+        Assert.AreEqual(selectedId, viewModel.SelectedEvent!.Id);
+        Assert.AreEqual("A\u001DB", viewModel.SelectedEvent.Raw);
+        CollectionAssert.AreEqual(immutableBytes, viewModel.SelectedEvent.Source.Scan.RawBytes.ToArray());
     }
 
     [TestMethod]
@@ -78,7 +122,7 @@ public sealed class MonitorViewModelTests
 
         Assert.HasCount(1, viewModel.SelectedEvent!.Analyses);
         var displayed = viewModel.SelectedEvent.Analyses.Single();
-        Assert.AreEqual("Предположение по структуре", displayed.Confidence);
+        Assert.AreEqual("Похоже на этот формат", displayed.Confidence);
         Assert.AreEqual("04601234567893", displayed.Fields.Single().Value);
         CollectionAssert.Contains(displayed.Errors.ToArray(), "Ошибка проверки: Fixture error.");
         CollectionAssert.Contains(displayed.Warnings.ToArray(), "Предупреждение проверки: Fixture warning.");
@@ -95,7 +139,7 @@ public sealed class MonitorViewModelTests
             "Marking payload.",
             validationWarnings:
             [
-                "Variable-length AI 21 reaches the end of the payload; a missing GS separator may make following fields ambiguous.",
+                "Variable-length AI 92 reaches the end of the payload; a missing GS separator may make following fields ambiguous.",
                 "Verification key AI 91 is not present.",
                 "Crypto tail AI 92 is not present.",
                 "Product-group candidates use bundled structural rules only; official online validity was not checked."
@@ -104,10 +148,14 @@ public sealed class MonitorViewModelTests
 
         var displayed = new AnalysisItemViewModel(analysis, localizer);
 
+        Assert.AreEqual(
+            "Variable-length AI 92 reaches the end of the payload; a missing GS separator may make following fields ambiguous.",
+            analysis.ValidationWarnings[0],
+            "The analyzer/domain warning must remain unchanged at the presentation boundary.");
         CollectionAssert.AreEqual(
             new[]
             {
-                "Поле переменной длины AI 21 дошло до конца данных. Возможно, пропущен разделитель GS, поэтому следующие поля могут быть разобраны неоднозначно.",
+                "Поле 92 (AI 92) прочитано до конца кода. Это нормально, если оно последнее. Если после него должны быть другие данные, сканер не передал разделитель GS.",
                 "В данных нет ключа проверки с идентификатором применения AI 91.",
                 "В данных нет криптографического хвоста с идентификатором применения AI 92.",
                 "Товарная группа определена только по встроенным структурным правилам; официальная онлайн-проверка не выполнялась."
@@ -131,7 +179,7 @@ public sealed class MonitorViewModelTests
 
         var selected = viewModel.SelectedEvent!;
         CollectionAssert.AreEqual(
-            new[] { "Честный знак", "Строка элементов GS1" },
+            new[] { "Честный знак", "Данные GS1" },
             selected.Analyses.Select(item => item.Format).ToArray());
         Assert.AreEqual("Честный знак", selected.Format);
     }
@@ -156,7 +204,7 @@ public sealed class MonitorViewModelTests
             new FakeClipboardService(),
             localizer);
 
-        Assert.AreEqual("Строка элементов GS1", viewModel.SelectedEvent!.Format);
+        Assert.AreEqual("Данные GS1", viewModel.SelectedEvent!.Format);
         Assert.AreEqual("Партия", viewModel.SelectedEvent.Analyses.Single().Fields.Single().Name);
 
         localizer.SetLanguage(UiLanguage.English);
@@ -248,12 +296,34 @@ public sealed class MonitorViewModelTests
         Assert.AreEqual(identity.DisplayName, viewModel.ConnectionFriendlyName);
     }
 
+    [TestMethod]
+    public void KeyboardConnection_UsesRussianPresentationLabelsInMonitor()
+    {
+        var identity = new TransportIdentity(
+            TransportKind.KeyboardCapture,
+            "keyboard-capture:focused-window",
+            "Keyboard scanner",
+            endpoint: "Keyboard");
+        var connection = new FakeConnectionService(ConnectionState.Connected, identity)
+        {
+            Snapshot = new ConnectionPresentationSnapshot(identity, ConnectionState.Connected, Options: null)
+        };
+
+        var viewModel = CreateViewModel(new LiveMonitor(), connection);
+
+        Assert.AreEqual("Клавиатура · Подключено", viewModel.ConnectionLabel);
+        Assert.AreEqual("Сканер-клавиатура", viewModel.ConnectionFriendlyName);
+        Assert.AreEqual("Клавиатура", viewModel.ConnectionSnapshot?.Endpoint);
+        Assert.AreEqual("Сканер-клавиатура", viewModel.ConnectionSnapshot?.FriendlyName);
+    }
+
     private static MonitorViewModel CreateViewModel(
         LiveMonitor monitor,
         IConnectionService connection,
         IClipboardService? clipboard = null)
     {
         var settings = new TestSettingsService();
+        DisplaySettingsSource.Initialize(settings);
         return new MonitorViewModel(
             monitor,
             connection,
@@ -292,7 +362,9 @@ public sealed class MonitorViewModelTests
         public TransportIdentity? ActiveIdentity => _activeIdentity;
         public ConnectionPresentationSnapshot? Snapshot { get; init; }
         public ConnectionPresentationSnapshot? CurrentSnapshot => Snapshot;
+        public Scanio.Transports.Keyboard.IKeyboardCaptureInput? KeyboardInput => null;
         public Task ConnectAsync(Scanio.Platform.Windows.Devices.SerialDeviceInfo device, Scanio.Transports.Serial.SerialConnectionOptions options, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task ConnectKeyboardAsync(CancellationToken cancellationToken) => Task.CompletedTask;
         public Task DisconnectAsync(CancellationToken cancellationToken) => Task.CompletedTask;
         public Task ShutdownAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 

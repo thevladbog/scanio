@@ -42,7 +42,12 @@ public sealed class ShellViewModel : ObservableObject
         _recorder = recorder;
         _connection = connectionService;
         ShowConnectionCommand = NavigateCommand(ShellDestination.Connection);
-        ShowMonitorCommand = NavigateCommand(ShellDestination.Monitor);
+        ShowMonitorCommand = new AsyncCommand(_ =>
+        {
+            Monitor.Activate();
+            SelectedDestination = ShellDestination.Monitor;
+            return Task.CompletedTask;
+        });
         ShowNotebookCommand = NavigateCommand(ShellDestination.Notebook);
         ShowHistoryCommand = new AsyncCommand(async _ =>
         {

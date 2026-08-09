@@ -57,18 +57,18 @@ public sealed class ShellLayoutContractTests
         var styleKey = ExtractResourceKey(connectButton.Attribute("Style")!.Value);
         var primaryStyle = controls.Descendants(Presentation + "Style")
             .Single(element => (string?)element.Attribute(Xaml + "Key") == styleKey);
-        var actionBackground = primaryStyle.Elements(Presentation + "Setter")
-            .Single(element => (string?)element.Attribute("Property") == "Background")
+        var actionBoundary = primaryStyle.Elements(Presentation + "Setter")
+            .Single(element => (string?)element.Attribute("Property") == "BorderBrush")
             .Attribute("Value")!.Value;
 
         var panelColor = ResolveColor(statusPanel.Attribute("Background")!.Value, theme);
-        var actionColor = ResolveColor(actionBackground, theme);
+        var actionColor = ResolveColor(actionBoundary, theme);
         var contrastRatio = ContrastRatio(panelColor, actionColor);
 
         Assert.IsGreaterThanOrEqualTo(
             3d,
             contrastRatio,
-            $"The Connect action has only {contrastRatio:F2}:1 contrast against its status panel, so it is not visibly discoverable.");
+            $"The Connect action edge has only {contrastRatio:F2}:1 contrast against its status panel, so it is not visibly discoverable.");
     }
 
     [TestMethod]
@@ -128,6 +128,54 @@ public sealed class ShellLayoutContractTests
         AssertStyleSetter(commandButton, "VerticalContentAlignment", "Center");
         AssertStyleSetter(comboBox, "VerticalContentAlignment", "Center");
         AssertStyleSetter(comboBoxItem, "VerticalContentAlignment", "Center");
+    }
+
+    [TestMethod]
+    public void PrimaryButton_UsesGraphiteAccessibleStatesAndReservesSignalForFocus()
+    {
+        var layoutDirectory = Path.Combine(AppContext.BaseDirectory, "LayoutContracts");
+        var theme = LoadResources(Path.Combine(layoutDirectory, "Theme.xaml"));
+        var controls = XDocument.Load(Path.Combine(layoutDirectory, "Controls.xaml"));
+        var primary = FindStyle(controls, "Button", "PrimaryButton");
+        var normalSetters = primary.Elements(Presentation + "Setter")
+            .ToDictionary(
+                element => element.Attribute("Property")!.Value,
+                element => element.Attribute("Value")!.Value,
+                StringComparer.Ordinal);
+
+        Assert.AreEqual("{DynamicResource Brush.ActionPrimary}", normalSetters["Background"]);
+        Assert.AreEqual("{DynamicResource Brush.SurfacePrimary}", normalSetters["Foreground"]);
+        Assert.AreEqual("{DynamicResource Brush.SurfacePrimary}", normalSetters["BorderBrush"]);
+        Assert.IsFalse(normalSetters.Values.Contains("{DynamicResource Brush.Signal}", StringComparer.Ordinal),
+            "Cyan signal cannot be the normal primary-action fill.");
+
+        var triggers = primary.Descendants(Presentation + "Trigger")
+            .ToDictionary(
+                element => (Property: element.Attribute("Property")!.Value, Value: element.Attribute("Value")!.Value),
+                element => element.Elements(Presentation + "Setter")
+                    .ToDictionary(
+                        setter => setter.Attribute("Property")!.Value,
+                        setter => setter.Attribute("Value")!.Value,
+                        StringComparer.Ordinal));
+
+        Assert.AreEqual("{DynamicResource Brush.ActionPrimaryHover}", triggers[("IsMouseOver", "True")]["Background"]);
+        Assert.AreEqual("{DynamicResource Brush.ActionPrimaryPressed}", triggers[("IsPressed", "True")]["Background"]);
+        Assert.AreEqual("{DynamicResource Brush.Signal}", triggers[("IsKeyboardFocused", "True")]["BorderBrush"]);
+        Assert.AreEqual("2", triggers[("IsKeyboardFocused", "True")]["BorderThickness"]);
+        Assert.AreEqual("{DynamicResource Brush.ActionDisabled}", triggers[("IsEnabled", "False")]["Background"]);
+        Assert.AreEqual("{DynamicResource Brush.ActionTextDisabled}", triggers[("IsEnabled", "False")]["Foreground"]);
+
+        var foreground = ResolveColor(normalSetters["Foreground"], theme);
+        foreach (var stateBackground in new[]
+                 {
+                     normalSetters["Background"],
+                     triggers[("IsMouseOver", "True")]["Background"],
+                     triggers[("IsPressed", "True")]["Background"]
+                 })
+        {
+            var ratio = ContrastRatio(foreground, ResolveColor(stateBackground, theme));
+            Assert.IsGreaterThanOrEqualTo(4.5d, ratio, $"Primary action state has only {ratio:F2}:1 text contrast.");
+        }
     }
 
     private static XElement FindStyle(XDocument document, string targetType, string? key = null) =>

@@ -22,17 +22,37 @@ public sealed record ConnectionSnapshotViewModel(
         }
 
         return new ConnectionSnapshotViewModel(
-            snapshot.Endpoint,
-            snapshot.Identity.DisplayName,
+            TransportPresentationLabels.Endpoint(snapshot.Identity, snapshot.Endpoint, localizer),
+            TransportPresentationLabels.DisplayName(snapshot.Identity, localizer),
             snapshot.Identity.HardwareId,
             ConnectionLabels.State(snapshot.State, localizer),
-            string.Join(
-                " · ",
-                snapshot.Options.BaudRate,
-                snapshot.Options.DataBits,
-                ConnectionLabels.Parity(snapshot.Options.Parity, localizer),
-                ConnectionLabels.StopBits(snapshot.Options.StopBits, localizer)));
+            snapshot.Identity.Kind == TransportKind.KeyboardCapture
+                ? localizer["Keyboard.ReconstructedInput"]
+                : snapshot.Options is { } options
+                ? string.Join(
+                    " · ",
+                    options.BaudRate,
+                    options.DataBits,
+                    ConnectionLabels.Parity(options.Parity, localizer),
+                    ConnectionLabels.StopBits(options.StopBits, localizer))
+                : string.Empty);
     }
+}
+
+internal static class TransportPresentationLabels
+{
+    public static string DisplayName(TransportIdentity identity, IUiLocalizer? localizer) =>
+        identity.Kind == TransportKind.KeyboardCapture && localizer is not null
+            ? localizer["Transport.Keyboard.DisplayName"]
+            : identity.DisplayName;
+
+    public static string Endpoint(
+        TransportIdentity identity,
+        string fallback,
+        IUiLocalizer? localizer) =>
+        identity.Kind == TransportKind.KeyboardCapture && localizer is not null
+            ? localizer["Transport.Keyboard.Endpoint"]
+            : fallback;
 }
 
 internal static class ConnectionLabels

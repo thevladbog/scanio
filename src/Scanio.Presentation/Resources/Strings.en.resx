@@ -56,12 +56,14 @@
   <data name="Serial.Handshake.XOnXOff" xml:space="preserve"><value>XON/XOFF</value></data>
   <data name="Serial.Handshake.RequestToSend" xml:space="preserve"><value>RTS</value></data>
   <data name="Serial.Handshake.RequestToSendXOnXOff" xml:space="preserve"><value>RTS + XON/XOFF</value></data>
+  <data name="Keyboard.ReconstructedInput" xml:space="preserve"><value>Reconstructed Windows input · UTF-8</value></data>
+  <data name="Transport.Keyboard.DisplayName" xml:space="preserve"><value>Keyboard scanner</value></data>
+  <data name="Transport.Keyboard.Endpoint" xml:space="preserve"><value>Keyboard</value></data>
   <data name="Settings.Title" xml:space="preserve"><value>Settings</value></data>
   <data name="Settings.Subtitle" xml:space="preserve"><value>Language, display, and local data</value></data>
   <data name="Settings.ShowEscapedControls" xml:space="preserve"><value>Show escaped control characters</value></data>
   <data name="Settings.ShowHexPreview" xml:space="preserve"><value>Show HEX preview</value></data>
   <data name="Settings.ShowChunkBoundaries" xml:space="preserve"><value>Show read boundaries</value></data>
-  <data name="Settings.FollowLatest" xml:space="preserve"><value>Follow the latest scan</value></data>
   <data name="Settings.Compact" xml:space="preserve"><value>Compact</value></data>
   <data name="Settings.Comfortable" xml:space="preserve"><value>Comfortable</value></data>
   <data name="Settings.Mode" xml:space="preserve"><value>Mode</value></data>
@@ -90,6 +92,21 @@
   <data name="Connection.Handshake" xml:space="preserve"><value>FLOW CONTROL</value></data>
   <data name="Connection.Status" xml:space="preserve"><value>STATUS</value></data>
   <data name="Connection.NoPort" xml:space="preserve"><value>No port selected</value></data>
+  <data name="Connection.Transport" xml:space="preserve"><value>CONNECTION MODE</value></data>
+  <data name="Connection.Mode.Serial" xml:space="preserve"><value>COM port</value></data>
+  <data name="Connection.Mode.Keyboard" xml:space="preserve"><value>Keyboard scanner</value></data>
+  <data name="Connection.Keyboard.Title" xml:space="preserve"><value>Keyboard scanner test</value></data>
+  <data name="Connection.Keyboard.Description" xml:space="preserve"><value>Start the test manually, activate the dedicated field, and scan a code. Enter, Tab, or 100 ms of silence completes the input.</value></data>
+  <data name="Connection.Keyboard.Warning" xml:space="preserve"><value>While the dedicated field is focused, Scanio captures normal typing too. Windows provides reconstructed text; raw USB reports are unavailable in this mode.</value></data>
+  <data name="Connection.Keyboard.Capture" xml:space="preserve"><value>CAPTURE FIELD</value></data>
+  <data name="Connection.Keyboard.FocusHint" xml:space="preserve"><value>Click here to resume input capture.</value></data>
+  <data name="Connection.Keyboard.Reconstructed" xml:space="preserve"><value>Reconstructed Windows input · not a raw USB report</value></data>
+  <data name="Connection.Keyboard.Start" xml:space="preserve"><value>Start test</value></data>
+  <data name="Connection.Keyboard.Stop" xml:space="preserve"><value>Stop test</value></data>
+  <data name="Connection.Keyboard.Status.Ready" xml:space="preserve"><value>Test not started</value></data>
+  <data name="Connection.Keyboard.Status.Starting" xml:space="preserve"><value>Starting test…</value></data>
+  <data name="Connection.Keyboard.Status.Active" xml:space="preserve"><value>Input active</value></data>
+  <data name="Connection.Keyboard.Status.Paused" xml:space="preserve"><value>Input paused — activate the field</value></data>
   <data name="Monitor.Live" xml:space="preserve"><value>LIVE FEED</value></data>
   <data name="Monitor.Scans" xml:space="preserve"><value>Scans</value></data>
   <data name="Monitor.Latest" xml:space="preserve"><value>Return to latest</value></data>
@@ -187,6 +204,7 @@
   <data name="Error.RefreshDevices" xml:space="preserve"><value>Could not refresh the COM port list.</value></data>
   <data name="Error.SelectDevice" xml:space="preserve"><value>Select a COM port first.</value></data>
   <data name="Error.Connect" xml:space="preserve"><value>Could not connect to the selected COM port.</value></data>
+  <data name="Error.ConnectKeyboard" xml:space="preserve"><value>Could not start the keyboard scanner test.</value></data>
   <data name="Error.OperationFailed" xml:space="preserve"><value>The operation could not be completed.</value></data>
   <data name="Analysis.Field.pnr" xml:space="preserve"><value>Booking reference</value></data>
   <data name="Analysis.Field.origin" xml:space="preserve"><value>Origin airport</value></data>

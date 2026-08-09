@@ -3,6 +3,7 @@ using Scanio.Domain.Transport;
 using Scanio.Platform.Windows.Devices;
 using Scanio.Transports;
 using Scanio.Transports.Serial;
+using Scanio.Transports.Keyboard;
 
 namespace Scanio.Presentation.Services;
 
@@ -10,8 +11,13 @@ public sealed class ConnectionService : IConnectionService
 {
     private readonly ConnectionCoordinator _coordinator;
     private readonly Func<TransportIdentity, SerialConnectionOptions, IScannerTransport> _transportFactory;
+    private readonly SemaphoreSlim _lifecycle = new(1, 1);
+    private readonly object _presentationGate = new();
     private ConnectionState _state = ConnectionState.Detected;
     private ConnectionPresentationSnapshot? _currentSnapshot;
+    private IKeyboardCaptureInput? _keyboardInput;
+    private ConnectionAttempt? _connectionAttempt;
+    private long _lastStatusSequence;
 
     public ConnectionService(
         ConnectionCoordinator coordinator,
@@ -25,13 +31,42 @@ public sealed class ConnectionService : IConnectionService
 
     public event EventHandler<ConnectionStateChangedEventArgs>? StateChanged;
 
-    public ConnectionState State => _state;
+    public ConnectionState State
+    {
+        get
+        {
+            lock (_presentationGate)
+            {
+                return _state;
+            }
+        }
+    }
 
     public TransportIdentity? ActiveIdentity => _coordinator.ActiveIdentity;
 
-    public ConnectionPresentationSnapshot? CurrentSnapshot => _currentSnapshot;
+    public ConnectionPresentationSnapshot? CurrentSnapshot
+    {
+        get
+        {
+            lock (_presentationGate)
+            {
+                return _currentSnapshot;
+            }
+        }
+    }
 
-    public Task ConnectAsync(
+    public IKeyboardCaptureInput? KeyboardInput
+    {
+        get
+        {
+            lock (_presentationGate)
+            {
+                return _keyboardInput;
+            }
+        }
+    }
+
+    public async Task ConnectAsync(
         SerialDeviceInfo device,
         SerialConnectionOptions options,
         CancellationToken cancellationToken)
@@ -39,38 +74,236 @@ public sealed class ConnectionService : IConnectionService
         ArgumentNullException.ThrowIfNull(device);
         ArgumentNullException.ThrowIfNull(options);
 
-        var identity = new TransportIdentity(
-            TransportKind.Serial,
-            device.StableId ?? $"port-session:{device.PortName.ToUpperInvariant()}",
-            device.FriendlyName,
-            device.HardwareId,
-            device.PortName);
-        _currentSnapshot = new ConnectionPresentationSnapshot(identity, ConnectionState.Connecting, options);
-        return _coordinator.ConnectAsync(_transportFactory(identity, options), cancellationToken);
+        await _lifecycle.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            var identity = new TransportIdentity(
+                TransportKind.Serial,
+                device.StableId ?? $"port-session:{device.PortName.ToUpperInvariant()}",
+                device.FriendlyName,
+                device.HardwareId,
+                device.PortName);
+            var transport = _transportFactory(identity, options);
+            var attempt = new ConnectionAttempt(
+                new ConnectionPresentationSnapshot(identity, ConnectionState.Connecting, options),
+                keyboardInput: null,
+                transport.Identity);
+            lock (_presentationGate)
+            {
+                _connectionAttempt = attempt;
+            }
+
+            try
+            {
+                await _coordinator.ConnectAsync(transport, cancellationToken).ConfigureAwait(false);
+            }
+            catch
+            {
+                ConnectionStateChangedEventArgs? rollback;
+                lock (_presentationGate)
+                {
+                    rollback = RollbackAttemptLocked(attempt);
+                }
+
+                NotifyRollback(rollback);
+                throw;
+            }
+        }
+        finally
+        {
+            _lifecycle.Release();
+        }
     }
 
-    public Task DisconnectAsync(CancellationToken cancellationToken) =>
-        _coordinator.DisconnectAsync(cancellationToken);
+    public async Task ConnectKeyboardAsync(CancellationToken cancellationToken)
+    {
+        await _lifecycle.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            var identity = new TransportIdentity(
+                TransportKind.KeyboardCapture,
+                "keyboard-capture:focused-window",
+                "Keyboard scanner",
+                endpoint: "Keyboard");
+            var transport = new KeyboardCaptureTransport(identity);
+            var attempt = new ConnectionAttempt(
+                new ConnectionPresentationSnapshot(identity, ConnectionState.Connecting, Options: null),
+                transport,
+                transport.Identity);
+            lock (_presentationGate)
+            {
+                _connectionAttempt = attempt;
+            }
 
-    public Task ShutdownAsync(CancellationToken cancellationToken) =>
-        _coordinator.ShutdownAsync(cancellationToken);
+            try
+            {
+                await _coordinator.ConnectAsync(transport, cancellationToken).ConfigureAwait(false);
+            }
+            catch
+            {
+                ConnectionStateChangedEventArgs? rollback;
+                lock (_presentationGate)
+                {
+                    rollback = RollbackAttemptLocked(attempt);
+                }
+
+                NotifyRollback(rollback);
+                throw;
+            }
+        }
+        finally
+        {
+            _lifecycle.Release();
+        }
+    }
+
+    public async Task DisconnectAsync(CancellationToken cancellationToken)
+    {
+        await _lifecycle.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await _coordinator.DisconnectAsync(cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            _lifecycle.Release();
+        }
+    }
+
+    public async Task ShutdownAsync(CancellationToken cancellationToken)
+    {
+        await _lifecycle.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await _coordinator.ShutdownAsync(cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            _lifecycle.Release();
+        }
+    }
 
     private void OnCoordinatorStatusChanged(object? sender, ConnectionStatusEvent status)
     {
-        _state = status.State;
-        if (status.State is ConnectionState.Disconnected or ConnectionState.Detected)
+        lock (_presentationGate)
         {
-            _currentSnapshot = null;
-        }
-        else if (_currentSnapshot is not null)
-        {
-            _currentSnapshot = _currentSnapshot with
+            if (status.Sequence <= _lastStatusSequence)
             {
-                Identity = status.Identity ?? _currentSnapshot.Identity,
-                State = status.State
-            };
+                return;
+            }
+
+            _lastStatusSequence = status.Sequence;
+            if (status.State == ConnectionState.Connecting &&
+                _connectionAttempt is { IsPromoted: false } attempt &&
+                attempt.CoordinatorIdentity == status.Identity)
+            {
+                attempt.Promote(_state, _currentSnapshot, _keyboardInput);
+                _currentSnapshot = attempt.Snapshot with
+                {
+                    Identity = status.Identity,
+                    State = status.State
+                };
+                _keyboardInput = attempt.KeyboardInput;
+            }
+
+            _state = status.State;
+
+            if (status.Identity.Kind == TransportKind.KeyboardCapture && IsTerminal(status.State))
+            {
+                _keyboardInput = null;
+            }
+
+            if (status.State is ConnectionState.Disconnected or ConnectionState.Detected)
+            {
+                _currentSnapshot = null;
+            }
+            else if (_currentSnapshot is not null)
+            {
+                _currentSnapshot = _currentSnapshot with
+                {
+                    Identity = status.Identity ?? _currentSnapshot.Identity,
+                    State = status.State
+                };
+            }
+
+            if (_connectionAttempt is { IsPromoted: true } resolvedAttempt &&
+                resolvedAttempt.CoordinatorIdentity == status.Identity &&
+                (status.State == ConnectionState.Connected || IsTerminal(status.State)))
+            {
+                _connectionAttempt = null;
+            }
         }
 
         StateChanged?.Invoke(this, new ConnectionStateChangedEventArgs(status.State, status.Identity));
+    }
+
+    private static bool IsTerminal(ConnectionState state) =>
+        state is not (ConnectionState.Connecting or ConnectionState.Connected or ConnectionState.Disconnecting);
+
+    private ConnectionStateChangedEventArgs? RollbackAttemptLocked(ConnectionAttempt attempt)
+    {
+        if (!ReferenceEquals(_connectionAttempt, attempt))
+        {
+            return null;
+        }
+
+        _connectionAttempt = null;
+        if (!attempt.IsPromoted)
+        {
+            return null;
+        }
+
+        _state = attempt.PreviousState;
+        _currentSnapshot = attempt.PreviousSnapshot;
+        _keyboardInput = attempt.PreviousKeyboardInput;
+        return new ConnectionStateChangedEventArgs(attempt.PreviousState, attempt.PreviousSnapshot?.Identity);
+    }
+
+    private void NotifyRollback(ConnectionStateChangedEventArgs? rollback)
+    {
+        if (rollback is null)
+        {
+            return;
+        }
+
+        try
+        {
+            StateChanged?.Invoke(this, rollback);
+        }
+        catch
+        {
+            // A presentation observer cannot replace the transport cleanup failure.
+        }
+    }
+
+    private sealed class ConnectionAttempt(
+        ConnectionPresentationSnapshot snapshot,
+        IKeyboardCaptureInput? keyboardInput,
+        TransportIdentity coordinatorIdentity)
+    {
+        public ConnectionPresentationSnapshot Snapshot { get; } = snapshot;
+
+        public IKeyboardCaptureInput? KeyboardInput { get; } = keyboardInput;
+
+        public TransportIdentity CoordinatorIdentity { get; } = coordinatorIdentity;
+
+        public bool IsPromoted { get; private set; }
+
+        public ConnectionState PreviousState { get; private set; }
+
+        public ConnectionPresentationSnapshot? PreviousSnapshot { get; private set; }
+
+        public IKeyboardCaptureInput? PreviousKeyboardInput { get; private set; }
+
+        public void Promote(
+            ConnectionState previousState,
+            ConnectionPresentationSnapshot? previousSnapshot,
+            IKeyboardCaptureInput? previousKeyboardInput)
+        {
+            PreviousState = previousState;
+            PreviousSnapshot = previousSnapshot;
+            PreviousKeyboardInput = previousKeyboardInput;
+            IsPromoted = true;
+        }
     }
 }

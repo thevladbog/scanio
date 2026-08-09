@@ -3,6 +3,8 @@ using Scanio.Application.Monitor;
 using Scanio.Domain.Transport;
 using Scanio.Presentation.Services;
 using Scanio.Presentation.Localization;
+using Scanio.Presentation.Settings;
+using System.ComponentModel;
 
 namespace Scanio.Presentation.ViewModels;
 
@@ -12,6 +14,7 @@ public sealed class MonitorViewModel : ObservableObject
     private readonly IConnectionService _connection;
     private readonly IClipboardService _clipboard;
     private readonly IUiLocalizer _localizer;
+    private readonly DisplaySettingsSource _displaySettings = DisplaySettingsSource.Current;
     private readonly SynchronizationContext? _synchronizationContext = SynchronizationContext.Current;
     private ScanLedgerItemViewModel? _selectedEvent;
     private string? _copyFeedback;
@@ -46,6 +49,7 @@ public sealed class MonitorViewModel : ObservableObject
         CopyDiagnosticJsonCommand = CopyCommand(item => ScanDiagnosticJsonSerializer.Serialize(item.Source));
         _monitor.Changed += OnMonitorChanged;
         _connection.StateChanged += (_, _) => RaiseConnectionProperties();
+        _displaySettings.PropertyChanged += OnDisplaySettingsChanged;
         _localizer.PropertyChanged += (_, _) => RunOnUi(() =>
         {
             Rebuild();
@@ -76,12 +80,20 @@ public sealed class MonitorViewModel : ObservableObject
 
     public bool ShowReturnToLatest => !_monitor.IsFollowingLatest && Events.Count > 0;
 
-    public string ConnectionLabel => _connection.CurrentSnapshot is { } snapshot
-        ? $"{snapshot.Endpoint} · {ConnectionLabels.State(snapshot.State, _localizer)}"
+    public string ConnectionLabel => ConnectionSnapshot is { } snapshot
+        ? $"{snapshot.Endpoint} · {snapshot.StateLabel}"
         : _localizer[UiTextKeys.ConnectionNotConnected];
 
-    public string? ConnectionFriendlyName =>
-        _connection.CurrentSnapshot?.Identity.DisplayName ?? _connection.ActiveIdentity?.DisplayName;
+    public string? ConnectionFriendlyName
+    {
+        get
+        {
+            var identity = _connection.CurrentSnapshot?.Identity ?? _connection.ActiveIdentity;
+            return identity is null
+                ? null
+                : TransportPresentationLabels.DisplayName(identity, _localizer);
+        }
+    }
 
     public ConnectionSnapshotViewModel? ConnectionSnapshot =>
         ConnectionSnapshotViewModel.From(_connection.CurrentSnapshot, _localizer);
@@ -104,7 +116,17 @@ public sealed class MonitorViewModel : ObservableObject
 
     public AsyncCommand CopyDiagnosticJsonCommand { get; }
 
+    public void Activate() => _monitor.ReturnToLatest();
+
     private void OnMonitorChanged(object? sender, EventArgs args) => RunOnUi(Rebuild);
+
+    private void OnDisplaySettingsChanged(object? sender, PropertyChangedEventArgs args)
+    {
+        if (args.PropertyName == nameof(DisplaySettingsSource.ShowEscapedControls))
+        {
+            RunOnUi(Rebuild);
+        }
+    }
 
     private void Rebuild()
     {
@@ -112,7 +134,7 @@ public sealed class MonitorViewModel : ObservableObject
         Events.Clear();
         foreach (var scanEvent in _monitor.Events)
         {
-            Events.Add(new ScanLedgerItemViewModel(scanEvent, _localizer));
+            Events.Add(new ScanLedgerItemViewModel(scanEvent, _localizer, _displaySettings.ShowEscapedControls));
         }
 
         SetProperty(ref _selectedEvent, Events.FirstOrDefault(item => item.Id == selectedId), nameof(SelectedEvent));

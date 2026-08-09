@@ -158,7 +158,7 @@ public static class NotebookExportService
     }
 }
 
-internal static class NotebookPayloadIdentity
+public static class NotebookPayloadIdentity
 {
     public static string Create(ReadOnlySpan<byte> payloadBytes) =>
         Convert.ToBase64String(payloadBytes);

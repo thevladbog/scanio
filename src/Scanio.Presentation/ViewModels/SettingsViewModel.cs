@@ -106,12 +106,6 @@ public sealed class SettingsViewModel : ObservableObject
         set => Update(settings => settings with { ShowChunkBoundaries = value });
     }
 
-    public bool FollowLatestByDefault
-    {
-        get => _settings.Current.FollowLatestByDefault;
-        set => Update(settings => settings with { FollowLatestByDefault = value });
-    }
-
     public bool IsCompact
     {
         get => _settings.Current.ListDensity == ListDensity.Compact;
@@ -149,7 +143,6 @@ public sealed class SettingsViewModel : ObservableObject
         OnPropertyChanged(nameof(ShowEscapedControls));
         OnPropertyChanged(nameof(ShowHexPreview));
         OnPropertyChanged(nameof(ShowChunkBoundaries));
-        OnPropertyChanged(nameof(FollowLatestByDefault));
         OnPropertyChanged(nameof(IsCompact));
         OnPropertyChanged(nameof(IsComfortable));
     }

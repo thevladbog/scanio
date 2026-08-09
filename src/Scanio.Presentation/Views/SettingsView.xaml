@@ -2,25 +2,18 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:localization="clr-namespace:Scanio.Presentation.Localization">
-    <Grid Background="{DynamicResource Brush.SurfacePrimary}" Margin="28,24">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="20" />
-            <RowDefinition Height="*" />
-        </Grid.RowDefinitions>
-        <StackPanel>
-            <TextBlock Text="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Settings.Title]}"
-                       Style="{DynamicResource PageTitle}" />
-            <TextBlock Text="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Settings.Subtitle]}"
-                       Foreground="{DynamicResource Brush.TextSecondary}" Margin="0,6,0,0" />
-        </StackPanel>
-        <Grid Grid.Row="2">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="24" />
-                <ColumnDefinition Width="*" />
-            </Grid.ColumnDefinitions>
+    <Grid Background="{DynamicResource Brush.SurfacePrimary}">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="1" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <Border x:Name="SettingsLeftColumn" Padding="28,24">
             <StackPanel>
+                <TextBlock Text="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Settings.Title]}"
+                           Style="{DynamicResource PageTitle}" />
+                <TextBlock Text="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Settings.Subtitle]}"
+                           Foreground="{DynamicResource Brush.TextSecondary}" Margin="0,6,0,24" />
                 <TextBlock Text="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Settings.Language]}"
                            Style="{DynamicResource PanelTitle}" />
                 <StackPanel Orientation="Horizontal" Margin="0,12,0,28">
@@ -37,8 +30,6 @@
                           IsChecked="{Binding ShowHexPreview}" Margin="0,12,0,0" />
                 <CheckBox Content="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Settings.ShowChunkBoundaries]}"
                           IsChecked="{Binding ShowChunkBoundaries}" Margin="0,12,0,0" />
-                <CheckBox Content="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Settings.FollowLatest]}"
-                          IsChecked="{Binding FollowLatestByDefault}" Margin="0,12,0,0" />
                 <TextBlock Text="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Settings.Density]}"
                            Style="{DynamicResource PanelTitle}" Margin="0,28,0,0" />
                 <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
@@ -48,25 +39,27 @@
                                  IsChecked="{Binding IsComfortable, Mode=TwoWay}" GroupName="Density" />
                 </StackPanel>
             </StackPanel>
-            <Border Grid.Column="2" BorderBrush="{DynamicResource Brush.BorderDefault}" BorderThickness="1" Padding="24">
-                <StackPanel>
-                    <TextBlock Text="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Settings.LocalData]}"
-                               Style="{DynamicResource PanelTitle}" />
-                    <TextBlock Text="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Settings.Mode]}"
-                               Style="{DynamicResource KickerText}" Margin="0,16,0,0" />
-                    <TextBlock Text="{Binding ModeLabel}" Margin="0,5,0,0" />
-                    <TextBlock Text="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Settings.DatabasePath]}"
-                               Style="{DynamicResource KickerText}" Margin="0,16,0,0" />
-                    <TextBlock Text="{Binding DatabasePath}" TextWrapping="Wrap" Margin="0,5,0,0" />
-                    <TextBlock Text="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Settings.Version]}"
-                               Style="{DynamicResource KickerText}" Margin="0,16,0,0" />
-                    <TextBlock Text="{Binding ApplicationVersion}" Margin="0,5,0,0" />
-                    <Button Content="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Settings.OpenFolder]}"
-                            Command="{Binding OpenDataFolderCommand}" Style="{DynamicResource CommandButton}" Margin="0,24,0,0" />
-                    <Button Content="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Settings.OpenReleases]}"
-                            Command="{Binding OpenReleasesCommand}" Style="{DynamicResource CommandButton}" Margin="0,12,0,0" />
-                </StackPanel>
-            </Border>
-        </Grid>
+        </Border>
+        <Border x:Name="SettingsDivider" Grid.Column="1"
+                Background="{DynamicResource Brush.BorderDefault}" />
+        <Border x:Name="SettingsLocalDataColumn" Grid.Column="2" Padding="28,24">
+            <StackPanel>
+                <TextBlock Text="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Settings.LocalData]}"
+                           Style="{DynamicResource PanelTitle}" />
+                <TextBlock Text="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Settings.Mode]}"
+                           Style="{DynamicResource KickerText}" Margin="0,16,0,0" />
+                <TextBlock Text="{Binding ModeLabel}" Margin="0,5,0,0" />
+                <TextBlock Text="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Settings.DatabasePath]}"
+                           Style="{DynamicResource KickerText}" Margin="0,16,0,0" />
+                <TextBlock Text="{Binding DatabasePath}" TextWrapping="Wrap" Margin="0,5,0,0" />
+                <TextBlock Text="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Settings.Version]}"
+                           Style="{DynamicResource KickerText}" Margin="0,16,0,0" />
+                <TextBlock Text="{Binding ApplicationVersion}" Margin="0,5,0,0" />
+                <Button Content="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Settings.OpenFolder]}"
+                        Command="{Binding OpenDataFolderCommand}" Style="{DynamicResource CommandButton}" Margin="0,24,0,0" />
+                <Button Content="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Settings.OpenReleases]}"
+                        Command="{Binding OpenReleasesCommand}" Style="{DynamicResource CommandButton}" Margin="0,12,0,0" />
+            </StackPanel>
+        </Border>
     </Grid>
 </UserControl>

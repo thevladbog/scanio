@@ -1,7 +1,8 @@
 <UserControl x:Class="Scanio.Presentation.Views.MonitorView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:localization="clr-namespace:Scanio.Presentation.Localization">
+             xmlns:localization="clr-namespace:Scanio.Presentation.Localization"
+             xmlns:settings="clr-namespace:Scanio.Presentation.Settings">
     <UserControl.InputBindings>
         <KeyBinding Key="C" Modifiers="Control" Command="{Binding CopyCodeCommand}" />
     </UserControl.InputBindings>
@@ -31,14 +32,14 @@
                 </Grid>
                 <ListBox Grid.Row="2" ItemsSource="{Binding Events}" SelectedItem="{Binding SelectedEvent}"
                          Style="{DynamicResource LedgerListBox}"
-                         ItemContainerStyle="{DynamicResource LedgerRow}"
+                         ItemContainerStyle="{DynamicResource DensityAwareLedgerRow}"
                          ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                     <ListBox.ItemTemplate>
                         <DataTemplate>
                             <Grid>
                                 <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                                <TextBlock Text="{Binding Sequence, StringFormat=№{0}}" Style="{DynamicResource DataText}" FontWeight="SemiBold" />
+                                <TextBlock Text="{Binding Sequence}" Style="{DynamicResource DataText}" FontWeight="SemiBold" />
                                 <TextBlock Grid.Column="1" Text="{Binding Timestamp}" Margin="10,0,0,0"
                                            Foreground="{DynamicResource Brush.TextSecondary}" />
                                 <StackPanel Grid.Column="2" Orientation="Horizontal">
@@ -103,13 +104,40 @@
 
             <Border x:Name="RawEvidence" Grid.Row="2" Background="{DynamicResource Brush.SurfaceInk}" Padding="16">
                 <Grid>
-                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="20" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition>
+                            <ColumnDefinition.Style>
+                                <Style TargetType="ColumnDefinition">
+                                    <Setter Property="Width" Value="20" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Source={x:Static settings:DisplaySettingsSource.Current}, Path=ShowHexPreview}" Value="False">
+                                            <Setter Property="Width" Value="0" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </ColumnDefinition.Style>
+                        </ColumnDefinition>
+                        <ColumnDefinition>
+                            <ColumnDefinition.Style>
+                                <Style TargetType="ColumnDefinition">
+                                    <Setter Property="Width" Value="*" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Source={x:Static settings:DisplaySettingsSource.Current}, Path=ShowHexPreview}" Value="False">
+                                            <Setter Property="Width" Value="0" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </ColumnDefinition.Style>
+                        </ColumnDefinition>
+                    </Grid.ColumnDefinitions>
                     <StackPanel>
                         <TextBlock Text="RAW" Foreground="{DynamicResource Brush.Signal}" Style="{DynamicResource KickerText}" />
                         <TextBlock Text="{Binding SelectedEvent.Raw}" Foreground="{DynamicResource Brush.SurfacePrimary}"
                                    FontFamily="{DynamicResource Font.Data}" TextWrapping="Wrap" Margin="0,6,0,0" MaxHeight="56" />
                     </StackPanel>
-                    <StackPanel Grid.Column="2">
+                    <StackPanel x:Name="HexEvidence" Grid.Column="2"
+                                Visibility="{Binding Source={x:Static settings:DisplaySettingsSource.Current}, Path=ShowHexPreview, Converter={StaticResource BooleanToVisibility}}">
                         <TextBlock Text="HEX" Foreground="{DynamicResource Brush.Signal}" Style="{DynamicResource KickerText}" />
                         <TextBlock Text="{Binding SelectedEvent.Hex}" Foreground="{DynamicResource Brush.SurfacePrimary}"
                                    FontFamily="{DynamicResource Font.Data}" TextWrapping="Wrap" Margin="0,6,0,0" MaxHeight="56" />
@@ -190,7 +218,23 @@
                 BorderBrush="{DynamicResource Brush.BorderDefault}" BorderThickness="1,0,0,0"
                 Padding="16">
             <Grid>
-                <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition>
+                        <RowDefinition.Style>
+                            <Style TargetType="RowDefinition">
+                                <Setter Property="Height" Value="*" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Source={x:Static settings:DisplaySettingsSource.Current}, Path=ShowChunkBoundaries}" Value="False">
+                                        <Setter Property="Height" Value="0" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </RowDefinition.Style>
+                    </RowDefinition>
+                </Grid.RowDefinitions>
                 <TextBlock Text="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Monitor.Inspector]}" Style="{DynamicResource KickerText}" />
                 <Border x:Name="ConnectionInspector" Grid.Row="1" Style="{DynamicResource InspectorSection}" Margin="0,10,0,16">
                     <StackPanel>
@@ -215,7 +259,8 @@
                         <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding SelectedEvent.Duration}" Style="{DynamicResource KeyValueValue}" Margin="0,5,0,0" />
                     </Grid>
                 </Border>
-                <Grid x:Name="ChunksInspector" Grid.Row="3">
+                <Grid x:Name="ChunksInspector" Grid.Row="3"
+                      Visibility="{Binding Source={x:Static settings:DisplaySettingsSource.Current}, Path=ShowChunkBoundaries, Converter={StaticResource BooleanToVisibility}}">
                     <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
                     <TextBlock Text="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Monitor.Reads]}" Style="{DynamicResource PanelTitle}" Margin="0,0,0,8" />
                     <ListBox Grid.Row="1" ItemsSource="{Binding SelectedEvent.Chunks}" Style="{DynamicResource LedgerListBox}"

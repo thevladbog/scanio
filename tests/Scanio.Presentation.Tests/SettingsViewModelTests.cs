@@ -6,6 +6,7 @@ using Scanio.Presentation.ViewModels;
 namespace Scanio.Presentation.Tests;
 
 [TestClass]
+[DoNotParallelize]
 public sealed class SettingsViewModelTests
 {
     [TestMethod]

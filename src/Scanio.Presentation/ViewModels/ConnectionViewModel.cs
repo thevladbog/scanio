@@ -9,35 +9,65 @@ namespace Scanio.Presentation.ViewModels;
 
 public sealed record LocalizedOption<T>(T Value, string Label) where T : struct, Enum;
 
+public enum ConnectionMode
+{
+    Serial,
+    Keyboard
+}
+
 public sealed class ConnectionViewModel : ObservableObject
 {
+    private static readonly TimeSpan KeyboardSilenceTimeout = TimeSpan.FromMilliseconds(100);
     private readonly ISerialDeviceEnumerator _deviceEnumerator;
     private readonly IConnectionService _connection;
     private readonly IUiLocalizer _localizer;
+    private readonly Func<TimeSpan, CancellationToken, Task> _delay;
     private readonly SynchronizationContext? _synchronizationContext = SynchronizationContext.Current;
+    private readonly object _keyboardDeadlineGate = new();
     private SerialDeviceInfo? _selectedDevice;
     private ConnectionState _state;
+    private ConnectionMode _selectedMode;
+    private bool _isKeyboardSurfaceFocused;
+    private long _keyboardDeadlineGeneration;
+    private CancellationTokenSource? _keyboardDeadlineCancellation;
+    private string _pendingKeyboardText = string.Empty;
+    private string? _lastKeyboardScan;
     private string? _errorMessage;
 
     public ConnectionViewModel(
         ISerialDeviceEnumerator deviceEnumerator,
         IConnectionService connection,
         IUiLocalizer localizer)
+        : this(deviceEnumerator, connection, localizer, Task.Delay)
+    {
+    }
+
+    internal ConnectionViewModel(
+        ISerialDeviceEnumerator deviceEnumerator,
+        IConnectionService connection,
+        IUiLocalizer localizer,
+        Func<TimeSpan, CancellationToken, Task> delay)
     {
         ArgumentNullException.ThrowIfNull(deviceEnumerator);
         ArgumentNullException.ThrowIfNull(connection);
         ArgumentNullException.ThrowIfNull(localizer);
+        ArgumentNullException.ThrowIfNull(delay);
         _deviceEnumerator = deviceEnumerator;
         _connection = connection;
         _localizer = localizer;
+        _delay = delay;
         _state = connection.State;
         RefreshCommand = new AsyncCommand(RefreshAsync, () => IsEditingEnabled);
-        ConnectCommand = new AsyncCommand(ConnectAsync, () => SelectedDevice is not null && IsEditingEnabled);
-        DisconnectCommand = new AsyncCommand(connection.DisconnectAsync, () => State is ConnectionState.Connected or ConnectionState.DeviceRemoved);
+        ConnectCommand = new AsyncCommand(ConnectAsync, CanStartSerial);
+        StartKeyboardTestCommand = new AsyncCommand(ConnectKeyboardAsync, CanStartKeyboard);
+        DisconnectCommand = new AsyncCommand(DisconnectAsync, () => State is ConnectionState.Connected or ConnectionState.DeviceRemoved);
         _connection.StateChanged += OnConnectionStateChanged;
         _localizer.PropertyChanged += (_, _) => RunOnUi(RaiseLocalizedProperties);
         ConnectCommand.PropertyChanged += (_, _) => OnCommandStateChanged();
+        StartKeyboardTestCommand.PropertyChanged += (_, _) => OnCommandStateChanged();
     }
+
+    public event EventHandler? KeyboardFocusRequested;
 
     public ObservableCollection<SerialDeviceInfo> Devices { get; } = [];
 
@@ -55,6 +85,49 @@ public sealed class ConnectionViewModel : ObservableObject
     }
 
     public bool HasSelection => SelectedDevice is not null;
+
+    public ConnectionMode SelectedMode
+    {
+        get => _selectedMode;
+        set
+        {
+            if (!SetProperty(ref _selectedMode, value))
+            {
+                return;
+            }
+
+            OnPropertyChanged(nameof(IsSerialMode));
+            OnPropertyChanged(nameof(IsKeyboardMode));
+            OnPropertyChanged(nameof(IsKeyboardStartVisible));
+            OnPropertyChanged(nameof(IsKeyboardStopVisible));
+            ConnectCommand.RaiseCanExecuteChanged();
+            StartKeyboardTestCommand.RaiseCanExecuteChanged();
+        }
+    }
+
+    public bool IsSerialMode
+    {
+        get => SelectedMode == ConnectionMode.Serial;
+        set
+        {
+            if (value)
+            {
+                SelectedMode = ConnectionMode.Serial;
+            }
+        }
+    }
+
+    public bool IsKeyboardMode
+    {
+        get => SelectedMode == ConnectionMode.Keyboard;
+        set
+        {
+            if (value)
+            {
+                SelectedMode = ConnectionMode.Keyboard;
+            }
+        }
+    }
 
     public ConnectionSnapshotViewModel? ConnectionSnapshot =>
         ConnectionSnapshotViewModel.From(_connection.CurrentSnapshot, _localizer);
@@ -101,8 +174,10 @@ public sealed class ConnectionViewModel : ObservableObject
             {
                 OnPropertyChanged(nameof(StateTitle));
                 OnPropertyChanged(nameof(IsEditingEnabled));
+                RaiseKeyboardProperties();
                 RefreshCommand.RaiseCanExecuteChanged();
                 ConnectCommand.RaiseCanExecuteChanged();
+                StartKeyboardTestCommand.RaiseCanExecuteChanged();
                 DisconnectCommand.RaiseCanExecuteChanged();
             }
         }
@@ -111,7 +186,46 @@ public sealed class ConnectionViewModel : ObservableObject
     public string StateTitle => ConnectionLabels.State(State, _localizer);
 
     public bool IsEditingEnabled =>
-        !ConnectCommand.IsRunning && State is not (ConnectionState.Connecting or ConnectionState.Connected or ConnectionState.Disconnecting);
+        !ConnectCommand.IsRunning &&
+        !StartKeyboardTestCommand.IsRunning &&
+        State is not (ConnectionState.Connecting or ConnectionState.Connected or ConnectionState.Disconnecting);
+
+    public bool CanChangeMode => IsEditingEnabled;
+
+    public bool IsKeyboardCaptureActive =>
+        State == ConnectionState.Connected &&
+        (_connection.ActiveIdentity?.Kind == TransportKind.KeyboardCapture ||
+         _connection.CurrentSnapshot?.Identity.Kind == TransportKind.KeyboardCapture);
+
+    public bool IsKeyboardSurfaceFocused
+    {
+        get => _isKeyboardSurfaceFocused;
+        private set
+        {
+            if (SetProperty(ref _isKeyboardSurfaceFocused, value))
+            {
+                OnPropertyChanged(nameof(KeyboardStatusTitle));
+            }
+        }
+    }
+
+    public bool IsKeyboardStartVisible => IsKeyboardMode && !IsKeyboardCaptureActive;
+
+    public bool IsKeyboardStopVisible => IsKeyboardMode && IsKeyboardCaptureActive;
+
+    public string KeyboardStatusTitle => IsKeyboardCaptureActive
+        ? _localizer[IsKeyboardSurfaceFocused
+            ? UiTextKeys.ConnectionKeyboardStatusActive
+            : UiTextKeys.ConnectionKeyboardStatusPaused]
+        : _localizer[(State == ConnectionState.Connecting || StartKeyboardTestCommand.IsRunning) && IsKeyboardMode
+            ? UiTextKeys.ConnectionKeyboardStatusStarting
+            : UiTextKeys.ConnectionKeyboardStatusReady];
+
+    public string? LastKeyboardScan
+    {
+        get => _lastKeyboardScan;
+        private set => SetProperty(ref _lastKeyboardScan, value);
+    }
 
     public string? ErrorMessage
     {
@@ -123,7 +237,54 @@ public sealed class ConnectionViewModel : ObservableObject
 
     public AsyncCommand ConnectCommand { get; }
 
+    public AsyncCommand StartKeyboardTestCommand { get; }
+
     public AsyncCommand DisconnectCommand { get; }
+
+    public AsyncCommand StopKeyboardTestCommand => DisconnectCommand;
+
+    public void AcceptKeyboardText(string text)
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            return;
+        }
+
+        CancellationTokenSource current;
+        long generation;
+        lock (_keyboardDeadlineGate)
+        {
+            if (_connection.KeyboardInput?.AppendText(text) != true)
+            {
+                return;
+            }
+
+            CancelAndDisposeKeyboardDeadlineLocked();
+            current = new CancellationTokenSource();
+            _keyboardDeadlineCancellation = current;
+            _pendingKeyboardText += text;
+            generation = ++_keyboardDeadlineGeneration;
+        }
+
+        _ = CompleteKeyboardInputAfterSilenceAsync(generation, current);
+    }
+
+    public void CompleteKeyboardInput()
+    {
+        string? completed;
+        lock (_keyboardDeadlineGate)
+        {
+            CancelAndDisposeKeyboardDeadlineLocked();
+            completed = TryCompleteKeyboardInputLocked();
+        }
+
+        if (completed is not null)
+        {
+            PublishCompletedKeyboardInput(completed);
+        }
+    }
+
+    public void SetKeyboardSurfaceFocused(bool focused) => IsKeyboardSurfaceFocused = focused;
 
     private async Task RefreshAsync(CancellationToken cancellationToken)
     {
@@ -176,10 +337,41 @@ public sealed class ConnectionViewModel : ObservableObject
         }
     }
 
+    private async Task ConnectKeyboardAsync(CancellationToken cancellationToken)
+    {
+        ErrorMessage = null;
+        try
+        {
+            await _connection.ConnectKeyboardAsync(cancellationToken);
+            RequestKeyboardFocus();
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception)
+        {
+            ErrorMessage = _localizer["Error.ConnectKeyboard"];
+        }
+    }
+
+    private async Task DisconnectAsync(CancellationToken cancellationToken)
+    {
+        CancelKeyboardDeadline(discardPending: true);
+        IsKeyboardSurfaceFocused = false;
+        await _connection.DisconnectAsync(cancellationToken);
+    }
+
     private void OnConnectionStateChanged(object? sender, ConnectionStateChangedEventArgs args) =>
         RunOnUi(() =>
         {
             State = args.State;
+            if (args.State is not (ConnectionState.Connecting or ConnectionState.Connected or ConnectionState.Disconnecting))
+            {
+                CancelKeyboardDeadline(discardPending: true);
+                IsKeyboardSurfaceFocused = false;
+            }
+
             OnPropertyChanged(nameof(ConnectionSnapshot));
             OnPropertyChanged(nameof(HeaderConnectionLabel));
         });
@@ -192,13 +384,138 @@ public sealed class ConnectionViewModel : ObservableObject
         OnPropertyChanged(nameof(ParityOptions));
         OnPropertyChanged(nameof(StopBitOptions));
         OnPropertyChanged(nameof(HandshakeOptions));
+        OnPropertyChanged(nameof(KeyboardStatusTitle));
     }
 
     private void OnCommandStateChanged()
     {
         OnPropertyChanged(nameof(IsEditingEnabled));
+        OnPropertyChanged(nameof(CanChangeMode));
+        OnPropertyChanged(nameof(KeyboardStatusTitle));
         RefreshCommand.RaiseCanExecuteChanged();
         ConnectCommand.RaiseCanExecuteChanged();
+        StartKeyboardTestCommand.RaiseCanExecuteChanged();
+    }
+
+    private bool CanStartSerial() =>
+        IsSerialMode &&
+        SelectedDevice is not null &&
+        IsEditingEnabled &&
+        _connection.ActiveIdentity is null;
+
+    private bool CanStartKeyboard() =>
+        IsKeyboardMode &&
+        IsEditingEnabled &&
+        _connection.ActiveIdentity is null;
+
+    private void RaiseKeyboardProperties()
+    {
+        OnPropertyChanged(nameof(CanChangeMode));
+        OnPropertyChanged(nameof(IsKeyboardCaptureActive));
+        OnPropertyChanged(nameof(IsKeyboardStartVisible));
+        OnPropertyChanged(nameof(IsKeyboardStopVisible));
+        OnPropertyChanged(nameof(KeyboardStatusTitle));
+    }
+
+    private void CancelKeyboardDeadline(bool discardPending = false)
+    {
+        lock (_keyboardDeadlineGate)
+        {
+            CancelAndDisposeKeyboardDeadlineLocked();
+            if (discardPending)
+            {
+                _pendingKeyboardText = string.Empty;
+            }
+        }
+    }
+
+    private async Task CompleteKeyboardInputAfterSilenceAsync(
+        long generation,
+        CancellationTokenSource cancellation)
+    {
+        var cancellationToken = cancellation.Token;
+        try
+        {
+            await _delay(KeyboardSilenceTimeout, cancellationToken).ConfigureAwait(false);
+
+            var ownsDeadline = false;
+            try
+            {
+                string? completed;
+                lock (_keyboardDeadlineGate)
+                {
+                    if (generation != _keyboardDeadlineGeneration ||
+                        !ReferenceEquals(_keyboardDeadlineCancellation, cancellation) ||
+                        cancellationToken.IsCancellationRequested)
+                    {
+                        return;
+                    }
+
+                    _keyboardDeadlineCancellation = null;
+                    _keyboardDeadlineGeneration++;
+                    ownsDeadline = true;
+                    completed = TryCompleteKeyboardInputLocked();
+                }
+
+                if (completed is not null)
+                {
+                    PublishCompletedKeyboardInput(completed);
+                }
+            }
+            finally
+            {
+                if (ownsDeadline)
+                {
+                    cancellation.Dispose();
+                }
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // A newer fragment or explicit completion superseded this deadline.
+        }
+        catch (Exception)
+        {
+            RunOnUi(() => ErrorMessage = _localizer["Error.OperationFailed"]);
+        }
+    }
+
+    private void RequestKeyboardFocus() =>
+        RunOnUi(() => KeyboardFocusRequested?.Invoke(this, EventArgs.Empty));
+
+    private string? TryCompleteKeyboardInputLocked()
+    {
+        if (_connection.KeyboardInput?.CompleteInput() != true)
+        {
+            return null;
+        }
+
+        var completed = _pendingKeyboardText;
+        _pendingKeyboardText = string.Empty;
+        return completed;
+    }
+
+    private void PublishCompletedKeyboardInput(string completed) =>
+        RunOnUi(() => LastKeyboardScan = completed);
+
+    private void CancelAndDisposeKeyboardDeadlineLocked()
+    {
+        var cancellation = _keyboardDeadlineCancellation;
+        _keyboardDeadlineCancellation = null;
+        _keyboardDeadlineGeneration++;
+        if (cancellation is null)
+        {
+            return;
+        }
+
+        try
+        {
+            cancellation.Cancel();
+        }
+        finally
+        {
+            cancellation.Dispose();
+        }
     }
 
     private void RunOnUi(Action action)

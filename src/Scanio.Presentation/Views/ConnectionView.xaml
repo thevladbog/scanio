@@ -3,13 +3,43 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:localization="clr-namespace:Scanio.Presentation.Localization">
     <Grid Background="{DynamicResource Brush.SurfacePrimary}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="27*" />
             <ColumnDefinition Width="49*" />
             <ColumnDefinition Width="24*" />
         </Grid.ColumnDefinitions>
 
-        <Border Grid.Column="0" Background="{DynamicResource Brush.SurfacePaper}" BorderBrush="{DynamicResource Brush.BorderDefault}" BorderThickness="0,0,1,0" Padding="{DynamicResource Inset.5}">
+        <Border Grid.Row="0" Grid.ColumnSpan="3"
+                Background="{DynamicResource Brush.SurfacePaper}"
+                BorderBrush="{DynamicResource Brush.BorderDefault}"
+                BorderThickness="0,0,0,1"
+                Padding="16,8">
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <TextBlock Text="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Connection.Transport]}"
+                           Style="{DynamicResource KickerText}" VerticalAlignment="Center" Margin="0,0,16,0" />
+                <RadioButton x:Name="SerialModeSelector" GroupName="ConnectionMode"
+                             Content="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Connection.Mode.Serial]}"
+                             IsChecked="{Binding IsSerialMode, Mode=TwoWay}"
+                             IsEnabled="{Binding CanChangeMode}"
+                             Style="{DynamicResource NavigationButton}" MinWidth="150" Margin="0,0,8,0" />
+                <RadioButton x:Name="KeyboardModeSelector" GroupName="ConnectionMode"
+                             Content="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Connection.Mode.Keyboard]}"
+                             IsChecked="{Binding IsKeyboardMode, Mode=TwoWay}"
+                             IsEnabled="{Binding CanChangeMode}"
+                             Style="{DynamicResource NavigationButton}" MinWidth="180" />
+            </StackPanel>
+        </Border>
+
+        <Border Grid.Row="1" Grid.Column="0"
+                Visibility="{Binding IsSerialMode, Converter={StaticResource BooleanToVisibility}}"
+                Background="{DynamicResource Brush.SurfacePaper}"
+                BorderBrush="{DynamicResource Brush.BorderDefault}"
+                BorderThickness="0,0,1,0"
+                Padding="{DynamicResource Inset.5}">
             <Grid>
                 <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
                 <TextBlock Text="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Connection.Devices]}" Style="{DynamicResource KickerText}" />
@@ -19,6 +49,7 @@
                     <Button Grid.Column="1" Content="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Common.Refresh]}" Command="{Binding RefreshCommand}" Style="{DynamicResource CommandButton}" />
                 </Grid>
                 <ListView Grid.Row="2" ItemsSource="{Binding Devices}" SelectedItem="{Binding SelectedDevice}" IsEnabled="{Binding IsEditingEnabled}"
+                          ItemContainerStyle="{DynamicResource DensityAwareDeviceRow}"
                           ScrollViewer.CanContentScroll="True" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                           VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling">
                     <ListView.ItemTemplate>
@@ -37,7 +68,8 @@
             </Grid>
         </Border>
 
-        <Grid Grid.Column="1" Margin="24">
+        <Grid Grid.Row="1" Grid.Column="1" Margin="24"
+              Visibility="{Binding IsSerialMode, Converter={StaticResource BooleanToVisibility}}">
             <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
             <TextBlock Text="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Connection.Title]}" Style="{DynamicResource PageTitle}" />
             <TextBlock Grid.Row="1" Margin="0,8,0,24" Text="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Connection.Subtitle]}" Foreground="{DynamicResource Brush.TextSecondary}" TextWrapping="Wrap" />
@@ -58,14 +90,72 @@
             </Grid>
         </Grid>
 
-        <Border Grid.Column="2" Background="{DynamicResource Brush.SurfaceInk}" Padding="{DynamicResource Inset.6}">
+        <Grid Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Margin="28,24"
+              Visibility="{Binding IsKeyboardMode, Converter={StaticResource BooleanToVisibility}}">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+            <TextBlock Text="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Connection.Keyboard.Title]}"
+                       Style="{DynamicResource PageTitle}" />
+            <TextBlock Grid.Row="1" Margin="0,8,0,16"
+                       Text="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Connection.Keyboard.Description]}"
+                       Foreground="{DynamicResource Brush.TextSecondary}" TextWrapping="Wrap" />
+            <Border Grid.Row="2" Background="{DynamicResource Brush.SignalSurface}"
+                    BorderBrush="{DynamicResource Brush.Signal}" BorderThickness="4,0,0,0"
+                    Padding="{DynamicResource Inset.3}" Margin="0,0,0,20">
+                <TextBlock Text="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Connection.Keyboard.Warning]}"
+                           TextWrapping="Wrap" />
+            </Border>
+            <Border x:Name="KeyboardCaptureSurface" Grid.Row="3"
+                    MinHeight="160" Padding="{DynamicResource Inset.5}"
+                    Background="{DynamicResource Brush.SurfacePaper}"
+                    BorderBrush="{DynamicResource Brush.BorderDefault}" BorderThickness="2">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <TextBlock x:Name="KeyboardCaptureLabel"
+                               Text="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Connection.Keyboard.Capture]}"
+                               Style="{DynamicResource KickerText}" />
+                    <TextBlock Grid.Row="1" Text="{Binding KeyboardStatusTitle}"
+                               Style="{DynamicResource PanelTitle}" Margin="0,8,0,16" TextWrapping="Wrap" />
+                    <TextBox x:Name="KeyboardCaptureInput" Grid.Row="2"
+                             MinHeight="72" Padding="16"
+                             AutomationProperties.LabeledBy="{Binding ElementName=KeyboardCaptureLabel}"
+                             Text="{Binding LastKeyboardScan, Mode=OneWay}"
+                             Background="{DynamicResource Brush.SignalSurface}"
+                             BorderBrush="{DynamicResource Brush.Signal}" BorderThickness="2"
+                             IsReadOnly="True" IsReadOnlyCaretVisible="True" Focusable="True"
+                             ToolTip="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Connection.Keyboard.FocusHint]}"
+                             PreviewTextInput="OnPreviewTextInput"
+                             PreviewKeyDown="OnPreviewKeyDown"
+                             IsKeyboardFocusWithinChanged="OnKeyboardFocusWithinChanged" />
+                </Grid>
+            </Border>
+        </Grid>
+
+        <Border Grid.Row="1" Grid.Column="2" Background="{DynamicResource Brush.SurfaceInk}" Padding="{DynamicResource Inset.6}">
             <Grid>
                 <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
                 <TextBlock Text="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Connection.Status]}" Foreground="{DynamicResource Brush.Signal}" Style="{DynamicResource KickerText}" />
-                <TextBlock Grid.Row="1" Text="{Binding StateTitle}" Foreground="{DynamicResource Brush.SurfacePrimary}" FontSize="{DynamicResource Type.HeadingLarge}" FontWeight="SemiBold" Margin="0,8,0,24" />
+                <TextBlock Grid.Row="1" Text="{Binding StateTitle}" Foreground="{DynamicResource Brush.SurfacePrimary}" FontSize="{DynamicResource Type.HeadingLarge}" FontWeight="SemiBold" Margin="0,8,0,24"
+                           Visibility="{Binding IsSerialMode, Converter={StaticResource BooleanToVisibility}}" />
+                <TextBlock Grid.Row="1" Text="{Binding KeyboardStatusTitle}" Foreground="{DynamicResource Brush.SurfacePrimary}" FontSize="{DynamicResource Type.HeadingLarge}" FontWeight="SemiBold" Margin="0,8,0,24" TextWrapping="Wrap"
+                           Visibility="{Binding IsKeyboardMode, Converter={StaticResource BooleanToVisibility}}" />
                 <StackPanel Grid.Row="2">
-                    <TextBlock Text="{Binding SelectedDevice.PortName, TargetNullValue=—}" Foreground="{DynamicResource Brush.SurfacePrimary}" Style="{DynamicResource DataText}" FontSize="{DynamicResource Type.DataLarge}" />
-                    <TextBlock Text="{Binding SelectedDevice.FriendlyName}" Foreground="{DynamicResource Brush.BorderDefault}" TextWrapping="Wrap" Margin="0,8,0,0" />
+                    <StackPanel Visibility="{Binding IsSerialMode, Converter={StaticResource BooleanToVisibility}}">
+                        <TextBlock Text="{Binding SelectedDevice.PortName, TargetNullValue=—}" Foreground="{DynamicResource Brush.SurfacePrimary}" Style="{DynamicResource DataText}" FontSize="{DynamicResource Type.DataLarge}" />
+                        <TextBlock Text="{Binding SelectedDevice.FriendlyName}" Foreground="{DynamicResource Brush.BorderDefault}" TextWrapping="Wrap" Margin="0,8,0,0" />
+                    </StackPanel>
+                    <StackPanel Visibility="{Binding IsKeyboardMode, Converter={StaticResource BooleanToVisibility}}">
+                        <TextBlock Text="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Connection.Mode.Keyboard]}" Foreground="{DynamicResource Brush.SurfacePrimary}" Style="{DynamicResource DataText}" FontSize="{DynamicResource Type.DataLarge}" TextWrapping="Wrap" />
+                        <TextBlock Text="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Connection.Keyboard.Reconstructed]}" Foreground="{DynamicResource Brush.BorderDefault}" TextWrapping="Wrap" Margin="0,8,0,0" />
+                    </StackPanel>
                     <TextBlock Text="{Binding ConnectionSnapshot.ParametersLabel}" Foreground="{DynamicResource Brush.BorderDefault}" TextWrapping="Wrap" Margin="0,12,0,0" />
                     <Border Background="{DynamicResource Brush.ErrorSurface}" Margin="0,24,0,0" Padding="{DynamicResource Inset.3}">
                         <Border.Style>
@@ -81,7 +171,17 @@
                         <TextBlock Text="{Binding ErrorMessage}" Foreground="{DynamicResource Brush.Error}" TextWrapping="Wrap" />
                     </Border>
                 </StackPanel>
-                <Button Grid.Row="3" Content="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Connection.Connect]}" Command="{Binding ConnectCommand}" Style="{DynamicResource PrimaryButton}" />
+                <Grid Grid.Row="3">
+                    <Button Content="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Connection.Connect]}"
+                            Command="{Binding ConnectCommand}" Style="{DynamicResource PrimaryButton}"
+                            Visibility="{Binding IsSerialMode, Converter={StaticResource BooleanToVisibility}}" />
+                    <Button Content="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Connection.Keyboard.Start]}"
+                            Command="{Binding StartKeyboardTestCommand}" Style="{DynamicResource PrimaryButton}"
+                            Visibility="{Binding IsKeyboardStartVisible, Converter={StaticResource BooleanToVisibility}}" />
+                    <Button Content="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Connection.Keyboard.Stop]}"
+                            Command="{Binding StopKeyboardTestCommand}" Style="{DynamicResource DangerButton}"
+                            Visibility="{Binding IsKeyboardStopVisible, Converter={StaticResource BooleanToVisibility}}" />
+                </Grid>
             </Grid>
         </Border>
     </Grid>

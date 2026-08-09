@@ -17,5 +17,4 @@ public sealed record AppSettings(
     bool ShowEscapedControls = true,
     bool ShowHexPreview = true,
     bool ShowChunkBoundaries = true,
-    bool FollowLatestByDefault = true,
     ListDensity ListDensity = ListDensity.Comfortable);

@@ -23,7 +23,7 @@
                             Style="{DynamicResource QuietButton}" VerticalAlignment="Bottom" Margin="0,0,0,10" />
                 </Grid>
                 <ListBox Grid.Row="1" ItemsSource="{Binding Sessions}" SelectedItem="{Binding SelectedSession}"
-                         Style="{DynamicResource LedgerListBox}" ItemContainerStyle="{DynamicResource LedgerRow}"
+                         Style="{DynamicResource LedgerListBox}" ItemContainerStyle="{DynamicResource DensityAwareLedgerRow}"
                          ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                     <ListBox.ItemTemplate>
                         <DataTemplate>
@@ -64,7 +64,7 @@
                            Foreground="{DynamicResource Brush.TextSecondary}" VerticalAlignment="Bottom" Margin="0,0,0,16" />
             </Grid>
             <ListBox Grid.Row="1" ItemsSource="{Binding Records}" Style="{DynamicResource LedgerListBox}"
-                     ItemContainerStyle="{DynamicResource AdaptiveRecordRow}"
+                     ItemContainerStyle="{DynamicResource DensityAwareLedgerRow}"
                      ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                 <ListBox.ItemTemplate>
                     <DataTemplate>
@@ -81,7 +81,7 @@
                             <TextBlock Grid.Column="2" Text="{Binding Payload}" FontFamily="{DynamicResource Font.Data}"
                                        TextTrimming="CharacterEllipsis" Margin="8,0,12,0" ToolTip="{Binding Payload}" />
                             <TextBlock Grid.Column="3" Text="{Binding Format}" TextTrimming="CharacterEllipsis" />
-                            <TextBlock Grid.Column="4" Text="{Binding DuplicateCount, StringFormat=×{0}}"
+                            <TextBlock Grid.Column="4" Text="{Binding OccurrenceLabel}"
                                        HorizontalAlignment="Right" Foreground="{DynamicResource Brush.TextSecondary}" />
                         </Grid>
                     </DataTemplate>

@@ -3,12 +3,15 @@ using Scanio.Application.Notebook;
 using Scanio.Domain.Analysis;
 using Scanio.Domain.Capture;
 using Scanio.Domain.Transport;
+using Scanio.Presentation.Localization;
 using Scanio.Presentation.Services;
+using Scanio.Presentation.Settings;
 using Scanio.Presentation.ViewModels;
 
 namespace Scanio.Presentation.Tests;
 
 [TestClass]
+[DoNotParallelize]
 public sealed class NotebookViewModelTests
 {
     [TestMethod]
@@ -27,7 +30,9 @@ public sealed class NotebookViewModelTests
         await viewModel.CopyAllCommand.ExecuteAsync();
 
         Assert.AreEqual("Запись выключена", viewModel.StateLabel);
-        Assert.HasCount(2, viewModel.Records);
+        Assert.HasCount(1, viewModel.Records);
+        Assert.AreEqual(2, viewModel.Records.Single().OccurrenceCount);
+        Assert.AreEqual("2 раза", viewModel.Records.Single().OccurrenceLabel);
         Assert.AreEqual("one" + Environment.NewLine + "one", interaction.ClipboardText);
         Assert.AreEqual(2, viewModel.TotalCount);
         Assert.AreEqual(1, viewModel.UniqueCount);
@@ -97,13 +102,16 @@ public sealed class NotebookViewModelTests
         await viewModel.StopCommand.ExecuteAsync();
         await viewModel.CopyUniqueCommand.ExecuteAsync();
 
+        Assert.HasCount(2, viewModel.Records);
+        Assert.IsTrue(viewModel.Records.All(item => item.OccurrenceCount == 1));
+        Assert.IsTrue(viewModel.Records.All(item => item.OccurrenceLabel == string.Empty));
         Assert.AreEqual(2, viewModel.UniqueCount);
         Assert.AreEqual(0, viewModel.DuplicateCount);
         Assert.AreEqual($"same{Environment.NewLine}same", interaction.ClipboardText);
     }
 
     [TestMethod]
-    public async Task Notebook_NewRowsPulseAsUniqueOrDuplicateAndThenClear()
+    public async Task Notebook_RepeatedGroupMovesToLatestPositionAndOwnsTheArrivalPulse()
     {
         var monitor = new LiveMonitor();
         var repository = new FakeRepository();
@@ -126,18 +134,30 @@ public sealed class NotebookViewModelTests
 
         Assert.IsFalse(viewModel.ExportReadableTextCommand.CanExecute(null));
         await viewModel.StartCommand.ExecuteAsync();
-        monitor.Append(CreateScan(1, "one"), CreateDecoded("one"), []);
-        monitor.Append(CreateScan(2, "one"), CreateDecoded("one"), []);
+        monitor.Append(CreateScan(1, "A"), CreateDecoded("A"), []);
+        monitor.Append(CreateScan(2, "B"), CreateDecoded("B"), []);
+        monitor.Append(CreateScan(3, "A"), CreateDecoded("A"), []);
         await viewModel.StopCommand.ExecuteAsync();
 
         Assert.HasCount(2, viewModel.Records);
-        Assert.IsTrue(viewModel.Records[0].IsArrivalPulseActive);
+        Assert.AreEqual("B", viewModel.Records[0].Payload);
+        Assert.AreEqual(2, viewModel.Records[0].Sequence);
+        Assert.IsFalse(viewModel.Records[0].IsArrivalPulseActive);
         Assert.IsFalse(viewModel.Records[0].IsDuplicate);
+        Assert.AreEqual("A", viewModel.Records[1].Payload);
+        Assert.AreEqual(3, viewModel.Records[1].Sequence);
+        Assert.AreEqual(2, viewModel.Records[1].OccurrenceCount);
+        Assert.AreEqual("2 раза", viewModel.Records[1].OccurrenceLabel);
         Assert.IsTrue(viewModel.Records[1].IsArrivalPulseActive);
         Assert.IsTrue(viewModel.Records[1].IsDuplicate);
         Assert.IsTrue(viewModel.ExportReadableTextCommand.CanExecute(null));
         CollectionAssert.AreEqual(
-            new[] { TimeSpan.FromMilliseconds(600), TimeSpan.FromMilliseconds(600) },
+            new[]
+            {
+                TimeSpan.FromMilliseconds(600),
+                TimeSpan.FromMilliseconds(600),
+                TimeSpan.FromMilliseconds(600)
+            },
             requestedPulseDurations);
 
         var clearedProperties = new List<string?>();
@@ -149,7 +169,7 @@ public sealed class NotebookViewModelTests
         releasePulse.SetResult();
         await WaitUntilAsync(() => viewModel.Records.All(item => !item.IsArrivalPulseActive));
 
-        Assert.AreEqual(2, clearedProperties.Count(name => name == nameof(NotebookRecordItemViewModel.IsArrivalPulseActive)));
+        Assert.AreEqual(1, clearedProperties.Count(name => name == nameof(NotebookRecordItemViewModel.IsArrivalPulseActive)));
 
         var historical = new NotebookRecordItemViewModel(
             CreateRecord(Guid.NewGuid(), 3, "historical"));
@@ -217,6 +237,111 @@ public sealed class NotebookViewModelTests
     }
 
     [TestMethod]
+    public async Task History_GroupsLatestPayloadRowsButCopiesEveryOccurrence()
+    {
+        var repository = new FakeRepository();
+        var session = repository.CreateSession("Grouped", DateTimeOffset.UnixEpoch);
+        repository.Append(CreateRecord(session.Id, 1, "A"));
+        repository.Append(CreateRecord(session.Id, 2, "B"));
+        repository.Append(CreateRecord(session.Id, 3, "A"));
+        var interaction = new FakeInteraction();
+        var viewModel = new HistoryViewModel(repository, interaction);
+
+        await viewModel.RefreshCommand.ExecuteAsync();
+        await viewModel.OpenCommand.ExecuteAsync();
+        await viewModel.CopyAllCommand.ExecuteAsync();
+
+        Assert.HasCount(2, viewModel.Records);
+        CollectionAssert.AreEqual(new[] { "B", "A" }, viewModel.Records.Select(item => item.Payload).ToArray());
+        Assert.AreEqual(3, viewModel.Records[1].Sequence);
+        Assert.AreEqual(2, viewModel.Records[1].OccurrenceCount);
+        Assert.AreEqual($"A{Environment.NewLine}B{Environment.NewLine}A", interaction.ClipboardText);
+    }
+
+    [TestMethod]
+    public async Task KeyboardRecord_UsesRussianPresentationLabelInNotebook()
+    {
+        var monitor = new LiveMonitor();
+        var repository = new FakeRepository();
+        await using var recorder = new NotebookRecorder(repository, monitor, () => DateTimeOffset.UnixEpoch);
+        var viewModel = new NotebookViewModel(
+            recorder,
+            new FakeInteraction(),
+            RussianLocalizer())
+        {
+            SessionName = "Keyboard"
+        };
+
+        await viewModel.StartCommand.ExecuteAsync();
+        monitor.Append(
+            CreateScan(1, "A", KeyboardIdentity),
+            CreateDecoded("A"),
+            []);
+        await viewModel.StopCommand.ExecuteAsync();
+
+        Assert.AreEqual("Сканер-клавиатура", viewModel.Records.Single().Transport);
+        Assert.AreEqual("Сканер-клавиатура", viewModel.DeviceLabel);
+        Assert.AreEqual("Keyboard scanner", viewModel.Records.Single().Record.Scan.Transport.DisplayName);
+    }
+
+    [TestMethod]
+    public async Task DeviceLabel_FollowsTheLatestGroupedOccurrenceAcrossTransports()
+    {
+        var monitor = new LiveMonitor();
+        var repository = new FakeRepository();
+        await using var recorder = new NotebookRecorder(repository, monitor, () => DateTimeOffset.UnixEpoch);
+        var viewModel = new NotebookViewModel(
+            recorder,
+            new FakeInteraction(),
+            RussianLocalizer())
+        {
+            SessionName = "Mixed transports"
+        };
+
+        await viewModel.StartCommand.ExecuteAsync();
+        monitor.Append(CreateScan(1, "COM"), CreateDecoded("COM"), []);
+        monitor.Append(CreateScan(2, "Keyboard", KeyboardIdentity), CreateDecoded("Keyboard"), []);
+        await viewModel.StopCommand.ExecuteAsync();
+
+        Assert.AreEqual("Сканер-клавиатура", viewModel.DeviceLabel);
+    }
+
+    [TestMethod]
+    public async Task KeyboardRecord_UsesRussianPresentationLabelInHistory()
+    {
+        var repository = new FakeRepository();
+        var session = repository.CreateSession("Keyboard", DateTimeOffset.UnixEpoch);
+        repository.Append(CreateRecord(session.Id, 1, "A", KeyboardIdentity));
+        var viewModel = new HistoryViewModel(
+            repository,
+            new FakeInteraction(),
+            localizer: RussianLocalizer());
+
+        await viewModel.RefreshCommand.ExecuteAsync();
+        await viewModel.OpenCommand.ExecuteAsync();
+
+        Assert.AreEqual("Сканер-клавиатура", viewModel.Records.Single().Transport);
+        Assert.AreEqual("Keyboard scanner", viewModel.Records.Single().Record.Scan.Transport.DisplayName);
+    }
+
+    [TestMethod]
+    [DataRow(1, Scanio.Presentation.Settings.UiLanguage.Russian, "")]
+    [DataRow(2, Scanio.Presentation.Settings.UiLanguage.Russian, "2 раза")]
+    [DataRow(3, Scanio.Presentation.Settings.UiLanguage.Russian, "3 раза")]
+    [DataRow(5, Scanio.Presentation.Settings.UiLanguage.Russian, "5 раз")]
+    [DataRow(11, Scanio.Presentation.Settings.UiLanguage.Russian, "11 раз")]
+    [DataRow(21, Scanio.Presentation.Settings.UiLanguage.Russian, "21 раз")]
+    [DataRow(22, Scanio.Presentation.Settings.UiLanguage.Russian, "22 раза")]
+    [DataRow(2, Scanio.Presentation.Settings.UiLanguage.English, "2 scans")]
+    public void Occurrence_FormatsLocalizedCountLabel(
+        int count,
+        Scanio.Presentation.Settings.UiLanguage language,
+        string expected)
+    {
+        Assert.AreEqual(expected, NotebookRecordItemViewModel.FormatOccurrenceCount(count, language));
+    }
+
+    [TestMethod]
     public async Task History_CannotRenameOrDeleteTheActiveRecordingSession()
     {
         var monitor = new LiveMonitor();
@@ -234,10 +359,22 @@ public sealed class NotebookViewModelTests
         Assert.IsTrue(viewModel.DeleteCommand.CanExecute(null));
     }
 
-    private static CompletedScan CreateScan(long sequence, string value)
-        => CreateScan(sequence, System.Text.Encoding.UTF8.GetBytes(value));
+    private static readonly TransportIdentity KeyboardIdentity = new(
+        TransportKind.KeyboardCapture,
+        "keyboard-capture:focused-window",
+        "Keyboard scanner",
+        endpoint: "Keyboard");
 
-    private static CompletedScan CreateScan(long sequence, byte[] payload)
+    private static CompletedScan CreateScan(
+        long sequence,
+        string value,
+        TransportIdentity? identity = null)
+        => CreateScan(sequence, System.Text.Encoding.UTF8.GetBytes(value), identity);
+
+    private static CompletedScan CreateScan(
+        long sequence,
+        byte[] payload,
+        TransportIdentity? identity = null)
     {
         return CompletedScan.Create(
             sequence,
@@ -250,7 +387,7 @@ public sealed class NotebookViewModelTests
             sequence,
             ScanCompletionReason.SilenceTimeout,
             ScanFramingSnapshot.Create([0x0D], TimeSpan.FromMilliseconds(100), 65_536),
-            new TransportIdentity(TransportKind.Serial, "COM7", "COM7"));
+            identity ?? new TransportIdentity(TransportKind.Serial, "COM7", "COM7"));
     }
 
     private static DecodedPayload CreateDecoded(string value, string? escapedDisplay = null) =>
@@ -260,15 +397,22 @@ public sealed class NotebookViewModelTests
             value,
             escapedDisplay ?? value);
 
-    private static NotebookRecord CreateRecord(Guid sessionId, long sequence, string value) =>
+    private static NotebookRecord CreateRecord(
+        Guid sessionId,
+        long sequence,
+        string value,
+        TransportIdentity? identity = null) =>
         NotebookRecord.Create(
             sequence,
             sessionId,
-            CreateScan(sequence, value),
+            CreateScan(sequence, value, identity),
             CreateDecoded(value),
             [],
             1,
             DateTimeOffset.UnixEpoch);
+
+    private static IUiLocalizer RussianLocalizer() =>
+        new UiLocalizer(new TestSettingsService());
 
     private static async Task WaitUntilAsync(Func<bool> condition)
     {
@@ -293,6 +437,18 @@ public sealed class NotebookViewModelTests
         }
         public bool ConfirmDelete(string sessionName) => ConfirmDeleteResult;
         public void ShowError(string message) => Errors.Add(message);
+    }
+
+    private sealed class TestSettingsService : IAppSettingsService
+    {
+        public AppSettings Current { get; private set; } = new();
+        public event EventHandler? Changed;
+
+        public void Update(Func<AppSettings, AppSettings> update)
+        {
+            Current = update(Current);
+            Changed?.Invoke(this, EventArgs.Empty);
+        }
     }
 
     private sealed class FakeRepository : INotebookRepository
