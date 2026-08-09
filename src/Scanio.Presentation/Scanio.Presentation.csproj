@@ -6,6 +6,7 @@
     <ProjectReference Include="..\Scanio.Analysis\Scanio.Analysis.csproj" />
     <ProjectReference Include="..\Scanio.Capture\Scanio.Capture.csproj" />
     <ProjectReference Include="..\Scanio.Transports\Scanio.Transports.csproj" />
+    <ProjectReference Include="..\Scanio.Storage\Scanio.Storage.csproj" />
   </ItemGroup>
   <PropertyGroup>
     <AssemblyName>Scanio</AssemblyName>
@@ -16,7 +17,7 @@
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
   </PropertyGroup>
   <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
-    <Compile Remove="App.xaml.cs;MainWindow.xaml.cs;Views\**\*.xaml.cs" />
+    <Compile Remove="App.xaml.cs;MainWindow.xaml.cs;Views\**\*.xaml.cs;Services\WindowsNotebookInteractionService.cs" />
   </ItemGroup>
   <ItemGroup>
     <Resource Include="Assets\scanio.ico" />

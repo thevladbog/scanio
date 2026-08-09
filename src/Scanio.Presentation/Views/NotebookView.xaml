@@ -1,0 +1,61 @@
+<UserControl x:Class="Scanio.Presentation.Views.NotebookView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:notebook="clr-namespace:Scanio.Application.Notebook;assembly=Scanio.Application">
+    <Grid Background="{DynamicResource Brush.SurfacePrimary}" Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <Grid>
+            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+            <StackPanel>
+                <TextBlock Text="Блокнот" Style="{DynamicResource PageTitle}" />
+                <TextBlock Text="Записывает каждый отсканированный код в локальную сессию без синхронизации." Foreground="{DynamicResource Brush.TextSecondary}" Margin="0,6,0,0" />
+            </StackPanel>
+            <Border Grid.Column="1" Background="{DynamicResource Brush.SignalSurface}" Padding="16,10" BorderBrush="{DynamicResource Brush.Signal}" BorderThickness="1">
+                <TextBlock Text="{Binding StateLabel}" FontWeight="SemiBold" />
+            </Border>
+        </Grid>
+
+        <Border Grid.Row="1" BorderBrush="{DynamicResource Brush.BorderDefault}" BorderThickness="1" Padding="16" Margin="0,20,0,16">
+            <Grid>
+                <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="260" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                <TextBox Text="{Binding SessionName, UpdateSourceTrigger=PropertyChanged}" VerticalContentAlignment="Center" />
+                <Button Grid.Column="1" Content="Начать" Command="{Binding StartCommand}" Style="{DynamicResource PrimaryButton}" Margin="12,0,0,0" />
+                <Button Grid.Column="2" Content="Пауза" Command="{Binding PauseCommand}" Style="{DynamicResource CommandButton}" Margin="8,0,0,0" />
+                <Button Grid.Column="3" Content="Продолжить" Command="{Binding ResumeCommand}" Style="{DynamicResource CommandButton}" Margin="8,0,0,0" />
+                <Button Grid.Column="4" Content="Стоп" Command="{Binding StopCommand}" Style="{DynamicResource CommandButton}" Margin="8,0,0,0" />
+                <StackPanel Grid.Row="1" Grid.ColumnSpan="6" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+                    <ComboBox Width="120" SelectedValue="{Binding SelectedExportFormat}" SelectedValuePath="Tag">
+                        <ComboBoxItem Content="TXT" Tag="{x:Static notebook:NotebookExportFormat.Text}" />
+                        <ComboBoxItem Content="CSV" Tag="{x:Static notebook:NotebookExportFormat.Csv}" />
+                        <ComboBoxItem Content="JSON" Tag="{x:Static notebook:NotebookExportFormat.Json}" />
+                    </ComboBox>
+                    <Button Content="Копировать" Command="{Binding CopyCommand}" Style="{DynamicResource CommandButton}" Margin="8,0,0,0" />
+                    <Button Content="Экспорт" Command="{Binding ExportCommand}" Style="{DynamicResource CommandButton}" Margin="8,0,0,0" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <ListView Grid.Row="2" ItemsSource="{Binding Records}" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling">
+            <ListView.View>
+                <GridView>
+                    <GridViewColumn Header="#" DisplayMemberBinding="{Binding Sequence}" Width="60" />
+                    <GridViewColumn Header="Время" DisplayMemberBinding="{Binding Timestamp}" Width="110" />
+                    <GridViewColumn Header="Код" DisplayMemberBinding="{Binding Payload}" Width="520" />
+                    <GridViewColumn Header="Формат" DisplayMemberBinding="{Binding Format}" Width="190" />
+                    <GridViewColumn Header="Сканер" DisplayMemberBinding="{Binding Transport}" Width="180" />
+                    <GridViewColumn Header="Байт" DisplayMemberBinding="{Binding ByteCount}" Width="70" />
+                    <GridViewColumn Header="Повторы" DisplayMemberBinding="{Binding DuplicateCount}" Width="80" />
+                </GridView>
+            </ListView.View>
+        </ListView>
+
+        <TextBlock Grid.Row="3" Text="{Binding ErrorMessage}" Foreground="{DynamicResource Brush.Error}" Margin="0,12,0,0" TextWrapping="Wrap" />
+    </Grid>
+</UserControl>

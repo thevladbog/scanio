@@ -40,6 +40,8 @@ public sealed class NotebookRecorder : IAsyncDisposable
 
     public event EventHandler? Changed;
 
+    public event EventHandler<NotebookRecordPersistedEventArgs>? RecordPersisted;
+
     public NotebookRecordingState State
     {
         get
@@ -244,6 +246,7 @@ public sealed class NotebookRecorder : IAsyncDisposable
                     try
                     {
                         _repository.Append(append.Record);
+                        NotifyRecordPersisted(append.Record);
                     }
                     catch (Exception exception)
                     {
@@ -302,6 +305,28 @@ public sealed class NotebookRecorder : IAsyncDisposable
         }
     }
 
+    private void NotifyRecordPersisted(NotebookRecord record)
+    {
+        var subscribers = RecordPersisted;
+        if (subscribers is null)
+        {
+            return;
+        }
+
+        var args = new NotebookRecordPersistedEventArgs(record);
+        foreach (EventHandler<NotebookRecordPersistedEventArgs> subscriber in subscribers.GetInvocationList())
+        {
+            try
+            {
+                subscriber(this, args);
+            }
+            catch
+            {
+                // Presentation observers must not interrupt the persistence worker.
+            }
+        }
+    }
+
     private void ThrowIfDisposed()
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
@@ -316,4 +341,15 @@ public sealed class NotebookRecorder : IAsyncDisposable
         public TaskCompletionSource Done { get; } =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
     }
+}
+
+public sealed class NotebookRecordPersistedEventArgs : EventArgs
+{
+    public NotebookRecordPersistedEventArgs(NotebookRecord record)
+    {
+        ArgumentNullException.ThrowIfNull(record);
+        Record = record;
+    }
+
+    public NotebookRecord Record { get; }
 }
