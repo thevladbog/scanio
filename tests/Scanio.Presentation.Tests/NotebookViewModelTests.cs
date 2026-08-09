@@ -24,11 +24,27 @@ public sealed class NotebookViewModelTests
         monitor.Append(CreateScan(1, "one"), CreateDecoded("one"), []);
         monitor.Append(CreateScan(2, "one"), CreateDecoded("one"), []);
         await viewModel.StopCommand.ExecuteAsync();
-        await viewModel.CopyCommand.ExecuteAsync();
+        await viewModel.CopyAllCommand.ExecuteAsync();
 
         Assert.AreEqual("Запись выключена", viewModel.StateLabel);
         Assert.HasCount(2, viewModel.Records);
         Assert.AreEqual("one" + Environment.NewLine + "one", interaction.ClipboardText);
+        Assert.AreEqual(2, viewModel.TotalCount);
+        Assert.AreEqual(1, viewModel.UniqueCount);
+        Assert.AreEqual(1, viewModel.DuplicateCount);
+
+        await viewModel.CopyUniqueCommand.ExecuteAsync();
+        Assert.AreEqual("one", interaction.ClipboardText);
+
+        await viewModel.CopyEscapedCommand.ExecuteAsync();
+        Assert.AreEqual("one" + Environment.NewLine + "one", interaction.ClipboardText);
+
+        await viewModel.ExportTextCommand.ExecuteAsync();
+        await viewModel.ExportCsvCommand.ExecuteAsync();
+        await viewModel.ExportJsonCommand.ExecuteAsync();
+        CollectionAssert.AreEqual(
+            new[] { NotebookExportFormat.Text, NotebookExportFormat.Csv, NotebookExportFormat.Json },
+            interaction.RequestedFormats.ToArray());
     }
 
     [TestMethod]
@@ -103,8 +119,13 @@ public sealed class NotebookViewModelTests
         public string? ClipboardText { get; private set; }
         public bool ConfirmDeleteResult { get; init; }
         public List<string> Errors { get; } = [];
+        public List<NotebookExportFormat> RequestedFormats { get; } = [];
         public void SetClipboardText(string text) => ClipboardText = text;
-        public string? ChooseExportPath(NotebookExportFormat format, string suggestedName) => null;
+        public string? ChooseExportPath(NotebookExportFormat format, string suggestedName)
+        {
+            RequestedFormats.Add(format);
+            return null;
+        }
         public bool ConfirmDelete(string sessionName) => ConfirmDeleteResult;
         public void ShowError(string message) => Errors.Add(message);
     }

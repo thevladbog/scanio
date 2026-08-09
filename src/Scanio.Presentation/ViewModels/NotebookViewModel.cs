@@ -11,7 +11,6 @@ public sealed class NotebookViewModel : ObservableObject
     private readonly INotebookInteractionService _interaction;
     private readonly SynchronizationContext? _synchronizationContext = SynchronizationContext.Current;
     private string _sessionName = $"Сессия {DateTime.Now:yyyy-MM-dd HH-mm}";
-    private NotebookExportFormat _selectedExportFormat = NotebookExportFormat.Text;
 
     public NotebookViewModel(NotebookRecorder recorder, INotebookInteractionService interaction)
     {
@@ -23,8 +22,12 @@ public sealed class NotebookViewModel : ObservableObject
         PauseCommand = new AsyncCommand(_ => ExecuteSafelyAsync(PauseAsync), () => CanPause);
         ResumeCommand = new AsyncCommand(_ => ExecuteSafelyAsync(ResumeAsync), () => CanResume);
         StopCommand = new AsyncCommand(_ => ExecuteSafelyAsync(StopAsync), () => CanStop);
-        CopyCommand = new AsyncCommand(_ => ExecuteSafelyAsync(CopyAsync), () => Records.Count > 0);
-        ExportCommand = new AsyncCommand(_ => ExecuteSafelyAsync(ExportAsync), () => Records.Count > 0);
+        CopyAllCommand = RecordCommand(CopyAllAsync);
+        CopyUniqueCommand = RecordCommand(CopyUniqueAsync);
+        CopyEscapedCommand = RecordCommand(CopyEscapedAsync);
+        ExportTextCommand = ExportCommand(NotebookExportFormat.Text);
+        ExportCsvCommand = ExportCommand(NotebookExportFormat.Csv);
+        ExportJsonCommand = ExportCommand(NotebookExportFormat.Json);
         _recorder.Changed += OnRecorderChanged;
         _recorder.RecordPersisted += OnRecordPersisted;
     }
@@ -43,14 +46,6 @@ public sealed class NotebookViewModel : ObservableObject
         }
     }
 
-    public NotebookExportFormat SelectedExportFormat
-    {
-        get => _selectedExportFormat;
-        set => SetProperty(ref _selectedExportFormat, value);
-    }
-
-    public IReadOnlyList<NotebookExportFormat> ExportFormats { get; } = Enum.GetValues<NotebookExportFormat>();
-
     public string StateLabel => _recorder.State switch
     {
         NotebookRecordingState.Recording => "Запись идёт",
@@ -63,18 +58,30 @@ public sealed class NotebookViewModel : ObservableObject
     public bool CanPause => _recorder.State == NotebookRecordingState.Recording;
     public bool CanResume => _recorder.State == NotebookRecordingState.Paused;
     public bool CanStop => _recorder.State != NotebookRecordingState.Off;
+    public bool IsOff => _recorder.State == NotebookRecordingState.Off;
+    public bool IsRecording => _recorder.State == NotebookRecordingState.Recording;
+    public bool IsPaused => _recorder.State == NotebookRecordingState.Paused;
+    public int TotalCount => Records.Count;
+    public int UniqueCount => Records.Select(item => item.Record.Decoded.Text).Distinct(StringComparer.Ordinal).Count();
+    public int DuplicateCount => Math.Max(0, TotalCount - UniqueCount);
+    public string DeviceLabel => Records.FirstOrDefault()?.Record.Scan.Transport.DisplayName ?? "—";
 
     public AsyncCommand StartCommand { get; }
     public AsyncCommand PauseCommand { get; }
     public AsyncCommand ResumeCommand { get; }
     public AsyncCommand StopCommand { get; }
-    public AsyncCommand CopyCommand { get; }
-    public AsyncCommand ExportCommand { get; }
+    public AsyncCommand CopyAllCommand { get; }
+    public AsyncCommand CopyUniqueCommand { get; }
+    public AsyncCommand CopyEscapedCommand { get; }
+    public AsyncCommand ExportTextCommand { get; }
+    public AsyncCommand ExportCsvCommand { get; }
+    public AsyncCommand ExportJsonCommand { get; }
 
     private Task StartAsync()
     {
         _recorder.Start(SessionName);
         Records.Clear();
+        RaiseSummaryProperties();
         RaiseRecordCommands();
         return Task.CompletedTask;
     }
@@ -93,18 +100,34 @@ public sealed class NotebookViewModel : ObservableObject
 
     private async Task StopAsync() => await _recorder.StopAsync();
 
-    private Task CopyAsync()
+    private Task CopyAllAsync()
+    {
+        _interaction.SetClipboardText(string.Join(
+            Environment.NewLine,
+            Records.Select(item => item.Record.Decoded.Text)));
+        return Task.CompletedTask;
+    }
+
+    private Task CopyUniqueAsync()
+    {
+        _interaction.SetClipboardText(string.Join(
+            Environment.NewLine,
+            Records.Select(item => item.Record.Decoded.Text).Distinct(StringComparer.Ordinal)));
+        return Task.CompletedTask;
+    }
+
+    private Task CopyEscapedAsync()
     {
         _interaction.SetClipboardText(NotebookExportService.BuildClipboardText(Records.Select(item => item.Record)));
         return Task.CompletedTask;
     }
 
-    private Task ExportAsync()
+    private Task ExportAsync(NotebookExportFormat format)
     {
-        var path = _interaction.ChooseExportPath(SelectedExportFormat, SanitizeFileName(SessionName));
+        var path = _interaction.ChooseExportPath(format, SanitizeFileName(SessionName));
         if (path is not null)
         {
-            NotebookExportService.Export(path, SelectedExportFormat, Records.Select(item => item.Record));
+            NotebookExportService.Export(path, format, Records.Select(item => item.Record));
         }
 
         return Task.CompletedTask;
@@ -130,6 +153,9 @@ public sealed class NotebookViewModel : ObservableObject
         OnPropertyChanged(nameof(CanPause));
         OnPropertyChanged(nameof(CanResume));
         OnPropertyChanged(nameof(CanStop));
+        OnPropertyChanged(nameof(IsOff));
+        OnPropertyChanged(nameof(IsRecording));
+        OnPropertyChanged(nameof(IsPaused));
         StartCommand.RaiseCanExecuteChanged();
         PauseCommand.RaiseCanExecuteChanged();
         ResumeCommand.RaiseCanExecuteChanged();
@@ -139,13 +165,32 @@ public sealed class NotebookViewModel : ObservableObject
     private void OnRecordPersisted(object? sender, NotebookRecordPersistedEventArgs args) => RunOnUi(() =>
     {
         Records.Add(new NotebookRecordItemViewModel(args.Record));
+        RaiseSummaryProperties();
         RaiseRecordCommands();
     });
 
     private void RaiseRecordCommands()
     {
-        CopyCommand.RaiseCanExecuteChanged();
-        ExportCommand.RaiseCanExecuteChanged();
+        CopyAllCommand.RaiseCanExecuteChanged();
+        CopyUniqueCommand.RaiseCanExecuteChanged();
+        CopyEscapedCommand.RaiseCanExecuteChanged();
+        ExportTextCommand.RaiseCanExecuteChanged();
+        ExportCsvCommand.RaiseCanExecuteChanged();
+        ExportJsonCommand.RaiseCanExecuteChanged();
+    }
+
+    private AsyncCommand RecordCommand(Func<Task> action) =>
+        new(_ => ExecuteSafelyAsync(action), () => Records.Count > 0);
+
+    private AsyncCommand ExportCommand(NotebookExportFormat format) =>
+        new(_ => ExecuteSafelyAsync(() => ExportAsync(format)), () => Records.Count > 0);
+
+    private void RaiseSummaryProperties()
+    {
+        OnPropertyChanged(nameof(TotalCount));
+        OnPropertyChanged(nameof(UniqueCount));
+        OnPropertyChanged(nameof(DuplicateCount));
+        OnPropertyChanged(nameof(DeviceLabel));
     }
 
     private void RunOnUi(Action action)

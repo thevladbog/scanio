@@ -35,6 +35,9 @@
     <None Include="..\..\src\Scanio.Presentation\Views\MonitorView.xaml"
           Link="LayoutContracts\MonitorView.xaml"
           CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\src\Scanio.Presentation\Views\NotebookView.xaml"
+          Link="LayoutContracts\NotebookView.xaml"
+          CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>
