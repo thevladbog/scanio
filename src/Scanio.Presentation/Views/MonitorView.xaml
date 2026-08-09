@@ -38,7 +38,7 @@
                             <Grid>
                                 <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                                <TextBlock Text="{Binding Sequence, StringFormat=№{0}}" Style="{DynamicResource DataText}" FontWeight="SemiBold" />
+                                <TextBlock Text="{Binding Sequence}" Style="{DynamicResource DataText}" FontWeight="SemiBold" />
                                 <TextBlock Grid.Column="1" Text="{Binding Timestamp}" Margin="10,0,0,0"
                                            Foreground="{DynamicResource Brush.TextSecondary}" />
                                 <StackPanel Grid.Column="2" Orientation="Horizontal">

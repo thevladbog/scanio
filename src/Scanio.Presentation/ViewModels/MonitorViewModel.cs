@@ -104,6 +104,8 @@ public sealed class MonitorViewModel : ObservableObject
 
     public AsyncCommand CopyDiagnosticJsonCommand { get; }
 
+    public void Activate() => _monitor.ReturnToLatest();
+
     private void OnMonitorChanged(object? sender, EventArgs args) => RunOnUi(Rebuild);
 
     private void Rebuild()

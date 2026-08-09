@@ -50,6 +50,24 @@ public sealed class MonitorLayoutContractTests
     }
 
     [TestMethod]
+    public void Monitor_LedgerUsesPlainSequenceNumbers()
+    {
+        var monitor = Load();
+        var sequence = monitor.Descendants(Presentation + "ListBox")
+            .Single(element => (string?)element.Attribute("ItemsSource") == "{Binding Events}")
+            .Descendants(Presentation + "TextBlock")
+            .Single(element => ((string?)element.Attribute("Text"))?.Contains("Binding Sequence", StringComparison.Ordinal) == true);
+
+        var text = (string?)sequence.Attribute("Text") ?? string.Empty;
+        var formatStart = text.IndexOf("StringFormat=", StringComparison.Ordinal);
+        var stringFormat = formatStart < 0
+            ? null
+            : text[(formatStart + "StringFormat=".Length)..(text.IndexOf('}', formatStart) + 1)];
+
+        Assert.IsTrue(stringFormat is null or "{0}");
+    }
+
+    [TestMethod]
     public void Monitor_ExposesStructuredInspectorSections()
     {
         var monitor = Load();

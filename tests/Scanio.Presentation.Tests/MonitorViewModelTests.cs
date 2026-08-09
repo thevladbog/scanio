@@ -48,6 +48,22 @@ public sealed class MonitorViewModelTests
     }
 
     [TestMethod]
+    public void Activate_ReturnsSelectionToTheLatestRetainedScan()
+    {
+        var monitor = new LiveMonitor();
+        monitor.Append(Scan(1, "first"), Decoded("first"), []);
+        monitor.Append(Scan(2, "second"), Decoded("second"), []);
+        var viewModel = CreateViewModel(monitor, new FakeConnectionService());
+        viewModel.SelectedEvent = viewModel.Events[0];
+        monitor.Append(Scan(3, "third"), Decoded("third"), []);
+
+        viewModel.Activate();
+
+        Assert.AreEqual("third", viewModel.SelectedEvent?.Payload);
+        Assert.IsFalse(viewModel.ShowReturnToLatest);
+    }
+
+    [TestMethod]
     public void SelectedEventExposesPersistentRawAndHexEvidence()
     {
         var monitor = new LiveMonitor();
