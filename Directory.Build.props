@@ -2,5 +2,5 @@
   <LangVersion>14.0</LangVersion><Nullable>enable</Nullable>
   <ImplicitUsings>enable</ImplicitUsings><TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   <Deterministic>true</Deterministic><RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
-  <Version>0.3.0-alpha.7</Version><Company>Scanio</Company><Product>Scanio</Product>
+  <Version>0.3.0-alpha.8</Version><Company>Scanio</Company><Product>Scanio</Product>
 </PropertyGroup></Project>

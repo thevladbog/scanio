@@ -4,7 +4,7 @@ Scanio is a local Windows diagnostic utility for barcode scanners. The current a
 
 ## Download and run
 
-Download `Scanio-0.3.0-alpha.7-win-x64-portable.zip` and `SHA256SUMS.txt` from GitHub Releases.
+Download `Scanio-0.3.0-alpha.8-win-x64-portable.zip` and `SHA256SUMS.txt` from GitHub Releases.
 
 1. Verify the ZIP SHA-256 checksum.
 2. Extract the complete ZIP to a writable directory.
