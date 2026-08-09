@@ -250,7 +250,6 @@ public sealed class ConnectionViewModel : ObservableObject
             return;
         }
 
-        CancellationTokenSource? previous;
         CancellationTokenSource current;
         long generation;
         lock (_keyboardDeadlineGate)
@@ -260,30 +259,25 @@ public sealed class ConnectionViewModel : ObservableObject
                 return;
             }
 
-            previous = _keyboardDeadlineCancellation;
+            CancelAndDisposeKeyboardDeadlineLocked();
             current = new CancellationTokenSource();
             _keyboardDeadlineCancellation = current;
             _pendingKeyboardText += text;
             generation = ++_keyboardDeadlineGeneration;
         }
 
-        previous?.Cancel();
         _ = CompleteKeyboardInputAfterSilenceAsync(generation, current);
     }
 
     public void CompleteKeyboardInput()
     {
-        CancellationTokenSource? cancellation;
         string? completed;
         lock (_keyboardDeadlineGate)
         {
-            cancellation = _keyboardDeadlineCancellation;
-            _keyboardDeadlineCancellation = null;
-            _keyboardDeadlineGeneration++;
+            CancelAndDisposeKeyboardDeadlineLocked();
             completed = TryCompleteKeyboardInputLocked();
         }
 
-        cancellation?.Cancel();
         if (completed is not null)
         {
             PublishCompletedKeyboardInput(completed);
@@ -425,35 +419,31 @@ public sealed class ConnectionViewModel : ObservableObject
 
     private void CancelKeyboardDeadline(bool discardPending = false)
     {
-        CancellationTokenSource? cancellation;
         lock (_keyboardDeadlineGate)
         {
-            cancellation = _keyboardDeadlineCancellation;
-            _keyboardDeadlineCancellation = null;
-            _keyboardDeadlineGeneration++;
+            CancelAndDisposeKeyboardDeadlineLocked();
             if (discardPending)
             {
                 _pendingKeyboardText = string.Empty;
             }
         }
-
-        cancellation?.Cancel();
     }
 
     private async Task CompleteKeyboardInputAfterSilenceAsync(
         long generation,
         CancellationTokenSource cancellation)
     {
+        var cancellationToken = cancellation.Token;
         try
         {
-            await _delay(KeyboardSilenceTimeout, cancellation.Token).ConfigureAwait(false);
+            await _delay(KeyboardSilenceTimeout, cancellationToken).ConfigureAwait(false);
 
             string? completed;
             lock (_keyboardDeadlineGate)
             {
                 if (generation != _keyboardDeadlineGeneration ||
                     !ReferenceEquals(_keyboardDeadlineCancellation, cancellation) ||
-                    cancellation.IsCancellationRequested)
+                    cancellationToken.IsCancellationRequested)
                 {
                     return;
                 }
@@ -461,6 +451,7 @@ public sealed class ConnectionViewModel : ObservableObject
                 _keyboardDeadlineCancellation = null;
                 _keyboardDeadlineGeneration++;
                 completed = TryCompleteKeyboardInputLocked();
+                cancellation.Dispose();
             }
 
             if (completed is not null)
@@ -468,13 +459,9 @@ public sealed class ConnectionViewModel : ObservableObject
                 PublishCompletedKeyboardInput(completed);
             }
         }
-        catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             // A newer fragment or explicit completion superseded this deadline.
-        }
-        finally
-        {
-            cancellation.Dispose();
         }
     }
 
@@ -494,11 +481,27 @@ public sealed class ConnectionViewModel : ObservableObject
     }
 
     private void PublishCompletedKeyboardInput(string completed) =>
-        RunOnUi(() =>
+        RunOnUi(() => LastKeyboardScan = completed);
+
+    private void CancelAndDisposeKeyboardDeadlineLocked()
+    {
+        var cancellation = _keyboardDeadlineCancellation;
+        _keyboardDeadlineCancellation = null;
+        _keyboardDeadlineGeneration++;
+        if (cancellation is null)
         {
-            LastKeyboardScan = completed;
-            KeyboardFocusRequested?.Invoke(this, EventArgs.Empty);
-        });
+            return;
+        }
+
+        try
+        {
+            cancellation.Cancel();
+        }
+        finally
+        {
+            cancellation.Dispose();
+        }
+    }
 
     private void RunOnUi(Action action)
     {

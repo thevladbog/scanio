@@ -67,6 +67,50 @@ public sealed class ConnectionViewModelTests
     }
 
     [TestMethod]
+    public void ReplacingKeyboardDeadline_DoesNotDisposeSourceInsideCancellationBoundary()
+    {
+        var connection = FakeConnectionService.ConnectedKeyboard();
+        var delay = new CancellationBoundaryDelay();
+        var viewModel = CreateViewModel(new FakeDeviceEnumerator(), connection, delay.WaitAsync);
+        viewModel.SelectedMode = ConnectionMode.Keyboard;
+        viewModel.AcceptKeyboardText("A");
+
+        viewModel.AcceptKeyboardText("B");
+
+        Assert.AreEqual(1, delay.CompletedBoundaryProbes);
+    }
+
+    [TestMethod]
+    public void ExplicitKeyboardCompletion_DoesNotDisposeSourceInsideCancellationBoundary()
+    {
+        var connection = FakeConnectionService.ConnectedKeyboard();
+        var delay = new CancellationBoundaryDelay();
+        var viewModel = CreateViewModel(new FakeDeviceEnumerator(), connection, delay.WaitAsync);
+        viewModel.SelectedMode = ConnectionMode.Keyboard;
+        viewModel.AcceptKeyboardText("ABC123");
+
+        viewModel.CompleteKeyboardInput();
+
+        Assert.AreEqual(1, delay.CompletedBoundaryProbes);
+        Assert.AreEqual(1, connection.KeyboardCaptureInput.CompletedScans);
+    }
+
+    [TestMethod]
+    public async Task DisconnectKeyboard_DoesNotDisposeSourceInsideCancellationBoundary()
+    {
+        var connection = FakeConnectionService.ConnectedKeyboard();
+        var delay = new CancellationBoundaryDelay();
+        var viewModel = CreateViewModel(new FakeDeviceEnumerator(), connection, delay.WaitAsync);
+        viewModel.SelectedMode = ConnectionMode.Keyboard;
+        viewModel.AcceptKeyboardText("ABC123");
+
+        await viewModel.StopKeyboardTestCommand.ExecuteAsync();
+
+        Assert.AreEqual(1, delay.CompletedBoundaryProbes);
+        Assert.AreEqual(1, connection.DisconnectCount);
+    }
+
+    [TestMethod]
     public async Task OnlyNewestKeyboardDeadline_CompletesPendingInput()
     {
         var connection = FakeConnectionService.ConnectedKeyboard();
@@ -106,6 +150,62 @@ public sealed class ConnectionViewModelTests
         viewModel.CompleteKeyboardInput();
 
         Assert.AreEqual(1, connection.KeyboardCaptureInput.CompletedScans);
+    }
+
+    [TestMethod]
+    public void ExplicitKeyboardCompletion_DoesNotRequestFocusAgain()
+    {
+        var connection = FakeConnectionService.ConnectedKeyboard();
+        var viewModel = CreateViewModel(new FakeDeviceEnumerator(), connection);
+        viewModel.SelectedMode = ConnectionMode.Keyboard;
+        viewModel.SetKeyboardSurfaceFocused(true);
+        var focusRequests = 0;
+        viewModel.KeyboardFocusRequested += (_, _) => focusRequests++;
+        viewModel.AcceptKeyboardText("ABC123");
+
+        viewModel.CompleteKeyboardInput();
+
+        Assert.AreEqual(1, connection.KeyboardCaptureInput.CompletedScans);
+        Assert.AreEqual(0, focusRequests);
+    }
+
+    [TestMethod]
+    public void FocusLostThenNewestSilenceCompletion_UpdatesScanWithoutRequestingFocus()
+    {
+        var connection = FakeConnectionService.ConnectedKeyboard();
+        var delays = new ControlledDelay();
+        var viewModel = CreateViewModel(new FakeDeviceEnumerator(), connection, delays.WaitAsync);
+        viewModel.SelectedMode = ConnectionMode.Keyboard;
+        viewModel.SetKeyboardSurfaceFocused(false);
+        var focusRequests = 0;
+        viewModel.KeyboardFocusRequested += (_, _) => focusRequests++;
+        viewModel.AcceptKeyboardText("ABC123");
+
+        delays.Release(0);
+
+        Assert.AreEqual(1, connection.KeyboardCaptureInput.CompletedScans);
+        Assert.AreEqual("ABC123", viewModel.LastKeyboardScan);
+        Assert.AreEqual(0, focusRequests);
+        Assert.IsFalse(viewModel.IsKeyboardSurfaceFocused);
+    }
+
+    [TestMethod]
+    public async Task StopThenStaleSilenceCompletion_EmitsNoScanAndNoFocusRequest()
+    {
+        var connection = FakeConnectionService.ConnectedKeyboard();
+        var delays = new ControlledDelay();
+        var viewModel = CreateViewModel(new FakeDeviceEnumerator(), connection, delays.WaitAsync);
+        viewModel.SelectedMode = ConnectionMode.Keyboard;
+        var focusRequests = 0;
+        viewModel.KeyboardFocusRequested += (_, _) => focusRequests++;
+        viewModel.AcceptKeyboardText("STALE");
+
+        await viewModel.StopKeyboardTestCommand.ExecuteAsync();
+        delays.Release(0);
+
+        Assert.AreEqual(0, connection.KeyboardCaptureInput.CompletedScans);
+        Assert.IsNull(viewModel.LastKeyboardScan);
+        Assert.AreEqual(0, focusRequests);
     }
 
     [TestMethod]
@@ -592,7 +692,24 @@ public sealed class ConnectionViewModelTests
         public sealed record Request(TimeSpan Delay, CancellationToken Token)
         {
             public TaskCompletionSource Completion { get; } =
-                new(TaskCreationOptions.RunContinuationsAsynchronously);
+                new();
+        }
+    }
+
+    private sealed class CancellationBoundaryDelay
+    {
+        public int CompletedBoundaryProbes { get; private set; }
+
+        public Task WaitAsync(TimeSpan delay, CancellationToken cancellationToken)
+        {
+            var completion = new TaskCompletionSource();
+            cancellationToken.Register(() =>
+            {
+                completion.TrySetResult();
+                _ = cancellationToken.WaitHandle.SafeWaitHandle.IsClosed;
+                CompletedBoundaryProbes++;
+            });
+            return completion.Task;
         }
     }
 
