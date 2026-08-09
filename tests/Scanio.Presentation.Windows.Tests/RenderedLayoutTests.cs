@@ -18,12 +18,15 @@ public sealed class RenderedLayoutTests
     [TestMethod]
     public void SettingsColumnGuard_RejectsFewerThanThreeColumns()
     {
-        var grid = new Grid();
-        grid.ColumnDefinitions.Add(new ColumnDefinition());
-        grid.ColumnDefinitions.Add(new ColumnDefinition());
+        WpfTestHost.Run(() =>
+        {
+            var grid = new Grid();
+            grid.ColumnDefinitions.Add(new ColumnDefinition());
+            grid.ColumnDefinitions.Add(new ColumnDefinition());
 
-        Assert.ThrowsExactly<AssertFailedException>(() =>
-            AssertReferenceColumnsRemainUsable(grid, ShellDestination.Settings, "Settings/two-columns"));
+            Assert.ThrowsExactly<AssertFailedException>(() =>
+                AssertReferenceColumnsRemainUsable(grid, ShellDestination.Settings, "Settings/two-columns"));
+        });
     }
 
     private static readonly (double Width, double Height)[] Sizes = [(1440, 900), (1024, 700)];
