@@ -69,6 +69,22 @@ jobs:
           New-Item -ItemType Directory -Force -Path (Join-Path $portable "Data") | Out-Null
           [System.IO.File]::WriteAllText((Join-Path $portable "portable.flag"), "", [System.Text.UTF8Encoding]::new($false))
           Copy-Item README.md (Join-Path $portable "README.md")
+          $portableDatabase = Join-Path $portable "Data/scanio.db"
+          $process = Start-Process (Join-Path $portable "Scanio.exe") -PassThru
+          try {
+            Start-Sleep -Seconds 5
+            if ($process.HasExited) {
+              throw "Portable Scanio exited during startup with code $($process.ExitCode)."
+            }
+          }
+          finally {
+            if (-not $process.HasExited) {
+              Stop-Process -Id $process.Id -Force
+            }
+          }
+          if (-not (Test-Path $portableDatabase)) {
+            throw "Portable Scanio did not initialize Data/scanio.db."
+          }
           Compress-Archive -Path (Join-Path $portable "*") -DestinationPath "artifacts/Scanio-$version-win-x64-portable.zip"
       - name: Compile per-user installer
         shell: pwsh

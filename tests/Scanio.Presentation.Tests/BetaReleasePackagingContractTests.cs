@@ -39,6 +39,8 @@ public sealed class BetaReleasePackagingContractTests
         StringAssert.Contains(workflow, "if (-not (Test-Path $installedExe))");
         StringAssert.Contains(workflow, "if (Test-Path (Join-Path $installDir \"portable.flag\"))");
         StringAssert.Contains(workflow, "if (-not (Test-Path $marker))");
+        StringAssert.Contains(workflow, "$portableDatabase = Join-Path $portable \"Data/scanio.db\"");
+        StringAssert.Contains(workflow, "if (-not (Test-Path $portableDatabase))");
         var uninstallerIndex = workflow.IndexOf("& $uninstaller", StringComparison.Ordinal);
         var retainedMarkerIndex = workflow.IndexOf(
             "if (-not (Test-Path $marker))",
