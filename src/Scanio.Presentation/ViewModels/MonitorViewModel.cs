@@ -23,7 +23,10 @@ public sealed class MonitorViewModel : ObservableObject
             _monitor.ReturnToLatest();
             return Task.CompletedTask;
         }, () => ShowReturnToLatest);
-        DisconnectCommand = new AsyncCommand(connection.DisconnectAsync);
+        DisconnectCommand = new AsyncCommand(
+            connection.DisconnectAsync,
+            () => _connection.ActiveIdentity is not null &&
+                  _connection.State is (ConnectionState.Connected or ConnectionState.DeviceRemoved));
         _monitor.Changed += OnMonitorChanged;
         _connection.StateChanged += (_, _) => RaiseConnectionProperties();
         Rebuild();
@@ -72,7 +75,11 @@ public sealed class MonitorViewModel : ObservableObject
         ReturnToLatestCommand.RaiseCanExecuteChanged();
     }
 
-    private void RaiseConnectionProperties() => RunOnUi(() => OnPropertyChanged(nameof(ConnectionLabel)));
+    private void RaiseConnectionProperties() => RunOnUi(() =>
+    {
+        OnPropertyChanged(nameof(ConnectionLabel));
+        DisconnectCommand.RaiseCanExecuteChanged();
+    });
 
     private void RunOnUi(Action action)
     {

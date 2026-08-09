@@ -11,6 +11,21 @@ namespace Scanio.Presentation.Tests;
 public sealed class MonitorViewModelTests
 {
     [TestMethod]
+    public void DisconnectCommand_IsEnabledOnlyWhileAConnectionIsActive()
+    {
+        var connection = new FakeConnectionService(ConnectionState.Detected, activeIdentity: null);
+        var viewModel = new MonitorViewModel(new LiveMonitor(), connection);
+
+        Assert.IsFalse(viewModel.DisconnectCommand.CanExecute(null));
+
+        connection.SetState(ConnectionState.Connected, Identity);
+        Assert.IsTrue(viewModel.DisconnectCommand.CanExecute(null));
+
+        connection.SetState(ConnectionState.Disconnected, activeIdentity: null);
+        Assert.IsFalse(viewModel.DisconnectCommand.CanExecute(null));
+    }
+
+    [TestMethod]
     public async Task OlderSelectionRemainsFixedUntilReturnToLatest()
     {
         var monitor = new LiveMonitor();
@@ -107,17 +122,25 @@ public sealed class MonitorViewModelTests
     private static DecodedPayload Decoded(string value) =>
         DecodedPayload.Create(System.Text.Encoding.ASCII.GetBytes(value), PayloadTextEncoding.Ascii, value, value);
 
-    private sealed class FakeConnectionService : IConnectionService
+    private sealed class FakeConnectionService(
+        ConnectionState state = ConnectionState.Connected,
+        TransportIdentity? activeIdentity = null) : IConnectionService
     {
-        public event EventHandler<ConnectionStateChangedEventArgs>? StateChanged
-        {
-            add { }
-            remove { }
-        }
-        public ConnectionState State => ConnectionState.Connected;
-        public TransportIdentity? ActiveIdentity => Identity;
+        private ConnectionState _state = state;
+        private TransportIdentity? _activeIdentity = activeIdentity ?? (state == ConnectionState.Connected ? Identity : null);
+
+        public event EventHandler<ConnectionStateChangedEventArgs>? StateChanged;
+        public ConnectionState State => _state;
+        public TransportIdentity? ActiveIdentity => _activeIdentity;
         public Task ConnectAsync(Scanio.Platform.Windows.Devices.SerialDeviceInfo device, Scanio.Transports.Serial.SerialConnectionOptions options, CancellationToken cancellationToken) => Task.CompletedTask;
         public Task DisconnectAsync(CancellationToken cancellationToken) => Task.CompletedTask;
         public Task ShutdownAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+
+        public void SetState(ConnectionState state, TransportIdentity? activeIdentity)
+        {
+            _state = state;
+            _activeIdentity = activeIdentity;
+            StateChanged?.Invoke(this, new ConnectionStateChangedEventArgs(state, activeIdentity));
+        }
     }
 }
