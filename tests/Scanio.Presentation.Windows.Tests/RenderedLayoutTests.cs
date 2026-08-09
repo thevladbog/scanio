@@ -75,6 +75,41 @@ public sealed class RenderedLayoutTests
         });
     }
 
+    [TestMethod]
+    public void ConnectionTransportModes_KeepSelectorsAndFocusedCaptureSurfaceUsableAtMinimumSize()
+    {
+        WpfTestHost.Run(() =>
+        {
+            foreach (var language in Enum.GetValues<UiLanguage>())
+            foreach (var mode in Enum.GetValues<ConnectionMode>())
+            {
+                using var fixture = CPlusFixtureFactory.Create(language, ShellDestination.Connection, mode);
+                Prepare(fixture.Window, 1024, 700);
+                var label = $"{language}/{mode}/1024x700";
+                var selectors = Descendants<RadioButton>(fixture.Window)
+                    .Where(button => button.GroupName == "ConnectionMode" && button.IsVisible)
+                    .ToArray();
+
+                Assert.HasCount(2, selectors, $"{label} must expose both transport selectors.");
+                Assert.IsTrue(selectors.All(selector => selector.ActualHeight >= 32),
+                    $"{label} exposes an undersized transport selector.");
+
+                var captureSurface = Descendants<FrameworkElement>(fixture.Window)
+                    .Single(element => element.Name == "KeyboardCaptureSurface");
+                var captureInput = Descendants<FrameworkElement>(fixture.Window)
+                    .Single(element => element.Name == "KeyboardCaptureInput");
+                Assert.AreEqual(mode == ConnectionMode.Keyboard, captureSurface.IsVisible, label);
+                Assert.AreEqual(mode == ConnectionMode.Keyboard, captureInput.IsVisible, label);
+                if (mode == ConnectionMode.Keyboard)
+                {
+                    Assert.IsGreaterThanOrEqualTo(120, captureSurface.ActualHeight, label);
+                    AssertInsideWindow(captureSurface, fixture.Window, label);
+                    AssertInsideWindow(captureInput, fixture.Window, label);
+                }
+            }
+        });
+    }
+
     internal static void Prepare(Window window, double width, double height)
     {
         window.Width = width;

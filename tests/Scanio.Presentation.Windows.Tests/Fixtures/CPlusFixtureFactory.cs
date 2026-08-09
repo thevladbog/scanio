@@ -1,6 +1,10 @@
 using System.Text;
+using System.Windows;
+using Scanio.Analysis;
+using Scanio.Application.Connection;
 using Scanio.Application.Monitor;
 using Scanio.Application.Notebook;
+using Scanio.Capture;
 using Scanio.Domain.Analysis;
 using Scanio.Domain.Capture;
 using Scanio.Domain.Transport;
@@ -9,13 +13,56 @@ using Scanio.Presentation.Localization;
 using Scanio.Presentation.Services;
 using Scanio.Presentation.Settings;
 using Scanio.Presentation.ViewModels;
+using Scanio.Presentation.Views;
 using Scanio.Transports.Serial;
 
 namespace Scanio.Presentation.Windows.Tests.Fixtures;
 
 internal static class CPlusFixtureFactory
 {
-    public static RenderedFixture Create(UiLanguage language, ShellDestination destination)
+    public static KeyboardCaptureFixture CreateKeyboardCapture(UiLanguage language)
+    {
+        var settings = new MemorySettingsService(new AppSettings(Language: language));
+        var localizer = new UiLocalizer(settings);
+        LocalizationSource.Initialize(localizer);
+        var monitor = new LiveMonitor();
+        var pipeline = new ScanProcessingPipeline(
+            new ScanAssembler(),
+            PayloadTextEncoding.Utf8,
+            BuiltInAnalyzers.CreatePipeline(),
+            monitor);
+        var connection = new ConnectionService(new ConnectionCoordinator(pipeline));
+        var connectionViewModel = new ConnectionViewModel(
+            new FixtureDeviceEnumerator(),
+            connection,
+            localizer)
+        {
+            SelectedMode = ConnectionMode.Keyboard
+        };
+        var monitorViewModel = new MonitorViewModel(
+            monitor,
+            connection,
+            new FixtureClipboardService(),
+            localizer);
+        var view = new ConnectionView { DataContext = connectionViewModel };
+        var window = new Window
+        {
+            Content = view,
+            Title = "Keyboard capture integration"
+        };
+
+        return new KeyboardCaptureFixture(
+            window,
+            connectionViewModel,
+            monitorViewModel,
+            monitor,
+            connection);
+    }
+
+    public static RenderedFixture Create(
+        UiLanguage language,
+        ShellDestination destination,
+        ConnectionMode connectionMode = ConnectionMode.Serial)
     {
         var settings = new MemorySettingsService(new AppSettings(Language: language));
         var localizer = new UiLocalizer(settings);
@@ -36,6 +83,7 @@ internal static class CPlusFixtureFactory
             connectionViewModel.Devices.Add(device);
         }
         connectionViewModel.SelectedDevice = connectionViewModel.Devices[0];
+        connectionViewModel.SelectedMode = connectionMode;
 
         var monitor = new LiveMonitor();
         var scan = CreateScan(identity);
@@ -134,6 +182,20 @@ internal static class CPlusFixtureFactory
             ScanFramingSnapshot.Create([0x0D], TimeSpan.FromMilliseconds(100), 65_536),
             identity);
     }
+}
+
+internal sealed class KeyboardCaptureFixture(
+    Window window,
+    ConnectionViewModel connection,
+    MonitorViewModel monitor,
+    LiveMonitor sourceMonitor,
+    ConnectionService connectionService)
+{
+    public Window Window { get; } = window;
+    public ConnectionViewModel Connection { get; } = connection;
+    public MonitorViewModel Monitor { get; } = monitor;
+    public LiveMonitor SourceMonitor { get; } = sourceMonitor;
+    public ConnectionService ConnectionService { get; } = connectionService;
 }
 
 internal sealed class RenderedFixture(Scanio.Presentation.MainWindow window, NotebookRecorder recorder) : IDisposable

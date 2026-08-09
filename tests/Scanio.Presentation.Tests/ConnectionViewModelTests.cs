@@ -16,6 +16,160 @@ namespace Scanio.Presentation.Tests;
 public sealed class ConnectionViewModelTests
 {
     [TestMethod]
+    public async Task KeyboardMode_HidesSerialEditingAndExposesManualStart()
+    {
+        var connection = new FakeConnectionService();
+        var viewModel = CreateViewModel(new FakeDeviceEnumerator(Device("COM7")), connection);
+        await viewModel.RefreshCommand.ExecuteAsync();
+
+        viewModel.SelectedMode = ConnectionMode.Keyboard;
+
+        Assert.IsFalse(viewModel.IsSerialMode);
+        Assert.IsTrue(viewModel.IsKeyboardMode);
+        Assert.IsFalse(viewModel.ConnectCommand.CanExecute(null));
+        Assert.IsTrue(viewModel.StartKeyboardTestCommand.CanExecute(null));
+    }
+
+    [TestMethod]
+    public async Task StartKeyboardTest_ConnectsRequestsFocusAndChangesStatusCopy()
+    {
+        var connection = new FakeConnectionService();
+        var viewModel = CreateViewModel(new FakeDeviceEnumerator(), connection);
+        viewModel.SelectedMode = ConnectionMode.Keyboard;
+        var initialStatus = viewModel.KeyboardStatusTitle;
+        var focusRequests = 0;
+        viewModel.KeyboardFocusRequested += (_, _) => focusRequests++;
+
+        await viewModel.StartKeyboardTestCommand.ExecuteAsync();
+
+        Assert.AreEqual(1, connection.ConnectKeyboardCount);
+        Assert.AreEqual(1, focusRequests);
+        Assert.AreNotEqual(initialStatus, viewModel.KeyboardStatusTitle);
+        Assert.IsTrue(viewModel.IsKeyboardCaptureActive);
+    }
+
+    [TestMethod]
+    public void AcceptedKeyboardFragments_ResetTheExactHundredMillisecondDeadline()
+    {
+        var connection = FakeConnectionService.ConnectedKeyboard();
+        var delays = new ControlledDelay();
+        var viewModel = CreateViewModel(new FakeDeviceEnumerator(), connection, delays.WaitAsync);
+        viewModel.SelectedMode = ConnectionMode.Keyboard;
+
+        viewModel.AcceptKeyboardText("ABC");
+        viewModel.AcceptKeyboardText("123");
+
+        Assert.HasCount(2, delays.Requests);
+        Assert.IsTrue(delays.Requests[0].Token.IsCancellationRequested);
+        Assert.IsFalse(delays.Requests[1].Token.IsCancellationRequested);
+        Assert.IsTrue(delays.Requests.All(request => request.Delay == TimeSpan.FromMilliseconds(100)));
+        CollectionAssert.AreEqual(new[] { "ABC", "123" }, connection.KeyboardCaptureInput.AcceptedFragments);
+    }
+
+    [TestMethod]
+    public async Task OnlyNewestKeyboardDeadline_CompletesPendingInput()
+    {
+        var connection = FakeConnectionService.ConnectedKeyboard();
+        var delays = new ControlledDelay();
+        var viewModel = CreateViewModel(new FakeDeviceEnumerator(), connection, delays.WaitAsync);
+        viewModel.SelectedMode = ConnectionMode.Keyboard;
+
+        viewModel.AcceptKeyboardText("ABC");
+        viewModel.AcceptKeyboardText("123");
+        delays.Release(0);
+        await Task.Yield();
+
+        Assert.AreEqual(0, connection.KeyboardCaptureInput.CompletedScans);
+
+        delays.Release(1);
+        await connection.KeyboardCaptureInput.CompletionObserved.Task.WaitAsync(TimeSpan.FromSeconds(1));
+
+        Assert.AreEqual(1, connection.KeyboardCaptureInput.CompletedScans);
+        Assert.AreEqual("ABC123", connection.KeyboardCaptureInput.LastCompletedScan);
+    }
+
+    [TestMethod]
+    public void ExplicitKeyboardCompletion_IsImmediateCancelsDeadlineAndIgnoresEmptyInput()
+    {
+        var connection = FakeConnectionService.ConnectedKeyboard();
+        var delays = new ControlledDelay();
+        var viewModel = CreateViewModel(new FakeDeviceEnumerator(), connection, delays.WaitAsync);
+        viewModel.SelectedMode = ConnectionMode.Keyboard;
+        viewModel.AcceptKeyboardText("ABC123");
+
+        viewModel.CompleteKeyboardInput();
+
+        Assert.IsTrue(delays.Requests.Single().Token.IsCancellationRequested);
+        Assert.AreEqual(1, connection.KeyboardCaptureInput.CompletedScans);
+        Assert.AreEqual("ABC123", connection.KeyboardCaptureInput.LastCompletedScan);
+
+        viewModel.CompleteKeyboardInput();
+
+        Assert.AreEqual(1, connection.KeyboardCaptureInput.CompletedScans);
+    }
+
+    [TestMethod]
+    public void CompletedKeyboardInput_IsExposedAsImmediateSurfaceConfirmation()
+    {
+        var connection = FakeConnectionService.ConnectedKeyboard();
+        var viewModel = CreateViewModel(new FakeDeviceEnumerator(), connection);
+        viewModel.SelectedMode = ConnectionMode.Keyboard;
+        viewModel.AcceptKeyboardText("ABC123");
+
+        viewModel.CompleteKeyboardInput();
+
+        Assert.AreEqual("ABC123", viewModel.LastKeyboardScan);
+    }
+
+    [TestMethod]
+    public void LosingKeyboardSurfaceFocus_ReportsPausedWithoutDisconnecting()
+    {
+        var connection = FakeConnectionService.ConnectedKeyboard();
+        var viewModel = CreateViewModel(new FakeDeviceEnumerator(), connection);
+        viewModel.SelectedMode = ConnectionMode.Keyboard;
+        viewModel.SetKeyboardSurfaceFocused(true);
+        var activeStatus = viewModel.KeyboardStatusTitle;
+
+        viewModel.SetKeyboardSurfaceFocused(false);
+
+        Assert.IsFalse(viewModel.IsKeyboardSurfaceFocused);
+        Assert.AreNotEqual(activeStatus, viewModel.KeyboardStatusTitle);
+        Assert.AreEqual(0, connection.DisconnectCount);
+        Assert.IsTrue(viewModel.IsKeyboardCaptureActive);
+    }
+
+    [TestMethod]
+    public async Task StopKeyboardTest_UsesExistingDisconnectService()
+    {
+        var connection = FakeConnectionService.ConnectedKeyboard();
+        var viewModel = CreateViewModel(new FakeDeviceEnumerator(), connection);
+        viewModel.SelectedMode = ConnectionMode.Keyboard;
+
+        await viewModel.StopKeyboardTestCommand.ExecuteAsync();
+
+        Assert.AreEqual(1, connection.DisconnectCount);
+    }
+
+    [TestMethod]
+    public async Task SerialAndKeyboardStarts_AreDisabledByTheOtherActiveTransport()
+    {
+        var keyboardConnection = FakeConnectionService.ConnectedKeyboard();
+        var serialViewModel = CreateViewModel(
+            new FakeDeviceEnumerator(Device("COM7")),
+            keyboardConnection);
+        await serialViewModel.RefreshCommand.ExecuteAsync();
+        serialViewModel.SelectedMode = ConnectionMode.Serial;
+
+        Assert.IsFalse(serialViewModel.ConnectCommand.CanExecute(null));
+
+        var serialConnection = FakeConnectionService.ConnectedSerial();
+        var keyboardViewModel = CreateViewModel(new FakeDeviceEnumerator(), serialConnection);
+        keyboardViewModel.SelectedMode = ConnectionMode.Keyboard;
+
+        Assert.IsFalse(keyboardViewModel.StartKeyboardTestCommand.CanExecute(null));
+    }
+
+    [TestMethod]
     public async Task Refresh_OnlyEnumeratesAndNeverConnects()
     {
         var devices = new FakeDeviceEnumerator(Device("COM7"));
@@ -268,10 +422,14 @@ public sealed class ConnectionViewModelTests
 
     private static ConnectionViewModel CreateViewModel(
         ISerialDeviceEnumerator enumerator,
-        IConnectionService connection)
+        IConnectionService connection,
+        Func<TimeSpan, CancellationToken, Task>? delay = null)
     {
         var settings = new TestSettingsService();
-        return new ConnectionViewModel(enumerator, connection, new UiLocalizer(settings));
+        var localizer = new UiLocalizer(settings);
+        return delay is null
+            ? new ConnectionViewModel(enumerator, connection, localizer)
+            : new ConnectionViewModel(enumerator, connection, localizer, delay);
     }
 
     private static SerialDeviceInfo Device(string port) =>
@@ -291,21 +449,49 @@ public sealed class ConnectionViewModelTests
     private sealed class FakeConnectionService : IConnectionService
     {
         private readonly TaskCompletionSource _allowConnect = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        public event EventHandler<ConnectionStateChangedEventArgs>? StateChanged
-        {
-            add { }
-            remove { }
-        }
+        public event EventHandler<ConnectionStateChangedEventArgs>? StateChanged;
         public int ConnectCount { get; private set; }
+        public int ConnectKeyboardCount { get; private set; }
         public int DisconnectCount { get; private set; }
         public bool BlockConnect { get; init; }
         public SerialDeviceInfo? LastDevice { get; private set; }
         public SerialConnectionOptions? LastOptions { get; private set; }
-        public ConnectionState State { get; init; } = ConnectionState.Detected;
-        public TransportIdentity? ActiveIdentity => null;
-        public ConnectionPresentationSnapshot? CurrentSnapshot { get; init; }
-        public IKeyboardCaptureInput? KeyboardInput => null;
+        public ConnectionState State { get; set; } = ConnectionState.Detected;
+        public TransportIdentity? ActiveIdentity { get; set; }
+        public ConnectionPresentationSnapshot? CurrentSnapshot { get; set; }
+        public IKeyboardCaptureInput? KeyboardInput =>
+            State == ConnectionState.Connected && ActiveIdentity?.Kind == TransportKind.KeyboardCapture
+                ? KeyboardCaptureInput
+                : null;
+        public FakeKeyboardCaptureInput KeyboardCaptureInput { get; } = new();
         public TaskCompletionSource ConnectStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public static FakeConnectionService ConnectedKeyboard()
+        {
+            var identity = KeyboardIdentity();
+            var connection = new FakeConnectionService
+            {
+                State = ConnectionState.Connected,
+                ActiveIdentity = identity,
+                CurrentSnapshot = new ConnectionPresentationSnapshot(identity, ConnectionState.Connected, Options: null)
+            };
+            connection.KeyboardCaptureInput.IsConnected = true;
+            return connection;
+        }
+
+        public static FakeConnectionService ConnectedSerial()
+        {
+            var identity = new TransportIdentity(TransportKind.Serial, "serial:test", "Serial scanner", endpoint: "COM7");
+            return new FakeConnectionService
+            {
+                State = ConnectionState.Connected,
+                ActiveIdentity = identity,
+                CurrentSnapshot = new ConnectionPresentationSnapshot(
+                    identity,
+                    ConnectionState.Connected,
+                    SerialConnectionOptions.Default("COM7"))
+            };
+        }
 
         public async Task ConnectAsync(SerialDeviceInfo device, SerialConnectionOptions options, CancellationToken cancellationToken)
         {
@@ -322,12 +508,92 @@ public sealed class ConnectionViewModelTests
         public Task DisconnectAsync(CancellationToken cancellationToken)
         {
             DisconnectCount++;
+            var priorIdentity = ActiveIdentity;
+            State = ConnectionState.Disconnected;
+            ActiveIdentity = null;
+            KeyboardCaptureInput.IsConnected = false;
+            StateChanged?.Invoke(this, new ConnectionStateChangedEventArgs(State, priorIdentity));
             return Task.CompletedTask;
         }
 
         public Task ShutdownAsync(CancellationToken cancellationToken) => Task.CompletedTask;
-        public Task ConnectKeyboardAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task ConnectKeyboardAsync(CancellationToken cancellationToken)
+        {
+            ConnectKeyboardCount++;
+            var identity = KeyboardIdentity();
+            State = ConnectionState.Connected;
+            ActiveIdentity = identity;
+            CurrentSnapshot = new ConnectionPresentationSnapshot(identity, State, Options: null);
+            KeyboardCaptureInput.IsConnected = true;
+            StateChanged?.Invoke(this, new ConnectionStateChangedEventArgs(State, identity));
+            return Task.CompletedTask;
+        }
+
+        private static TransportIdentity KeyboardIdentity() => new(
+            TransportKind.KeyboardCapture,
+            "keyboard-capture:focused-window",
+            "Keyboard scanner",
+            endpoint: "Keyboard");
+
         public void AllowConnect() => _allowConnect.TrySetResult();
+    }
+
+    private sealed class FakeKeyboardCaptureInput : IKeyboardCaptureInput
+    {
+        private readonly System.Text.StringBuilder _pending = new();
+
+        public List<string> AcceptedFragments { get; } = [];
+        public int CompletedScans { get; private set; }
+        public string? LastCompletedScan { get; private set; }
+        public bool IsConnected { get; set; }
+        public bool HasPendingInput => IsConnected && _pending.Length > 0;
+        public TaskCompletionSource CompletionObserved { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public bool AppendText(string text)
+        {
+            if (!IsConnected || string.IsNullOrEmpty(text))
+            {
+                return false;
+            }
+
+            AcceptedFragments.Add(text);
+            _pending.Append(text);
+            return true;
+        }
+
+        public bool CompleteInput()
+        {
+            if (!HasPendingInput)
+            {
+                return false;
+            }
+
+            LastCompletedScan = _pending.ToString();
+            _pending.Clear();
+            CompletedScans++;
+            CompletionObserved.TrySetResult();
+            return true;
+        }
+    }
+
+    private sealed class ControlledDelay
+    {
+        public List<Request> Requests { get; } = [];
+
+        public Task WaitAsync(TimeSpan delay, CancellationToken cancellationToken)
+        {
+            var request = new Request(delay, cancellationToken);
+            Requests.Add(request);
+            return request.Completion.Task;
+        }
+
+        public void Release(int index) => Requests[index].Completion.TrySetResult();
+
+        public sealed record Request(TimeSpan Delay, CancellationToken Token)
+        {
+            public TaskCompletionSource Completion { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+        }
     }
 
     private sealed class BlockingPipeline : IScanProcessingPipeline

@@ -9,6 +9,7 @@
     <ProjectReference Include="..\Scanio.Storage\Scanio.Storage.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <InternalsVisibleTo Include="Scanio.Presentation.Tests" />
     <InternalsVisibleTo Include="Scanio.Presentation.Windows.Tests" />
   </ItemGroup>
   <PropertyGroup>

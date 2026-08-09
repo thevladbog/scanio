@@ -91,6 +91,21 @@
   <data name="Connection.Handshake" xml:space="preserve"><value>УПРАВЛЕНИЕ ПОТОКОМ</value></data>
   <data name="Connection.Status" xml:space="preserve"><value>СОСТОЯНИЕ</value></data>
   <data name="Connection.NoPort" xml:space="preserve"><value>Порт не выбран</value></data>
+  <data name="Connection.Transport" xml:space="preserve"><value>РЕЖИМ ПОДКЛЮЧЕНИЯ</value></data>
+  <data name="Connection.Mode.Serial" xml:space="preserve"><value>COM-порт</value></data>
+  <data name="Connection.Mode.Keyboard" xml:space="preserve"><value>Сканер-клавиатура</value></data>
+  <data name="Connection.Keyboard.Title" xml:space="preserve"><value>Проверка сканера-клавиатуры</value></data>
+  <data name="Connection.Keyboard.Description" xml:space="preserve"><value>Запустите тест вручную, активируйте выделенное поле и отсканируйте код. Enter, Tab или пауза 100 мс завершат ввод.</value></data>
+  <data name="Connection.Keyboard.Warning" xml:space="preserve"><value>Пока выделенное поле в фокусе, Scanio захватывает и обычный ввод с клавиатуры. Windows передаёт реконструированный текст; исходные USB-отчёты в этом режиме недоступны.</value></data>
+  <data name="Connection.Keyboard.Capture" xml:space="preserve"><value>ПОЛЕ ЗАХВАТА</value></data>
+  <data name="Connection.Keyboard.FocusHint" xml:space="preserve"><value>Щёлкните здесь, чтобы возобновить захват ввода.</value></data>
+  <data name="Connection.Keyboard.Reconstructed" xml:space="preserve"><value>Реконструированный ввод Windows · не исходный USB-отчёт</value></data>
+  <data name="Connection.Keyboard.Start" xml:space="preserve"><value>Начать тест</value></data>
+  <data name="Connection.Keyboard.Stop" xml:space="preserve"><value>Остановить тест</value></data>
+  <data name="Connection.Keyboard.Status.Ready" xml:space="preserve"><value>Тест не запущен</value></data>
+  <data name="Connection.Keyboard.Status.Starting" xml:space="preserve"><value>Запуск теста…</value></data>
+  <data name="Connection.Keyboard.Status.Active" xml:space="preserve"><value>Ввод активен</value></data>
+  <data name="Connection.Keyboard.Status.Paused" xml:space="preserve"><value>Ввод приостановлен — активируйте поле</value></data>
   <data name="Monitor.Live" xml:space="preserve"><value>ЖИВАЯ ЛЕНТА</value></data>
   <data name="Monitor.Scans" xml:space="preserve"><value>Сканы</value></data>
   <data name="Monitor.Latest" xml:space="preserve"><value>К последнему</value></data>
@@ -188,6 +203,7 @@
   <data name="Error.RefreshDevices" xml:space="preserve"><value>Не удалось обновить список COM-портов.</value></data>
   <data name="Error.SelectDevice" xml:space="preserve"><value>Сначала выберите COM-порт.</value></data>
   <data name="Error.Connect" xml:space="preserve"><value>Не удалось подключиться к выбранному COM-порту.</value></data>
+  <data name="Error.ConnectKeyboard" xml:space="preserve"><value>Не удалось запустить проверку сканера-клавиатуры.</value></data>
   <data name="Error.OperationFailed" xml:space="preserve"><value>Не удалось выполнить операцию.</value></data>
   <data name="Analysis.Field.pnr" xml:space="preserve"><value>Код бронирования</value></data>
   <data name="Analysis.Field.origin" xml:space="preserve"><value>Аэропорт отправления</value></data>
