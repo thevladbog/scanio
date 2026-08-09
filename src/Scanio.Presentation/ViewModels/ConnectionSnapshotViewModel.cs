@@ -26,12 +26,14 @@ public sealed record ConnectionSnapshotViewModel(
             snapshot.Identity.DisplayName,
             snapshot.Identity.HardwareId,
             ConnectionLabels.State(snapshot.State, localizer),
-            string.Join(
-                " · ",
-                snapshot.Options.BaudRate,
-                snapshot.Options.DataBits,
-                ConnectionLabels.Parity(snapshot.Options.Parity, localizer),
-                ConnectionLabels.StopBits(snapshot.Options.StopBits, localizer)));
+            snapshot.Options is { } options
+                ? string.Join(
+                    " · ",
+                    options.BaudRate,
+                    options.DataBits,
+                    ConnectionLabels.Parity(options.Parity, localizer),
+                    ConnectionLabels.StopBits(options.StopBits, localizer))
+                : localizer["Keyboard.ReconstructedInput"]);
     }
 }
 

@@ -3,6 +3,7 @@ using Scanio.Domain.Transport;
 using Scanio.Platform.Windows.Devices;
 using Scanio.Transports;
 using Scanio.Transports.Serial;
+using Scanio.Transports.Keyboard;
 
 namespace Scanio.Presentation.Services;
 
@@ -12,6 +13,7 @@ public sealed class ConnectionService : IConnectionService
     private readonly Func<TransportIdentity, SerialConnectionOptions, IScannerTransport> _transportFactory;
     private ConnectionState _state = ConnectionState.Detected;
     private ConnectionPresentationSnapshot? _currentSnapshot;
+    private IKeyboardCaptureInput? _keyboardInput;
 
     public ConnectionService(
         ConnectionCoordinator coordinator,
@@ -31,6 +33,8 @@ public sealed class ConnectionService : IConnectionService
 
     public ConnectionPresentationSnapshot? CurrentSnapshot => _currentSnapshot;
 
+    public IKeyboardCaptureInput? KeyboardInput => Volatile.Read(ref _keyboardInput);
+
     public Task ConnectAsync(
         SerialDeviceInfo device,
         SerialConnectionOptions options,
@@ -49,6 +53,34 @@ public sealed class ConnectionService : IConnectionService
         return _coordinator.ConnectAsync(_transportFactory(identity, options), cancellationToken);
     }
 
+    public async Task ConnectKeyboardAsync(CancellationToken cancellationToken)
+    {
+        var identity = new TransportIdentity(
+            TransportKind.KeyboardCapture,
+            "keyboard-capture:focused-window",
+            "Keyboard scanner",
+            endpoint: "Keyboard");
+        var transport = new KeyboardCaptureTransport(identity);
+        var previousSnapshot = _currentSnapshot;
+        _currentSnapshot = new ConnectionPresentationSnapshot(identity, ConnectionState.Connecting, Options: null);
+        Volatile.Write(ref _keyboardInput, transport);
+
+        try
+        {
+            await _coordinator.ConnectAsync(transport, cancellationToken).ConfigureAwait(false);
+        }
+        catch
+        {
+            if (ReferenceEquals(KeyboardInput, transport))
+            {
+                Volatile.Write(ref _keyboardInput, null);
+                _currentSnapshot = previousSnapshot;
+            }
+
+            throw;
+        }
+    }
+
     public Task DisconnectAsync(CancellationToken cancellationToken) =>
         _coordinator.DisconnectAsync(cancellationToken);
 
@@ -58,6 +90,11 @@ public sealed class ConnectionService : IConnectionService
     private void OnCoordinatorStatusChanged(object? sender, ConnectionStatusEvent status)
     {
         _state = status.State;
+        if (status.Identity.Kind == TransportKind.KeyboardCapture && IsTerminal(status.State))
+        {
+            Volatile.Write(ref _keyboardInput, null);
+        }
+
         if (status.State is ConnectionState.Disconnected or ConnectionState.Detected)
         {
             _currentSnapshot = null;
@@ -73,4 +110,7 @@ public sealed class ConnectionService : IConnectionService
 
         StateChanged?.Invoke(this, new ConnectionStateChangedEventArgs(status.State, status.Identity));
     }
+
+    private static bool IsTerminal(ConnectionState state) =>
+        state is not (ConnectionState.Connecting or ConnectionState.Connected or ConnectionState.Disconnecting);
 }

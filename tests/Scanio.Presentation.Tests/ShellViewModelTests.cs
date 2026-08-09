@@ -82,7 +82,9 @@ public sealed class ShellViewModelTests
         public ConnectionState State => ConnectionState.Detected;
         public TransportIdentity? ActiveIdentity => null;
         public ConnectionPresentationSnapshot? CurrentSnapshot => null;
+        public Scanio.Transports.Keyboard.IKeyboardCaptureInput? KeyboardInput => null;
         public Task ConnectAsync(SerialDeviceInfo device, SerialConnectionOptions options, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task ConnectKeyboardAsync(CancellationToken cancellationToken) => Task.CompletedTask;
         public Task DisconnectAsync(CancellationToken cancellationToken) => Task.CompletedTask;
         public Task ShutdownAsync(CancellationToken cancellationToken) => Task.CompletedTask;
     }

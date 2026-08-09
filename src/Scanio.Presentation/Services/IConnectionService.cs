@@ -1,6 +1,7 @@
 using Scanio.Domain.Transport;
 using Scanio.Platform.Windows.Devices;
 using Scanio.Transports.Serial;
+using Scanio.Transports.Keyboard;
 
 namespace Scanio.Presentation.Services;
 
@@ -16,9 +17,9 @@ public sealed class ConnectionStateChangedEventArgs(
 public sealed record ConnectionPresentationSnapshot(
     TransportIdentity Identity,
     ConnectionState State,
-    SerialConnectionOptions Options)
+    SerialConnectionOptions? Options)
 {
-    public string Endpoint => Identity.Endpoint ?? Options.PortName;
+    public string Endpoint => Identity.Endpoint ?? Options?.PortName ?? Identity.DisplayName;
 }
 
 public interface IConnectionService
@@ -31,10 +32,14 @@ public interface IConnectionService
 
     ConnectionPresentationSnapshot? CurrentSnapshot { get; }
 
+    IKeyboardCaptureInput? KeyboardInput { get; }
+
     Task ConnectAsync(
         SerialDeviceInfo device,
         SerialConnectionOptions options,
         CancellationToken cancellationToken);
+
+    Task ConnectKeyboardAsync(CancellationToken cancellationToken);
 
     Task DisconnectAsync(CancellationToken cancellationToken);
 

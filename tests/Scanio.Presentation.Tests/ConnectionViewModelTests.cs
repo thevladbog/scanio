@@ -1,3 +1,5 @@
+using Scanio.Application.Connection;
+using Scanio.Application.Monitor;
 using Scanio.Domain.Transport;
 using Scanio.Platform.Windows.Devices;
 using Scanio.Presentation.Localization;
@@ -5,6 +7,8 @@ using Scanio.Presentation.Services;
 using Scanio.Presentation.Settings;
 using Scanio.Presentation.ViewModels;
 using Scanio.Transports.Serial;
+using Scanio.Transports;
+using Scanio.Transports.Keyboard;
 
 namespace Scanio.Presentation.Tests;
 
@@ -86,6 +90,59 @@ public sealed class ConnectionViewModelTests
         Assert.AreEqual("Нет подключения", disconnected.HeaderConnectionLabel);
     }
 
+    [TestMethod]
+    public async Task ConnectionService_KeepsSerialAndKeyboardSnapshotsDistinct()
+    {
+        var coordinator = new ConnectionCoordinator(new BlockingPipeline());
+        var serialTransport = new FakeScannerTransport();
+        var service = new ConnectionService(coordinator, (_, _) => serialTransport);
+
+        await service.ConnectAsync(
+            Device("COM7"),
+            SerialConnectionOptions.Default("COM7"),
+            CancellationToken.None);
+
+        Assert.AreEqual(TransportKind.Serial, service.CurrentSnapshot?.Identity.Kind);
+        Assert.AreEqual("COM7", service.CurrentSnapshot?.Endpoint);
+        Assert.IsNotNull(service.CurrentSnapshot?.Options);
+        Assert.IsNull(service.KeyboardInput);
+        await service.DisconnectAsync(CancellationToken.None);
+
+        await service.ConnectKeyboardAsync(CancellationToken.None);
+
+        Assert.AreEqual(TransportKind.KeyboardCapture, service.CurrentSnapshot?.Identity.Kind);
+        Assert.AreEqual("keyboard-capture:focused-window", service.CurrentSnapshot?.Identity.StableId);
+        Assert.AreEqual("Keyboard scanner", service.CurrentSnapshot?.Identity.DisplayName);
+        Assert.AreEqual("Keyboard", service.CurrentSnapshot?.Endpoint);
+        Assert.IsNull(service.CurrentSnapshot?.Options);
+        Assert.IsNotNull(service.KeyboardInput);
+        var keyboardSnapshot = ConnectionSnapshotViewModel.From(
+            service.CurrentSnapshot,
+            new UiLocalizer(new TestSettingsService()));
+        Assert.AreEqual("Реконструированный ввод Windows · UTF-8", keyboardSnapshot?.ParametersLabel);
+        await service.DisconnectAsync(CancellationToken.None);
+    }
+
+    [TestMethod]
+    public async Task ConnectionService_ExposesKeyboardInputOnlyWhileKeyboardTransportIsActive()
+    {
+        var coordinator = new ConnectionCoordinator(new BlockingPipeline());
+        var service = new ConnectionService(coordinator);
+
+        Assert.IsNull(service.KeyboardInput);
+
+        await service.ConnectKeyboardAsync(CancellationToken.None);
+        var activeInput = service.KeyboardInput;
+
+        Assert.IsNotNull(activeInput);
+        Assert.IsTrue(activeInput.AppendText("scan"));
+
+        await service.DisconnectAsync(CancellationToken.None);
+
+        Assert.IsNull(service.KeyboardInput);
+        Assert.IsFalse(activeInput.AppendText("after-disconnect"));
+    }
+
     private static ConnectionViewModel CreateViewModel(
         ISerialDeviceEnumerator enumerator,
         IConnectionService connection)
@@ -124,6 +181,7 @@ public sealed class ConnectionViewModelTests
         public ConnectionState State { get; init; } = ConnectionState.Detected;
         public TransportIdentity? ActiveIdentity => null;
         public ConnectionPresentationSnapshot? CurrentSnapshot { get; init; }
+        public IKeyboardCaptureInput? KeyboardInput => null;
         public TaskCompletionSource ConnectStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         public async Task ConnectAsync(SerialDeviceInfo device, SerialConnectionOptions options, CancellationToken cancellationToken)
@@ -145,7 +203,47 @@ public sealed class ConnectionViewModelTests
         }
 
         public Task ShutdownAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task ConnectKeyboardAsync(CancellationToken cancellationToken) => Task.CompletedTask;
         public void AllowConnect() => _allowConnect.TrySetResult();
+    }
+
+    private sealed class BlockingPipeline : IScanProcessingPipeline
+    {
+        public async Task ProcessAsync(IScannerTransport transport, CancellationToken cancellationToken) =>
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+    }
+
+    private sealed class FakeScannerTransport : IScannerTransport
+    {
+        public TransportIdentity Identity { get; } = new(
+            TransportKind.Serial,
+            "serial:test",
+            "Test serial scanner",
+            endpoint: "COM7");
+
+        public ConnectionState State { get; private set; } = ConnectionState.Disconnected;
+
+        public ValueTask OpenAsync(CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            State = ConnectionState.Connected;
+            return ValueTask.CompletedTask;
+        }
+
+        public async IAsyncEnumerable<Scanio.Domain.Capture.RawChunk> ReadAllAsync(
+            [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
+        {
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            yield break;
+        }
+
+        public ValueTask CloseAsync(CancellationToken cancellationToken)
+        {
+            State = ConnectionState.Disconnected;
+            return ValueTask.CompletedTask;
+        }
+
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 
     private sealed class TestSettingsService : IAppSettingsService

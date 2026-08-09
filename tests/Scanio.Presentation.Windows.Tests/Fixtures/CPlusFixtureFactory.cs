@@ -183,8 +183,10 @@ internal sealed class FixtureConnectionService(TransportIdentity identity) : ICo
     public TransportIdentity? ActiveIdentity { get; private set; } = identity;
     public ConnectionPresentationSnapshot? CurrentSnapshot { get; private set; } =
         new(identity, ConnectionState.Connected, SerialConnectionOptions.Default(identity.Endpoint!));
+    public Scanio.Transports.Keyboard.IKeyboardCaptureInput? KeyboardInput => null;
 
     public Task ConnectAsync(SerialDeviceInfo device, SerialConnectionOptions options, CancellationToken cancellationToken) => Task.CompletedTask;
+    public Task ConnectKeyboardAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 
     public Task DisconnectAsync(CancellationToken cancellationToken)
     {

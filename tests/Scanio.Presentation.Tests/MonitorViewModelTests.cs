@@ -308,7 +308,9 @@ public sealed class MonitorViewModelTests
         public TransportIdentity? ActiveIdentity => _activeIdentity;
         public ConnectionPresentationSnapshot? Snapshot { get; init; }
         public ConnectionPresentationSnapshot? CurrentSnapshot => Snapshot;
+        public Scanio.Transports.Keyboard.IKeyboardCaptureInput? KeyboardInput => null;
         public Task ConnectAsync(Scanio.Platform.Windows.Devices.SerialDeviceInfo device, Scanio.Transports.Serial.SerialConnectionOptions options, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task ConnectKeyboardAsync(CancellationToken cancellationToken) => Task.CompletedTask;
         public Task DisconnectAsync(CancellationToken cancellationToken) => Task.CompletedTask;
         public Task ShutdownAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 

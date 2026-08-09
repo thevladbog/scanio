@@ -56,6 +56,7 @@
   <data name="Serial.Handshake.XOnXOff" xml:space="preserve"><value>XON/XOFF</value></data>
   <data name="Serial.Handshake.RequestToSend" xml:space="preserve"><value>RTS</value></data>
   <data name="Serial.Handshake.RequestToSendXOnXOff" xml:space="preserve"><value>RTS + XON/XOFF</value></data>
+  <data name="Keyboard.ReconstructedInput" xml:space="preserve"><value>Реконструированный ввод Windows · UTF-8</value></data>
   <data name="Settings.Title" xml:space="preserve"><value>Настройки</value></data>
   <data name="Settings.Subtitle" xml:space="preserve"><value>Язык, отображение и локальные данные</value></data>
   <data name="Settings.ShowEscapedControls" xml:space="preserve"><value>Показывать управляющие символы</value></data>
