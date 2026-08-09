@@ -79,11 +79,18 @@ internal static class CPlusFixtureFactory
         }
 
         var historyViewModel = new HistoryViewModel(repository, interaction, recorder, localizer);
-        historyViewModel.RefreshCommand.ExecuteAsync().GetAwaiter().GetResult();
+        foreach (var session in repository.GetSessions())
+        {
+            historyViewModel.Sessions.Add(NotebookSessionItemViewModel.From(session, localizer));
+        }
+
         historyViewModel.SelectedSession = historyViewModel.Sessions.FirstOrDefault(session => session.RecordCount > 0);
         if (historyViewModel.SelectedSession is not null)
         {
-            historyViewModel.OpenCommand.ExecuteAsync().GetAwaiter().GetResult();
+            foreach (var record in repository.GetRecords(historyViewModel.SelectedSession.Session.Id))
+            {
+                historyViewModel.Records.Add(new NotebookRecordItemViewModel(record, localizer));
+            }
         }
 
         var settingsViewModel = new SettingsViewModel(
@@ -102,23 +109,11 @@ internal static class CPlusFixtureFactory
             settingsViewModel,
             recorder,
             connection);
-        Navigate(shell, destination);
+        typeof(ShellViewModel)
+            .GetProperty(nameof(ShellViewModel.SelectedDestination))!
+            .SetValue(shell, destination);
 
         return new RenderedFixture(new Scanio.Presentation.MainWindow(shell), recorder);
-    }
-
-    private static void Navigate(ShellViewModel shell, ShellDestination destination)
-    {
-        var command = destination switch
-        {
-            ShellDestination.Connection => shell.ShowConnectionCommand,
-            ShellDestination.Monitor => shell.ShowMonitorCommand,
-            ShellDestination.Notebook => shell.ShowNotebookCommand,
-            ShellDestination.History => shell.ShowHistoryCommand,
-            ShellDestination.Settings => shell.ShowSettingsCommand,
-            _ => throw new ArgumentOutOfRangeException(nameof(destination), destination, null)
-        };
-        command.ExecuteAsync().GetAwaiter().GetResult();
     }
 
     private static CompletedScan CreateScan(TransportIdentity identity)
