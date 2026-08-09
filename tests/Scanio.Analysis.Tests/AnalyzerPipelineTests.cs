@@ -9,7 +9,7 @@ public sealed class AnalyzerPipelineTests
     private static readonly ScanAnalyzerPipeline Pipeline = new(new IScanAnalyzer[]
     {
         new PlainTextAnalyzer(),
-        new Ean13Analyzer()
+        new EanUpcAnalyzer()
     });
 
     [TestMethod]
