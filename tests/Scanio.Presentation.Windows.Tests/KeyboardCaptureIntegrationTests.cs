@@ -59,7 +59,7 @@ public sealed class KeyboardCaptureIntegrationTests
         finally
         {
             await fixture.ConnectionService.DisconnectAsync(CancellationToken.None);
-            WpfTestHost.Run(() => fixture.Window.Hide());
+            WpfTestHost.Run(fixture.Dispose);
         }
     }
 

@@ -12,6 +12,7 @@ using Scanio.Platform.Windows.Devices;
 using Scanio.Presentation.Localization;
 using Scanio.Presentation.Services;
 using Scanio.Presentation.Settings;
+using Scanio.Presentation.Tests.Infrastructure;
 using Scanio.Presentation.ViewModels;
 using Scanio.Presentation.Views;
 using Scanio.Transports.Serial;
@@ -24,7 +25,7 @@ internal static class CPlusFixtureFactory
     {
         var settings = new MemorySettingsService(new AppSettings(Language: language));
         var localizer = new UiLocalizer(settings);
-        LocalizationSource.Initialize(localizer);
+        InitializeGlobalSources(settings, localizer);
         var monitor = new LiveMonitor();
         var pipeline = new ScanProcessingPipeline(
             new ScanAssembler(),
@@ -62,11 +63,39 @@ internal static class CPlusFixtureFactory
     public static RenderedFixture Create(
         UiLanguage language,
         ShellDestination destination,
-        ConnectionMode connectionMode = ConnectionMode.Serial)
+        ConnectionMode connectionMode = ConnectionMode.Serial) =>
+        CreateCore(
+            language,
+            destination,
+            connectionMode,
+            ListDensity.Comfortable,
+            showHexPreview: true,
+            showChunkBoundaries: true);
+
+    public static RenderedFixture Create(RenderedEvidenceVariant variant) =>
+        CreateCore(
+            variant.Language,
+            variant.Destination,
+            variant.ConnectionMode,
+            variant.ListDensity,
+            variant.ShowHexPreview,
+            variant.ShowChunkBoundaries);
+
+    private static RenderedFixture CreateCore(
+        UiLanguage language,
+        ShellDestination destination,
+        ConnectionMode connectionMode,
+        ListDensity listDensity,
+        bool showHexPreview,
+        bool showChunkBoundaries)
     {
-        var settings = new MemorySettingsService(new AppSettings(Language: language));
+        var settings = new MemorySettingsService(new AppSettings(
+            Language: language,
+            ShowHexPreview: showHexPreview,
+            ShowChunkBoundaries: showChunkBoundaries,
+            ListDensity: listDensity));
         var localizer = new UiLocalizer(settings);
-        LocalizationSource.Initialize(localizer);
+        InitializeGlobalSources(settings, localizer);
 
         var identity = new TransportIdentity(
             TransportKind.Serial,
@@ -147,7 +176,7 @@ internal static class CPlusFixtureFactory
             new FixturePlatformInteractionService(),
             true,
             @"C:\Users\Operator\AppData\Local\Scanio\Data\scanio-notebook.sqlite3",
-            "0.4.0-alpha.1",
+            "0.5.0-alpha.1",
             new Uri("https://github.com/thevladbog/scanio/releases"));
         var shell = new ShellViewModel(
             connectionViewModel,
@@ -162,6 +191,19 @@ internal static class CPlusFixtureFactory
             .SetValue(shell, destination);
 
         return new RenderedFixture(new Scanio.Presentation.MainWindow(shell), recorder);
+    }
+
+    internal static void ResetGlobalSources()
+    {
+        var settings = new MemorySettingsService(new AppSettings());
+        var localizer = new UiLocalizer(settings);
+        InitializeGlobalSources(settings, localizer);
+    }
+
+    private static void InitializeGlobalSources(MemorySettingsService settings, UiLocalizer localizer)
+    {
+        DisplaySettingsSource.Initialize(settings);
+        LocalizationSource.Initialize(localizer);
     }
 
     private static CompletedScan CreateScan(TransportIdentity identity)
@@ -189,13 +231,19 @@ internal sealed class KeyboardCaptureFixture(
     ConnectionViewModel connection,
     MonitorViewModel monitor,
     LiveMonitor sourceMonitor,
-    ConnectionService connectionService)
+    ConnectionService connectionService) : IDisposable
 {
     public Window Window { get; } = window;
     public ConnectionViewModel Connection { get; } = connection;
     public MonitorViewModel Monitor { get; } = monitor;
     public LiveMonitor SourceMonitor { get; } = sourceMonitor;
     public ConnectionService ConnectionService { get; } = connectionService;
+
+    public void Dispose()
+    {
+        Window.Hide();
+        CPlusFixtureFactory.ResetGlobalSources();
+    }
 }
 
 internal sealed class RenderedFixture(Scanio.Presentation.MainWindow window, NotebookRecorder recorder) : IDisposable
@@ -206,6 +254,7 @@ internal sealed class RenderedFixture(Scanio.Presentation.MainWindow window, Not
     {
         Window.Hide();
         recorder.DisposeAsync().AsTask().GetAwaiter().GetResult();
+        CPlusFixtureFactory.ResetGlobalSources();
     }
 }
 

@@ -19,4 +19,9 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Scanio.Presentation\Scanio.Presentation.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\Scanio.Presentation.Tests\RenderedEvidenceMatrix.cs"
+             Link="Fixtures\RenderedEvidenceMatrix.cs" />
+  </ItemGroup>
 </Project>

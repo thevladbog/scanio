@@ -4,6 +4,7 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Media;
 using Scanio.Presentation.Settings;
+using Scanio.Presentation.Tests.Infrastructure;
 using Scanio.Presentation.ViewModels;
 using Scanio.Presentation.Windows.Tests.Fixtures;
 
@@ -26,21 +27,7 @@ public sealed class RenderedLayoutTests
                 using var fixture = CPlusFixtureFactory.Create(language, destination);
                 Prepare(fixture.Window, size.Width, size.Height);
                 var label = $"{language}/{destination}/{size.Width}x{size.Height}";
-
-                var horizontalScrollbars = Descendants<ScrollBar>(fixture.Window)
-                    .Where(scrollbar => scrollbar.Orientation == Orientation.Horizontal && scrollbar.IsVisible)
-                    .ToArray();
-                Assert.IsEmpty(horizontalScrollbars, $"{label} exposes a horizontal scrollbar.");
-
-                foreach (var button in Descendants<Button>(fixture.Window).Where(button => button.IsVisible))
-                {
-                    Assert.IsGreaterThanOrEqualTo(1, button.ActualWidth, $"{label} has a zero-width button: {button.Content}");
-                    Assert.IsGreaterThanOrEqualTo(32, button.ActualHeight, $"{label} has an undersized action: {button.Content}");
-                    AssertInsideWindow(button, fixture.Window, label);
-                }
-
-                AssertSiblingControlsDoNotOverlap(fixture.Window, label);
-                AssertReferenceColumnsRemainUsable(fixture.Window, destination, label);
+                AssertWorkspaceLayout(fixture.Window, destination, label);
             }
         });
     }
@@ -76,16 +63,17 @@ public sealed class RenderedLayoutTests
     }
 
     [TestMethod]
-    public void ConnectionTransportModes_KeepSelectorsAndFocusedCaptureSurfaceUsableAtMinimumSize()
+    public void ConnectionTransportModes_KeepSelectorsAndFocusedCaptureSurfaceUsableAtEveryRequiredSize()
     {
         WpfTestHost.Run(() =>
         {
-            foreach (var language in Enum.GetValues<UiLanguage>())
-            foreach (var mode in Enum.GetValues<ConnectionMode>())
+            foreach (var variant in RenderedEvidenceMatrix.Connection)
             {
-                using var fixture = CPlusFixtureFactory.Create(language, ShellDestination.Connection, mode);
-                Prepare(fixture.Window, 1024, 700);
-                var label = $"{language}/{mode}/1024x700";
+                using var fixture = CPlusFixtureFactory.Create(variant);
+                Prepare(fixture.Window, variant.Width, variant.Height);
+                var label = $"{variant.Language}/{variant.ConnectionMode}/{variant.Width}x{variant.Height}";
+                AssertWorkspaceLayout(fixture.Window, ShellDestination.Connection, label);
+
                 var selectors = Descendants<RadioButton>(fixture.Window)
                     .Where(button => button.GroupName == "ConnectionMode" && button.IsVisible)
                     .ToArray();
@@ -98,14 +86,73 @@ public sealed class RenderedLayoutTests
                     .Single(element => element.Name == "KeyboardCaptureSurface");
                 var captureInput = Descendants<FrameworkElement>(fixture.Window)
                     .Single(element => element.Name == "KeyboardCaptureInput");
-                Assert.AreEqual(mode == ConnectionMode.Keyboard, captureSurface.IsVisible, label);
-                Assert.AreEqual(mode == ConnectionMode.Keyboard, captureInput.IsVisible, label);
-                if (mode == ConnectionMode.Keyboard)
+                var keyboardMode = variant.ConnectionMode == ConnectionMode.Keyboard;
+                Assert.AreEqual(keyboardMode, captureSurface.IsVisible, label);
+                Assert.AreEqual(keyboardMode, captureInput.IsVisible, label);
+                if (keyboardMode)
                 {
                     Assert.IsGreaterThanOrEqualTo(120, captureSurface.ActualHeight, label);
                     AssertInsideWindow(captureSurface, fixture.Window, label);
                     AssertInsideWindow(captureInput, fixture.Window, label);
                 }
+            }
+        });
+    }
+
+    [TestMethod]
+    public void DensityModes_RenderExactMainListRowHeightOnEveryListSurface()
+    {
+        WpfTestHost.Run(() =>
+        {
+            foreach (var variant in RenderedEvidenceMatrix.Density)
+            {
+                using var fixture = CPlusFixtureFactory.Create(variant);
+                Prepare(fixture.Window, variant.Width, variant.Height);
+                var label = $"{variant.Destination}/{variant.ListDensity}/{variant.Width}x{variant.Height}";
+                AssertWorkspaceLayout(fixture.Window, variant.Destination, label);
+
+                var styleName = variant.Destination == ShellDestination.Connection
+                    ? "DensityAwareDeviceRow"
+                    : "DensityAwareLedgerRow";
+                var densityStyle = fixture.Window.FindResource(styleName);
+                var lists = Descendants<ItemsControl>(fixture.Window)
+                    .Where(list => list.IsVisible && ReferenceEquals(list.ItemContainerStyle, densityStyle))
+                    .ToArray();
+                Assert.IsNotEmpty(lists, $"{label} exposes no visible list using {styleName}.");
+
+                var expectedHeight = variant.ListDensity == ListDensity.Compact ? 54d : 66d;
+                foreach (var list in lists)
+                {
+                    var firstRow = list.ItemContainerGenerator.ContainerFromIndex(0) as FrameworkElement;
+                    Assert.IsNotNull(firstRow, $"{label} did not materialize the first density-aware row.");
+                    Assert.AreEqual(expectedHeight, firstRow.MinHeight, 0.01d,
+                        $"{label} renders a {firstRow.MinHeight:0.##}-DIP row instead of {expectedHeight:0.##} DIP.");
+                }
+            }
+        });
+    }
+
+    [TestMethod]
+    public void MonitorEvidenceVariants_RenderHexAndChunksTogetherOffAndOn()
+    {
+        WpfTestHost.Run(() =>
+        {
+            foreach (var variant in RenderedEvidenceMatrix.Monitor)
+            {
+                using var fixture = CPlusFixtureFactory.Create(variant);
+                Prepare(fixture.Window, variant.Width, variant.Height);
+                var label = $"Monitor/hex-{variant.ShowHexPreview}/chunks-{variant.ShowChunkBoundaries}";
+                AssertWorkspaceLayout(fixture.Window, ShellDestination.Monitor, label);
+
+                var hexLabel = Descendants<TextBlock>(fixture.Window)
+                    .Single(element => string.Equals(element.Text, "HEX", StringComparison.Ordinal));
+                var hexPanel = VisualTreeHelper.GetParent(hexLabel) as FrameworkElement;
+                var chunks = Descendants<FrameworkElement>(fixture.Window)
+                    .Single(element => element.Name == "ChunksInspector");
+
+                Assert.IsNotNull(hexPanel, $"{label} has no HEX evidence container.");
+                Assert.AreEqual(variant.ShowHexPreview, hexPanel.IsVisible, label);
+                Assert.AreEqual(variant.ShowChunkBoundaries, chunks.IsVisible, label);
             }
         });
     }
@@ -137,6 +184,27 @@ public sealed class RenderedLayoutTests
                 yield return descendant;
             }
         }
+    }
+
+    private static void AssertWorkspaceLayout(
+        Window window,
+        ShellDestination destination,
+        string label)
+    {
+        var horizontalScrollbars = Descendants<ScrollBar>(window)
+            .Where(scrollbar => scrollbar.Orientation == Orientation.Horizontal && scrollbar.IsVisible)
+            .ToArray();
+        Assert.IsEmpty(horizontalScrollbars, $"{label} exposes a horizontal scrollbar.");
+
+        foreach (var button in Descendants<Button>(window).Where(button => button.IsVisible))
+        {
+            Assert.IsGreaterThanOrEqualTo(1, button.ActualWidth, $"{label} has a zero-width button: {button.Content}");
+            Assert.IsGreaterThanOrEqualTo(32, button.ActualHeight, $"{label} has an undersized action: {button.Content}");
+            AssertInsideWindow(button, window, label);
+        }
+
+        AssertSiblingControlsDoNotOverlap(window, label);
+        AssertReferenceColumnsRemainUsable(window, destination, label);
     }
 
     private static void AssertInsideWindow(FrameworkElement element, Window window, string label)
