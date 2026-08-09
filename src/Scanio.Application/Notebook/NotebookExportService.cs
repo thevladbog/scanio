@@ -6,17 +6,27 @@ namespace Scanio.Application.Notebook;
 public enum NotebookExportFormat
 {
     Text,
+    ReadableText,
     Csv,
     Json
 }
 
 public static class NotebookExportService
 {
-    public static string BuildClipboardText(IEnumerable<NotebookRecord> records)
+    public static string BuildExactClipboardText(
+        IEnumerable<NotebookRecord> records,
+        bool unique)
     {
         var owned = Own(records);
-        return string.Join(Environment.NewLine, owned.Select(record => record.Decoded.EscapedDisplay));
+        var selected = unique ? SelectUniqueByPayload(owned) : owned;
+        return string.Join(Environment.NewLine, selected.Select(record => record.Decoded.Text));
     }
+
+    public static string BuildReadableClipboardText(IEnumerable<NotebookRecord> records) =>
+        string.Join(Environment.NewLine, Own(records).Select(record => record.Decoded.EscapedDisplay));
+
+    public static string BuildClipboardText(IEnumerable<NotebookRecord> records) =>
+        BuildReadableClipboardText(records);
 
     public static void Export(
         string path,
@@ -30,7 +40,10 @@ public static class NotebookExportService
             switch (format)
             {
                 case NotebookExportFormat.Text:
-                    writer.Write(BuildClipboardText(owned));
+                    writer.Write(BuildExactClipboardText(owned, unique: false));
+                    break;
+                case NotebookExportFormat.ReadableText:
+                    writer.Write(BuildReadableClipboardText(owned));
                     break;
                 case NotebookExportFormat.Csv:
                     WriteCsv(writer, owned);
@@ -51,6 +64,13 @@ public static class NotebookExportService
             "Notebook export cannot contain null records.", nameof(records))).ToArray();
     }
 
+    private static NotebookRecord[] SelectUniqueByPayload(IEnumerable<NotebookRecord> records)
+    {
+        var keys = new HashSet<string>(StringComparer.Ordinal);
+        return records.Where(record =>
+            keys.Add(Convert.ToBase64String(record.Scan.PayloadBytes.AsSpan()))).ToArray();
+    }
+
     private static void WriteCsv(TextWriter writer, IReadOnlyList<NotebookRecord> records)
     {
         writer.Write("Sequence,RecordedAt,Transport,Format,Value,RawBase64\r\n");
@@ -62,7 +82,7 @@ public static class NotebookExportService
                 record.RecordedAt.ToString("O", System.Globalization.CultureInfo.InvariantCulture),
                 record.Scan.Transport.DisplayName,
                 record.Analyses.FirstOrDefault()?.Format ?? "Unknown",
-                record.Decoded.EscapedDisplay,
+                record.Decoded.Text,
                 Convert.ToBase64String(record.Scan.RawBytes.AsSpan())
             };
             writer.Write(string.Join(',', values.Select(EscapeCsv)));

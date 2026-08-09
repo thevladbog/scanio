@@ -10,18 +10,30 @@ namespace Scanio.Application.Tests;
 [TestClass]
 public sealed class NotebookExportServiceTests
 {
+    private const char GroupSeparator = '\u001D';
+
     [TestMethod]
-    public void BuildClipboardText_PreservesDuplicateOccurrencesAndEscapesControlCharacters()
+    public void BuildExactClipboardText_PreservesControlsAndByteExactFirstOccurrenceOrder()
     {
         var records = new[]
         {
-            CreateRecord(1, "first<GS>value", [0x31, 0x1D]),
-            CreateRecord(2, "first<GS>value", [0x31, 0x1D])
+            CreateRecord(1, $"01{GroupSeparator}21", "01<GS>21", [0x30, 0x31, 0x1D, 0x32, 0x31]),
+            CreateRecord(2, $"01{GroupSeparator}21", "01<GS>21", [0x30, 0x31, 0x1D, 0x32, 0x31]),
+            CreateRecord(3, "other", "other", [0x6F])
         };
 
-        var text = NotebookExportService.BuildClipboardText(records);
+        Assert.AreEqual(
+            $"01{GroupSeparator}21{Environment.NewLine}other",
+            NotebookExportService.BuildExactClipboardText(records, unique: true));
+    }
 
-        Assert.AreEqual("first<GS>value" + Environment.NewLine + "first<GS>value", text);
+    [TestMethod]
+    public void BuildReadableClipboardText_UsesVisibleControlLabels()
+    {
+        var record = CreateRecord(
+            1, $"01{GroupSeparator}21", "01<GS>21", [0x30, 0x31, 0x1D, 0x32, 0x31]);
+
+        Assert.AreEqual("01<GS>21", NotebookExportService.BuildReadableClipboardText([record]));
     }
 
     [TestMethod]
@@ -33,10 +45,15 @@ public sealed class NotebookExportServiceTests
             NotebookExportService.Export(
                 path,
                 NotebookExportFormat.Csv,
-                [CreateRecord(1, "значение, \"A\"", [0xFF])]);
+                [
+                    CreateRecord(1, $"01{GroupSeparator}21", "01<GS>21", [0x30, 0x31, 0x1D, 0x32, 0x31]),
+                    CreateRecord(2, "значение, \"A\"", "значение, \"A\"", [0xFF])
+                ]);
 
             var csv = File.ReadAllText(path, Encoding.UTF8);
+            var firstRecordFields = csv.Split("\r\n", StringSplitOptions.RemoveEmptyEntries)[1].Split(',');
             StringAssert.StartsWith(csv, "Sequence,RecordedAt,Transport,Format,Value,RawBase64");
+            Assert.AreEqual($"01{GroupSeparator}21", firstRecordFields[4]);
             StringAssert.Contains(csv, "\"значение, \"\"A\"\"\"");
             StringAssert.Contains(csv, Convert.ToBase64String([0xFF]));
         }
@@ -47,7 +64,7 @@ public sealed class NotebookExportServiceTests
     }
 
     [TestMethod]
-    public void Export_TextWritesOneEscapedOccurrencePerLine()
+    public void Export_TextWritesExactControlCharacters()
     {
         var path = CreateTemporaryPath();
         try
@@ -55,9 +72,28 @@ public sealed class NotebookExportServiceTests
             NotebookExportService.Export(
                 path,
                 NotebookExportFormat.Text,
-                [CreateRecord(1, "one<GS>", [0x31]), CreateRecord(2, "two", [0x32])]);
+                [CreateRecord(1, $"one{GroupSeparator}", "one<GS>", [0x31, 0x1D]), CreateRecord(2, "two", "two", [0x32])]);
 
-            Assert.AreEqual("one<GS>" + Environment.NewLine + "two", File.ReadAllText(path));
+            Assert.AreEqual($"one{GroupSeparator}{Environment.NewLine}two", File.ReadAllText(path));
+        }
+        finally
+        {
+            DeleteTemporaryPath(path);
+        }
+    }
+
+    [TestMethod]
+    public void Export_ReadableTextWritesVisibleControlLabels()
+    {
+        var path = CreateTemporaryPath();
+        try
+        {
+            NotebookExportService.Export(
+                path,
+                NotebookExportFormat.ReadableText,
+                [CreateRecord(1, $"01{GroupSeparator}21", "01<GS>21", [0x30, 0x31, 0x1D, 0x32, 0x31])]);
+
+            Assert.AreEqual("01<GS>21", File.ReadAllText(path));
         }
         finally
         {
@@ -74,10 +110,12 @@ public sealed class NotebookExportServiceTests
             NotebookExportService.Export(
                 path,
                 NotebookExportFormat.Json,
-                [CreateRecord(1, "value", [0x00, 0x1D, 0xFF])]);
+                [CreateRecord(1, $"01{GroupSeparator}21", "01<GS>21", [0x00, 0x1D, 0xFF])]);
 
             using var document = JsonDocument.Parse(File.ReadAllText(path));
             var record = document.RootElement.GetProperty("records")[0];
+            Assert.AreEqual($"01{GroupSeparator}21", record.GetProperty("text").GetString());
+            Assert.AreEqual("01<GS>21", record.GetProperty("escapedDisplay").GetString());
             Assert.AreEqual(Convert.ToBase64String([0x00, 0x1D, 0xFF]), record.GetProperty("rawBase64").GetString());
             Assert.AreEqual("GS1", record.GetProperty("analyses")[0].GetProperty("format").GetString());
             Assert.AreEqual("GTIN", record.GetProperty("analyses")[0].GetProperty("fields")[0].GetProperty("name").GetString());
@@ -111,7 +149,7 @@ public sealed class NotebookExportServiceTests
         }
     }
 
-    private static NotebookRecord CreateRecord(long sequence, string escaped, byte[] payload)
+    private static NotebookRecord CreateRecord(long sequence, string text, string escapedDisplay, byte[] payload)
     {
         var identity = new TransportIdentity(TransportKind.Serial, "COM7", "COM7");
         var scan = CompletedScan.Create(
@@ -126,7 +164,7 @@ public sealed class NotebookExportServiceTests
             ScanCompletionReason.SilenceTimeout,
             ScanFramingSnapshot.Create([0x0D], TimeSpan.FromMilliseconds(100), 65_536),
             identity);
-        var decoded = DecodedPayload.Create(payload, PayloadTextEncoding.Utf8, escaped, escaped);
+        var decoded = DecodedPayload.Create(payload, PayloadTextEncoding.Utf8, text, escapedDisplay);
         var analysis = AnalysisResult.Match(
             "Fixture",
             "GS1",
