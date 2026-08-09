@@ -1,4 +1,4 @@
-# Scanio COM capture acceptance matrix
+# Scanio Windows scanner acceptance matrix
 
 Status values are `confirmed`, `failed`, or `not run`. Automated and simulated results never replace a physical scanner result.
 
@@ -8,10 +8,11 @@ Status values are `confirmed`, `failed`, or `not run`. Automated and simulated r
 | --- | --- | --- | --- | --- |
 | Datalogic model available to tester | USB CDC / COM | Not recorded | not run | Awaiting user acceptance on Windows |
 | Zebra model available to tester | USB CDC / COM | Not recorded | not run | Awaiting user acceptance on Windows |
+| Keyboard-wedge model available to tester | Focused Windows text reconstruction | Not recorded | not run | Awaiting user acceptance on Windows |
 
-Direct USB HID/POS and keyboard-wedge modes are outside this alpha release and are not claimed as supported.
+The keyboard mode reconstructs normal Windows text delivered while Scanio's dedicated input has focus. It is not raw USB capture, does not identify the scanner automatically, and does not add direct USB HID/POS support.
 
-## Per-device acceptance procedure
+## COM per-device acceptance procedure
 
 Record the scanner model, firmware, Windows version, COM number, baud rate, data bits, parity, stop bits, handshake, DTR, and RTS.
 
@@ -28,17 +29,33 @@ Record the scanner model, firmware, Windows version, COM number, baud rate, data
 11. Connect again, exit Scanio while a Notebook session is recording, then immediately open the port elsewhere. Confirm both port reuse and that queued scans were saved.
 12. Repeat at least once after Windows assigns a different COM number. Stable identity may persist only when the device exposes a real serial number.
 
+## Keyboard-wedge acceptance procedure
+
+Record the scanner model, firmware, Windows version, keyboard layout, suffix configuration, and display scaling. Do not enter secrets or sensitive production payloads during acceptance.
+
+1. Select **Keyboard scanner**, start the test, and confirm that the dedicated Scanio input has focus. Normal typing elsewhere in Windows must not be presented as raw USB evidence.
+2. Scan a known payload with an Enter suffix. Confirm exactly one Monitor event with the expected reconstructed text, RAW labels, HEX, completion reason, and chunks.
+3. Configure the scanner without a suffix and scan again. Confirm exactly one event after the silence deadline, with no missing or merged characters.
+4. Repeat the scan while Notebook records. Navigate from Monitor to Notebook and back while capture remains active; confirm Monitor resumes the latest scan.
+5. Scan byte-identical values repeatedly. Confirm Notebook and History show one grouped visual row with the correct occurrence count, while copy and TXT, CSV, and JSON exports retain every occurrence in order.
+6. Change RAW control-label, HEX, chunk, and list-density settings. Confirm each change is visible immediately and persists after restart.
+7. Stop keyboard capture, return to COM mode, and run the applicable COM acceptance procedure with the available Datalogic or Zebra device.
+
 ## Evidence record
 
 | Field | Result |
 | --- | --- |
-| Scanner model / firmware | not run |
+| Scanner model / firmware / mode | not run |
 | Windows version / DPI | not run |
 | Connection profile | not run |
 | 100 ordered scans | not run |
 | CR / LF / GS / AIM evidence | not run |
+| Keyboard Enter / silence completion | not run |
+| Monitor resume-latest navigation | not run |
+| RAW labels / HEX / chunks / density settings | not run |
 | Notebook pause / resume / restart persistence | not run |
-| TXT / CSV / JSON export byte evidence | not run |
+| Grouped rows / occurrence-preserving exports | not run |
+| TXT / CSV / JSON byte evidence | not run |
 | Busy state | not run |
 | Physical removal / no reconnect | not run |
 | Reuse after Disconnect | not run |
