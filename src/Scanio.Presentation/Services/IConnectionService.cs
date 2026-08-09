@@ -13,6 +13,14 @@ public sealed class ConnectionStateChangedEventArgs(
     public TransportIdentity? Identity { get; } = identity;
 }
 
+public sealed record ConnectionPresentationSnapshot(
+    TransportIdentity Identity,
+    ConnectionState State,
+    SerialConnectionOptions Options)
+{
+    public string Endpoint => Identity.Endpoint ?? Options.PortName;
+}
+
 public interface IConnectionService
 {
     event EventHandler<ConnectionStateChangedEventArgs>? StateChanged;
@@ -20,6 +28,8 @@ public interface IConnectionService
     ConnectionState State { get; }
 
     TransportIdentity? ActiveIdentity { get; }
+
+    ConnectionPresentationSnapshot? CurrentSnapshot { get; }
 
     Task ConnectAsync(
         SerialDeviceInfo device,

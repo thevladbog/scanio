@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using Scanio.Domain.Transport;
 using Scanio.Platform.Windows.Devices;
+using Scanio.Presentation.Localization;
 using Scanio.Presentation.Services;
 using Scanio.Transports.Serial;
 
@@ -10,6 +11,7 @@ public sealed class ConnectionViewModel : ObservableObject
 {
     private readonly ISerialDeviceEnumerator _deviceEnumerator;
     private readonly IConnectionService _connection;
+    private readonly IUiLocalizer _localizer;
     private readonly SynchronizationContext? _synchronizationContext = SynchronizationContext.Current;
     private SerialDeviceInfo? _selectedDevice;
     private ConnectionState _state;
@@ -17,17 +19,21 @@ public sealed class ConnectionViewModel : ObservableObject
 
     public ConnectionViewModel(
         ISerialDeviceEnumerator deviceEnumerator,
-        IConnectionService connection)
+        IConnectionService connection,
+        IUiLocalizer localizer)
     {
         ArgumentNullException.ThrowIfNull(deviceEnumerator);
         ArgumentNullException.ThrowIfNull(connection);
+        ArgumentNullException.ThrowIfNull(localizer);
         _deviceEnumerator = deviceEnumerator;
         _connection = connection;
+        _localizer = localizer;
         _state = connection.State;
         RefreshCommand = new AsyncCommand(RefreshAsync, () => IsEditingEnabled);
         ConnectCommand = new AsyncCommand(ConnectAsync, () => SelectedDevice is not null && IsEditingEnabled);
         DisconnectCommand = new AsyncCommand(connection.DisconnectAsync, () => State is ConnectionState.Connected or ConnectionState.DeviceRemoved);
         _connection.StateChanged += OnConnectionStateChanged;
+        _localizer.PropertyChanged += (_, _) => RunOnUi(RaiseLocalizedProperties);
         ConnectCommand.PropertyChanged += (_, _) => OnCommandStateChanged();
     }
 
@@ -47,6 +53,9 @@ public sealed class ConnectionViewModel : ObservableObject
     }
 
     public bool HasSelection => SelectedDevice is not null;
+
+    public ConnectionSnapshotViewModel? ConnectionSnapshot =>
+        ConnectionSnapshotViewModel.From(_connection.CurrentSnapshot, _localizer);
 
     public int BaudRate { get; set; } = 9_600;
 
@@ -84,18 +93,7 @@ public sealed class ConnectionViewModel : ObservableObject
         }
     }
 
-    public string StateTitle => State switch
-    {
-        ConnectionState.Connecting => "Подключение…",
-        ConnectionState.Connected => "Подключено",
-        ConnectionState.Busy => "Порт занят",
-        ConnectionState.AccessDenied => "Доступ запрещён",
-        ConnectionState.DeviceRemoved => "Устройство отключено",
-        ConnectionState.TransportError => "Ошибка транспорта",
-        ConnectionState.Disconnecting => "Отключение…",
-        ConnectionState.Disconnected => "Отключено",
-        _ => "Обнаружено"
-    };
+    public string StateTitle => ConnectionLabels.State(State, _localizer);
 
     public bool IsEditingEnabled =>
         !ConnectCommand.IsRunning && State is not (ConnectionState.Connecting or ConnectionState.Connected or ConnectionState.Disconnecting);
@@ -164,7 +162,17 @@ public sealed class ConnectionViewModel : ObservableObject
     }
 
     private void OnConnectionStateChanged(object? sender, ConnectionStateChangedEventArgs args) =>
-        RunOnUi(() => State = args.State);
+        RunOnUi(() =>
+        {
+            State = args.State;
+            OnPropertyChanged(nameof(ConnectionSnapshot));
+        });
+
+    private void RaiseLocalizedProperties()
+    {
+        OnPropertyChanged(nameof(StateTitle));
+        OnPropertyChanged(nameof(ConnectionSnapshot));
+    }
 
     private void OnCommandStateChanged()
     {

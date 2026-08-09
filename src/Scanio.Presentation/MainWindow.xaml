@@ -1,10 +1,29 @@
 <Window x:Class="Scanio.Presentation.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:localization="clr-namespace:Scanio.Presentation.Localization"
         xmlns:views="clr-namespace:Scanio.Presentation.Views"
+        xmlns:viewModels="clr-namespace:Scanio.Presentation.ViewModels"
         Title="Сканио" Icon="Assets/scanio.ico"
         Width="1440" Height="900" MinWidth="1024" MinHeight="700"
         WindowStartupLocation="CenterScreen">
+    <Window.Resources>
+        <DataTemplate DataType="{x:Type viewModels:ConnectionViewModel}">
+            <views:ConnectionView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type viewModels:MonitorViewModel}">
+            <views:MonitorView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type viewModels:NotebookViewModel}">
+            <views:NotebookView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type viewModels:HistoryViewModel}">
+            <views:HistoryView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type viewModels:SettingsViewModel}">
+            <views:SettingsView />
+        </DataTemplate>
+    </Window.Resources>
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="{DynamicResource Size.HeaderHeight}" />
@@ -20,23 +39,29 @@
                 </Grid.ColumnDefinitions>
                 <Image Source="Assets/scanio-logo-ru.png" Width="160" HorizontalAlignment="Left" Stretch="Uniform" />
                 <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center">
-                    <RadioButton x:Name="ConnectionNavigation" GroupName="PrimaryNavigation" IsChecked="True" Content="Подключение" Click="ShowConnection" Style="{DynamicResource NavigationButton}" Margin="4,0" />
-                    <RadioButton x:Name="MonitorNavigation" GroupName="PrimaryNavigation" Content="Монитор" Click="ShowMonitor" Style="{DynamicResource NavigationButton}" Margin="4,0" />
-                    <RadioButton x:Name="NotebookNavigation" GroupName="PrimaryNavigation" Content="Блокнот" Click="ShowNotebook" Style="{DynamicResource NavigationButton}" Margin="4,0" />
-                    <RadioButton x:Name="HistoryNavigation" GroupName="PrimaryNavigation" Content="История" Click="ShowHistory" Style="{DynamicResource NavigationButton}" Margin="4,0" />
-                    <RadioButton GroupName="PrimaryNavigation" Content="Настройки" IsEnabled="False" Style="{DynamicResource NavigationButton}" Margin="4,0" />
+                    <RadioButton GroupName="PrimaryNavigation" IsChecked="True"
+                                 Content="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Nav.Connection]}"
+                                 Command="{Binding ShowConnectionCommand}" Style="{DynamicResource NavigationButton}" Margin="4,0" />
+                    <RadioButton GroupName="PrimaryNavigation"
+                                 Content="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Nav.Monitor]}"
+                                 Command="{Binding ShowMonitorCommand}" Style="{DynamicResource NavigationButton}" Margin="4,0" />
+                    <RadioButton GroupName="PrimaryNavigation"
+                                 Content="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Nav.Notebook]}"
+                                 Command="{Binding ShowNotebookCommand}" Style="{DynamicResource NavigationButton}" Margin="4,0" />
+                    <RadioButton GroupName="PrimaryNavigation"
+                                 Content="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Nav.History]}"
+                                 Command="{Binding ShowHistoryCommand}" Style="{DynamicResource NavigationButton}" Margin="4,0" />
+                    <RadioButton GroupName="PrimaryNavigation"
+                                 Content="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Nav.Settings]}"
+                                 Command="{Binding ShowSettingsCommand}" Style="{DynamicResource NavigationButton}" Margin="4,0" />
                 </StackPanel>
                 <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
                     <TextBlock Text="{Binding Monitor.ConnectionLabel}" VerticalAlignment="Center" Margin="0,0,12,0" />
-                    <Button Content="Отключить" Command="{Binding Monitor.DisconnectCommand}" Style="{DynamicResource CommandButton}" />
+                    <Button Content="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Connection.Disconnect]}"
+                            Command="{Binding Monitor.DisconnectCommand}" Style="{DynamicResource CommandButton}" />
                 </StackPanel>
             </Grid>
         </Border>
-        <Grid Grid.Row="1">
-            <views:ConnectionView x:Name="ConnectionScreen" DataContext="{Binding Connection}" />
-            <views:MonitorView x:Name="MonitorScreen" DataContext="{Binding Monitor}" Visibility="Collapsed" />
-            <views:NotebookView x:Name="NotebookScreen" DataContext="{Binding Notebook}" Visibility="Collapsed" />
-            <views:HistoryView x:Name="HistoryScreen" DataContext="{Binding History}" Visibility="Collapsed" />
-        </Grid>
+        <ContentControl Grid.Row="1" Content="{Binding CurrentScreen}" />
     </Grid>
 </Window>

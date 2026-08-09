@@ -40,30 +40,4 @@ public partial class MainWindow : System.Windows.Window
         }
     }
 
-    private void ShowConnection(object sender, System.Windows.RoutedEventArgs e)
-    {
-        ShowOnly(ConnectionScreen);
-    }
-
-    private void ShowMonitor(object sender, System.Windows.RoutedEventArgs e)
-    {
-        ShowOnly(MonitorScreen);
-    }
-
-    private void ShowNotebook(object sender, System.Windows.RoutedEventArgs e) => ShowOnly(NotebookScreen);
-
-    private async void ShowHistory(object sender, System.Windows.RoutedEventArgs e)
-    {
-        ShowOnly(HistoryScreen);
-        await _viewModel.History.RefreshCommand.ExecuteAsync();
-    }
-
-    private void ShowOnly(System.Windows.UIElement visible)
-    {
-        ConnectionScreen.Visibility = System.Windows.Visibility.Collapsed;
-        MonitorScreen.Visibility = System.Windows.Visibility.Collapsed;
-        NotebookScreen.Visibility = System.Windows.Visibility.Collapsed;
-        HistoryScreen.Visibility = System.Windows.Visibility.Collapsed;
-        visible.Visibility = System.Windows.Visibility.Visible;
-    }
 }

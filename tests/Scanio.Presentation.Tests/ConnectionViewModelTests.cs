@@ -1,6 +1,8 @@
 using Scanio.Domain.Transport;
 using Scanio.Platform.Windows.Devices;
+using Scanio.Presentation.Localization;
 using Scanio.Presentation.Services;
+using Scanio.Presentation.Settings;
 using Scanio.Presentation.ViewModels;
 using Scanio.Transports.Serial;
 
@@ -14,7 +16,7 @@ public sealed class ConnectionViewModelTests
     {
         var devices = new FakeDeviceEnumerator(Device("COM7"));
         var connection = new FakeConnectionService();
-        var viewModel = new ConnectionViewModel(devices, connection);
+        var viewModel = CreateViewModel(devices, connection);
 
         await viewModel.RefreshCommand.ExecuteAsync();
 
@@ -28,7 +30,7 @@ public sealed class ConnectionViewModelTests
     public async Task Connect_IsExplicitSingleShotAndDisabledWhileRunning()
     {
         var connection = new FakeConnectionService { BlockConnect = true };
-        var viewModel = new ConnectionViewModel(new FakeDeviceEnumerator(Device("COM7")), connection);
+        var viewModel = CreateViewModel(new FakeDeviceEnumerator(Device("COM7")), connection);
         await viewModel.RefreshCommand.ExecuteAsync();
 
         var connecting = viewModel.ConnectCommand.ExecuteAsync();
@@ -48,11 +50,43 @@ public sealed class ConnectionViewModelTests
     public async Task Disconnect_InvokesTheConnectionService()
     {
         var connection = new FakeConnectionService { State = ConnectionState.Connected };
-        var viewModel = new ConnectionViewModel(new FakeDeviceEnumerator(), connection);
+        var viewModel = CreateViewModel(new FakeDeviceEnumerator(), connection);
 
         await viewModel.DisconnectCommand.ExecuteAsync();
 
         Assert.AreEqual(1, connection.DisconnectCount);
+    }
+
+    [TestMethod]
+    public void ConnectionSnapshot_ExposesEndpointAndFullFriendlyNameSeparately()
+    {
+        var identity = new TransportIdentity(
+            TransportKind.Serial,
+            "serial:05f9:2214:abc",
+            "Datalogic Barcode Scanner with a deliberately long diagnostic name",
+            "USB\\VID_05F9&PID_2214",
+            "COM18");
+        var options = SerialConnectionOptions.Default("COM18");
+        var connection = new FakeConnectionService
+        {
+            State = ConnectionState.Connected,
+            CurrentSnapshot = new ConnectionPresentationSnapshot(identity, ConnectionState.Connected, options)
+        };
+
+        var viewModel = CreateViewModel(new FakeDeviceEnumerator(), connection);
+
+        Assert.AreEqual("COM18", viewModel.ConnectionSnapshot?.Endpoint);
+        Assert.AreEqual(identity.DisplayName, viewModel.ConnectionSnapshot?.FriendlyName);
+        Assert.AreEqual("Подключено", viewModel.ConnectionSnapshot?.StateLabel);
+        Assert.AreEqual("9600 · 8 · Нет · 1", viewModel.ConnectionSnapshot?.ParametersLabel);
+    }
+
+    private static ConnectionViewModel CreateViewModel(
+        ISerialDeviceEnumerator enumerator,
+        IConnectionService connection)
+    {
+        var settings = new TestSettingsService();
+        return new ConnectionViewModel(enumerator, connection, new UiLocalizer(settings));
     }
 
     private static SerialDeviceInfo Device(string port) =>
@@ -84,6 +118,7 @@ public sealed class ConnectionViewModelTests
         public SerialConnectionOptions? LastOptions { get; private set; }
         public ConnectionState State { get; init; } = ConnectionState.Detected;
         public TransportIdentity? ActiveIdentity => null;
+        public ConnectionPresentationSnapshot? CurrentSnapshot { get; init; }
         public TaskCompletionSource ConnectStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         public async Task ConnectAsync(SerialDeviceInfo device, SerialConnectionOptions options, CancellationToken cancellationToken)
@@ -106,5 +141,17 @@ public sealed class ConnectionViewModelTests
 
         public Task ShutdownAsync(CancellationToken cancellationToken) => Task.CompletedTask;
         public void AllowConnect() => _allowConnect.TrySetResult();
+    }
+
+    private sealed class TestSettingsService : IAppSettingsService
+    {
+        public AppSettings Current { get; private set; } = new();
+        public event EventHandler? Changed;
+
+        public void Update(Func<AppSettings, AppSettings> update)
+        {
+            Current = update(Current);
+            Changed?.Invoke(this, EventArgs.Empty);
+        }
     }
 }

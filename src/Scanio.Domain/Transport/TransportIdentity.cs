@@ -2,7 +2,12 @@ namespace Scanio.Domain.Transport;
 
 public sealed record TransportIdentity
 {
-    public TransportIdentity(TransportKind kind, string stableId, string displayName, string? hardwareId = null)
+    public TransportIdentity(
+        TransportKind kind,
+        string stableId,
+        string displayName,
+        string? hardwareId = null,
+        string? endpoint = null)
     {
         if (string.IsNullOrWhiteSpace(stableId))
         {
@@ -18,6 +23,7 @@ public sealed record TransportIdentity
         StableId = stableId;
         DisplayName = displayName;
         HardwareId = hardwareId;
+        Endpoint = endpoint;
     }
 
     public TransportKind Kind { get; }
@@ -27,4 +33,6 @@ public sealed record TransportIdentity
     public string DisplayName { get; }
 
     public string? HardwareId { get; }
+
+    public string? Endpoint { get; }
 }

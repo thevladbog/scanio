@@ -132,6 +132,7 @@ public sealed class MonitorViewModelTests
         public event EventHandler<ConnectionStateChangedEventArgs>? StateChanged;
         public ConnectionState State => _state;
         public TransportIdentity? ActiveIdentity => _activeIdentity;
+        public ConnectionPresentationSnapshot? CurrentSnapshot => null;
         public Task ConnectAsync(Scanio.Platform.Windows.Devices.SerialDeviceInfo device, Scanio.Transports.Serial.SerialConnectionOptions options, CancellationToken cancellationToken) => Task.CompletedTask;
         public Task DisconnectAsync(CancellationToken cancellationToken) => Task.CompletedTask;
         public Task ShutdownAsync(CancellationToken cancellationToken) => Task.CompletedTask;

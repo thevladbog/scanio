@@ -34,4 +34,40 @@
   <data name="Confidence.Inferred" xml:space="preserve"><value>Предположение</value></data>
   <data name="Confidence.Unknown" xml:space="preserve"><value>Не определено</value></data>
   <data name="Standard.HEX" xml:space="preserve"><value>HEX</value></data>
+  <data name="Connection.State.Detected" xml:space="preserve"><value>Обнаружено</value></data>
+  <data name="Connection.State.Connecting" xml:space="preserve"><value>Подключение…</value></data>
+  <data name="Connection.State.Connected" xml:space="preserve"><value>Подключено</value></data>
+  <data name="Connection.State.Busy" xml:space="preserve"><value>Порт занят</value></data>
+  <data name="Connection.State.AccessDenied" xml:space="preserve"><value>Доступ запрещён</value></data>
+  <data name="Connection.State.DeviceRemoved" xml:space="preserve"><value>Устройство отключено</value></data>
+  <data name="Connection.State.TransportError" xml:space="preserve"><value>Ошибка транспорта</value></data>
+  <data name="Connection.State.Disconnecting" xml:space="preserve"><value>Отключение…</value></data>
+  <data name="Connection.State.Disconnected" xml:space="preserve"><value>Отключено</value></data>
+  <data name="Serial.Parity.None" xml:space="preserve"><value>Нет</value></data>
+  <data name="Serial.Parity.Odd" xml:space="preserve"><value>Нечётная</value></data>
+  <data name="Serial.Parity.Even" xml:space="preserve"><value>Чётная</value></data>
+  <data name="Serial.Parity.Mark" xml:space="preserve"><value>Маркер</value></data>
+  <data name="Serial.Parity.Space" xml:space="preserve"><value>Пробел</value></data>
+  <data name="Serial.StopBits.One" xml:space="preserve"><value>1</value></data>
+  <data name="Serial.StopBits.OnePointFive" xml:space="preserve"><value>1,5</value></data>
+  <data name="Serial.StopBits.Two" xml:space="preserve"><value>2</value></data>
+  <data name="Serial.Handshake.None" xml:space="preserve"><value>Нет</value></data>
+  <data name="Serial.Handshake.XOnXOff" xml:space="preserve"><value>XON/XOFF</value></data>
+  <data name="Serial.Handshake.RequestToSend" xml:space="preserve"><value>RTS</value></data>
+  <data name="Serial.Handshake.RequestToSendXOnXOff" xml:space="preserve"><value>RTS + XON/XOFF</value></data>
+  <data name="Settings.Title" xml:space="preserve"><value>Настройки</value></data>
+  <data name="Settings.Subtitle" xml:space="preserve"><value>Язык, отображение и локальные данные</value></data>
+  <data name="Settings.ShowEscapedControls" xml:space="preserve"><value>Показывать управляющие символы</value></data>
+  <data name="Settings.ShowHexPreview" xml:space="preserve"><value>Показывать HEX</value></data>
+  <data name="Settings.ShowChunkBoundaries" xml:space="preserve"><value>Показывать границы чтений</value></data>
+  <data name="Settings.FollowLatest" xml:space="preserve"><value>Следовать за последним сканом</value></data>
+  <data name="Settings.Compact" xml:space="preserve"><value>Компактная</value></data>
+  <data name="Settings.Comfortable" xml:space="preserve"><value>Комфортная</value></data>
+  <data name="Settings.Mode" xml:space="preserve"><value>Режим</value></data>
+  <data name="Settings.Portable" xml:space="preserve"><value>Portable</value></data>
+  <data name="Settings.Installed" xml:space="preserve"><value>Установлено</value></data>
+  <data name="Settings.DatabasePath" xml:space="preserve"><value>База данных</value></data>
+  <data name="Settings.Version" xml:space="preserve"><value>Версия</value></data>
+  <data name="Settings.OpenFolder" xml:space="preserve"><value>Открыть папку данных</value></data>
+  <data name="Settings.OpenReleases" xml:space="preserve"><value>Открыть GitHub Releases</value></data>
 </root>
