@@ -98,7 +98,7 @@ public sealed class NotebookLayoutContractTests
                 var button = document.Descendants(Presentation + "Button")
                     .Single(element => (string?)element.Attribute("Command") == $"{{Binding {command}}}");
 
-                Assert.AreEqual("8,12", (string?)button.Attribute("Padding"), $"{fileName}/{command}");
+                Assert.AreEqual("4,12", (string?)button.Attribute("Padding"), $"{fileName}/{command}");
             }
         }
     }

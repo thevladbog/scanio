@@ -148,13 +148,13 @@
                     <TextBlock Text="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Notebook.Copy]}" Style="{DynamicResource PanelTitle}" Margin="0,8,0,14" />
                     <Button Content="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Notebook.CopyAll]}" Command="{Binding CopyAllCommand}" Style="{DynamicResource SecondaryButton}" />
                     <Button Content="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Notebook.CopyUnique]}" Command="{Binding CopyUniqueCommand}" Style="{DynamicResource SecondaryButton}" Margin="0,8,0,0" />
-                    <Button Command="{Binding CopyEscapedCommand}" Style="{DynamicResource SecondaryButton}" Margin="0,8,0,0" Padding="8,12">
+                    <Button Command="{Binding CopyEscapedCommand}" Style="{DynamicResource SecondaryButton}" Margin="0,8,0,0" Padding="4,12">
                         <TextBlock Text="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Notebook.CopyEscaped]}" TextWrapping="Wrap" />
                     </Button>
                     <Border BorderBrush="{DynamicResource Brush.BorderDefault}" BorderThickness="0,1,0,0" Margin="0,24,0,20" />
                     <TextBlock Text="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Notebook.Export]}" Style="{DynamicResource PanelTitle}" Margin="0,0,0,14" />
                     <Button Content="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Notebook.ExportText]}" Command="{Binding ExportTextCommand}" Style="{DynamicResource SecondaryButton}" />
-                    <Button Command="{Binding ExportReadableTextCommand}" Style="{DynamicResource SecondaryButton}" Margin="0,8,0,0" Padding="8,12">
+                    <Button Command="{Binding ExportReadableTextCommand}" Style="{DynamicResource SecondaryButton}" Margin="0,8,0,0" Padding="4,12">
                         <TextBlock Text="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Notebook.ExportReadableText]}" TextWrapping="Wrap" />
                     </Button>
                     <Button Content="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Notebook.ExportCsv]}" Command="{Binding ExportCsvCommand}" Style="{DynamicResource SecondaryButton}" Margin="0,8,0,0" />
