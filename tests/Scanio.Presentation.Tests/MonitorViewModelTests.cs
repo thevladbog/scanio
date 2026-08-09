@@ -42,6 +42,52 @@ public sealed class MonitorViewModelTests
         Assert.AreEqual("A<CR>", viewModel.SelectedEvent?.Raw);
     }
 
+    [TestMethod]
+    public void SelectedEventMapsStructuredFieldsAndValidationMessages()
+    {
+        var analysis = AnalysisResult.Match(
+            "GS1",
+            "GS1 element string",
+            AnalysisConfidence.Inferred,
+            "Application identifier structure.",
+            "GS1 payload.",
+            [new AnalysisField("01", "GTIN", "04601234567893")],
+            ["Fixture error."],
+            ["Fixture warning."]);
+        var monitor = new LiveMonitor();
+        monitor.Append(Scan(1, "value"), Decoded("value"), [analysis]);
+
+        var viewModel = new MonitorViewModel(monitor, new FakeConnectionService());
+
+        Assert.HasCount(1, viewModel.SelectedEvent!.Analyses);
+        var displayed = viewModel.SelectedEvent.Analyses.Single();
+        Assert.AreEqual("Предположение по структуре", displayed.Confidence);
+        Assert.AreEqual("04601234567893", displayed.Fields.Single().Value);
+        CollectionAssert.Contains(displayed.Errors.ToArray(), "Fixture error.");
+        CollectionAssert.Contains(displayed.Warnings.ToArray(), "Fixture warning.");
+    }
+
+    [TestMethod]
+    public void SelectedEventRetainsAllOrderedAnalyzerInterpretations()
+    {
+        var first = AnalysisResult.Match(
+            "HonestSign", "Честный знак", AnalysisConfidence.Inferred,
+            "Serialized GS1 structure.", "Marking payload.");
+        var second = AnalysisResult.Match(
+            "GS1", "GS1 element string", AnalysisConfidence.Exact,
+            "Explicit separators.", "GS1 payload.");
+        var monitor = new LiveMonitor();
+        monitor.Append(Scan(1, "value"), Decoded("value"), [first, second]);
+
+        var viewModel = new MonitorViewModel(monitor, new FakeConnectionService());
+
+        var selected = viewModel.SelectedEvent!;
+        CollectionAssert.AreEqual(
+            new[] { "Честный знак", "GS1 element string" },
+            selected.Analyses.Select(item => item.Format).ToArray());
+        Assert.AreEqual("Честный знак", selected.Format);
+    }
+
     private static readonly TransportIdentity Identity = new(TransportKind.Serial, "serial:test", "COM7");
 
     private static CompletedScan Scan(long sequence, string raw) =>

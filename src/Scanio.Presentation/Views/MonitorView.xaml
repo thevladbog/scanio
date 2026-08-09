@@ -47,9 +47,42 @@
                             <StackPanel><TextBlock Text="ФАКТ" Style="{DynamicResource KickerText}" /><TextBlock Text="{Binding SelectedEvent.Completion}" Margin="0,8,0,0" /><TextBlock Text="{Binding SelectedEvent.ByteCount, StringFormat={}{0} байт}" /></StackPanel>
                         </Border>
                         <Border Grid.Column="1" BorderBrush="{DynamicResource Brush.BorderDefault}" BorderThickness="1" Padding="{DynamicResource Inset.4}" Margin="8,0,0,0">
-                            <StackPanel><TextBlock Text="ИНТЕРПРЕТАЦИЯ" Style="{DynamicResource KickerText}" /><TextBlock Text="{Binding SelectedEvent.Format}" FontWeight="SemiBold" Margin="0,8,0,0" /><TextBlock Text="{Binding SelectedEvent.Evidence}" TextWrapping="Wrap" Foreground="{DynamicResource Brush.TextSecondary}" /></StackPanel>
+                            <StackPanel><TextBlock Text="ИНТЕРПРЕТАЦИЯ" Style="{DynamicResource KickerText}" /><TextBlock Text="{Binding SelectedEvent.Format}" FontWeight="SemiBold" Margin="0,8,0,0" /><TextBlock Text="{Binding SelectedEvent.Confidence}" Foreground="{DynamicResource Brush.TextSecondary}" /><TextBlock Text="{Binding SelectedEvent.Evidence}" TextWrapping="Wrap" Foreground="{DynamicResource Brush.TextSecondary}" /></StackPanel>
                         </Border>
                     </Grid>
+                    <ItemsControl ItemsSource="{Binding SelectedEvent.Analyses}" Margin="0,20,0,0">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border BorderBrush="{DynamicResource Brush.BorderDefault}" BorderThickness="1" Padding="{DynamicResource Inset.4}" Margin="0,0,0,12">
+                                    <StackPanel>
+                                        <DockPanel>
+                                            <TextBlock Text="{Binding Format}" Style="{DynamicResource PanelTitle}" />
+                                            <TextBlock Text="{Binding Confidence}" DockPanel.Dock="Right" Foreground="{DynamicResource Brush.TextSecondary}" VerticalAlignment="Center" />
+                                        </DockPanel>
+                                        <TextBlock Text="{Binding Summary}" TextWrapping="Wrap" Margin="0,6,0,0" />
+                                        <TextBlock Text="{Binding Evidence}" TextWrapping="Wrap" Foreground="{DynamicResource Brush.TextSecondary}" Margin="0,4,0,10" />
+                                        <ItemsControl ItemsSource="{Binding Fields}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Grid Margin="0,2">
+                                                        <Grid.ColumnDefinitions><ColumnDefinition Width="160" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                                        <TextBlock Text="{Binding Name}" Foreground="{DynamicResource Brush.TextSecondary}" />
+                                                        <TextBlock Grid.Column="1" Text="{Binding Value}" FontFamily="{DynamicResource Font.Data}" TextWrapping="Wrap" />
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                        <ItemsControl ItemsSource="{Binding Errors}" Margin="0,8,0,0">
+                                            <ItemsControl.ItemTemplate><DataTemplate><TextBlock Text="{Binding StringFormat=Ошибка: {0}}" TextWrapping="Wrap" Foreground="{DynamicResource Brush.Error}" /></DataTemplate></ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                        <ItemsControl ItemsSource="{Binding Warnings}" Margin="0,4,0,0">
+                                            <ItemsControl.ItemTemplate><DataTemplate><TextBlock Text="{Binding StringFormat=Предупреждение: {0}}" TextWrapping="Wrap" Foreground="{DynamicResource Brush.Warning}" /></DataTemplate></ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
                 </StackPanel>
             </ScrollViewer>
             <TextBlock Grid.Row="2" Text="RAW и HEX — первичные данные. Формат — интерпретация анализатора." Foreground="{DynamicResource Brush.TextSecondary}" />

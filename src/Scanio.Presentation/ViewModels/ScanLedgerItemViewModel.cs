@@ -16,8 +16,14 @@ public sealed class ScanLedgerItemViewModel
         ByteCount = scanEvent.Scan.RawBytes.Length;
         Completion = scanEvent.Scan.CompletionReason.ToString();
         DuplicateCount = scanEvent.DuplicateCount;
-        Format = scanEvent.Analyses.FirstOrDefault(result => result.IsMatch)?.Format ?? "Unknown";
-        Evidence = scanEvent.Analyses.FirstOrDefault(result => result.IsMatch)?.Evidence ?? "No analyzer matched.";
+        Analyses = scanEvent.Analyses.Select(result => new AnalysisItemViewModel(result)).ToArray();
+        var primary = scanEvent.Analyses.FirstOrDefault(result => result.IsMatch);
+        Format = primary?.Format ?? "Unknown";
+        Evidence = primary?.Evidence ?? "No analyzer matched.";
+        Confidence = primary is null
+            ? "Не определено"
+            : new AnalysisItemViewModel(primary).Confidence;
+        DecodingWarning = scanEvent.Decoded.DecodingWarning;
         HasWarning = scanEvent.Decoded.HasDecodingWarning || scanEvent.Analyses.Any(result => !result.ValidationErrors.IsEmpty || !result.ValidationWarnings.IsEmpty);
         Chunks = scanEvent.Scan.ContributingChunks
             .Select(chunk => new ChunkItemViewModel(
@@ -39,7 +45,10 @@ public sealed class ScanLedgerItemViewModel
     public int DuplicateCount { get; }
     public string Format { get; }
     public string Evidence { get; }
+    public string Confidence { get; }
+    public string? DecodingWarning { get; }
     public bool HasWarning { get; }
+    public IReadOnlyList<AnalysisItemViewModel> Analyses { get; }
     public IReadOnlyList<ChunkItemViewModel> Chunks { get; }
 
     private static string FormatRaw(IEnumerable<byte> bytes) => string.Concat(bytes.Select(value => value switch
