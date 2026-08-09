@@ -55,6 +55,8 @@ The full scanner identity is not placed in the header. It appears in the Connect
 
 Navigation shows Connection, Monitor, Notebook, History, and Settings. Every destination is functional. The active destination uses the approved signal underline and semibold text.
 
+The approved multi-size `scanio.ico` is the application icon at every Windows boundary. It is embedded into the published PE executable through the Windows target's `ApplicationIcon`, used by the WPF window, and visible in Explorer, the taskbar, Alt+Tab, and shortcuts. Referencing the ICO only as a WPF resource does not satisfy this requirement.
+
 At narrower widths the logo and actions keep their minimum bounds; navigation reduces horizontal gaps before any text is clipped. Essential connection actions never scroll.
 
 ## 5. Connection screen
@@ -247,6 +249,8 @@ The fixture matrix includes long Datalogic and Zebra names, long payloads, long 
 
 The Windows CI publishes screenshots for all five screens at 1440×900 and compact screenshots at 1024×700. Screenshots are reviewed against the five C+ references before a release is tagged. CI screenshots and local contract tests do not replace physical scanner acceptance.
 
+CI also inspects the packaged `Scanio.exe`, extracts its Windows shell icon, and verifies that it is not the generic executable icon. The packaged application is the verification target; the source ICO and window icon alone are insufficient evidence.
+
 ## 14. Acceptance criteria
 
 The recovery is complete only when:
@@ -262,7 +266,8 @@ The recovery is complete only when:
 9. full scanner identity is visible in the Monitor inspector while the header remains compact;
 10. all existing portable automated tests pass;
 11. Windows CI passes build, startup smoke, UI automation, and screenshot capture;
-12. a new portable prerelease is published for physical Datalogic and Zebra verification.
+12. the packaged `Scanio.exe` exposes the approved Scanio icon in Explorer, the taskbar, and Alt+Tab;
+13. a new portable prerelease is published for physical Datalogic and Zebra verification.
 
 ## 15. Explicit non-goals of this recovery
 
