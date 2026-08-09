@@ -157,10 +157,31 @@ public sealed record AnalysisResult
         IEnumerable<AnalysisField>? fields = null,
         IEnumerable<string>? validationErrors = null,
         IEnumerable<string>? validationWarnings = null) =>
-        new(
+        Create(
             analyzerName,
             format,
             true,
+            confidence,
+            evidence,
+            summary,
+            fields,
+            validationErrors,
+            validationWarnings);
+
+    public static AnalysisResult Create(
+        string analyzerName,
+        string format,
+        bool isMatch,
+        AnalysisConfidence confidence,
+        string evidence,
+        string summary,
+        IEnumerable<AnalysisField>? fields = null,
+        IEnumerable<string>? validationErrors = null,
+        IEnumerable<string>? validationWarnings = null) =>
+        new(
+            analyzerName,
+            format,
+            isMatch,
             confidence,
             evidence,
             summary,
