@@ -19,4 +19,16 @@
     <ProjectReference Include="..\..\src\Scanio.Presentation\Scanio.Presentation.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="..\..\src\Scanio.Presentation\MainWindow.xaml"
+          Link="LayoutContracts\MainWindow.xaml"
+          CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\src\Scanio.Presentation\Resources\Theme.xaml"
+          Link="LayoutContracts\Theme.xaml"
+          CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\src\Scanio.Presentation\Resources\Controls.xaml"
+          Link="LayoutContracts\Controls.xaml"
+          CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

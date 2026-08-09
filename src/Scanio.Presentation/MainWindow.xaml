@@ -11,7 +11,7 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
         <Border Grid.Row="0" BorderBrush="{DynamicResource Brush.TextPrimary}" BorderThickness="0,0,0,2"
-                Padding="{DynamicResource Inset.7}" Background="{DynamicResource Brush.SurfacePrimary}">
+                Padding="{DynamicResource Inset.Header}" Background="{DynamicResource Brush.SurfacePrimary}">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="180" />

@@ -58,6 +58,7 @@
     <Thickness x:Key="Inset.5">20</Thickness>
     <Thickness x:Key="Inset.6">24</Thickness>
     <Thickness x:Key="Inset.7">28</Thickness>
+    <Thickness x:Key="Inset.Header">28,12</Thickness>
     <CornerRadius x:Key="Radius.Control">2</CornerRadius>
     <CornerRadius x:Key="Radius.Tile">8</CornerRadius>
     <sys:Double x:Key="Size.ControlHeight">38</sys:Double>
