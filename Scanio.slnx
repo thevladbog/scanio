@@ -15,6 +15,7 @@
     <Project Path="tests/Scanio.Capture.Tests/Scanio.Capture.Tests.csproj" />
     <Project Path="tests/Scanio.Platform.Windows.Tests/Scanio.Platform.Windows.Tests.csproj" />
     <Project Path="tests/Scanio.Presentation.Tests/Scanio.Presentation.Tests.csproj" />
+    <Project Path="tests/Scanio.Presentation.Windows.Tests/Scanio.Presentation.Windows.Tests.csproj" />
     <Project Path="tests/Scanio.Storage.Tests/Scanio.Storage.Tests.csproj" />
     <Project Path="tests/Scanio.Transports.Tests/Scanio.Transports.Tests.csproj" />
   </Folder>

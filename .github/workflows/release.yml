@@ -18,7 +18,16 @@ jobs:
       - name: Restore locked dependencies
         run: dotnet restore Scanio.slnx --locked-mode
       - name: Test solution
-        run: dotnet test Scanio.slnx -c Release --no-restore
+        run: dotnet test Scanio.slnx -c Release --no-restore --logger "trx;LogFileName=release-windows.trx"
+      - name: Upload rendered UI evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-windows-test-results-and-screenshots
+          path: |
+            **/TestResults/*.trx
+            **/TestResults/screenshots/**/*.png
+          if-no-files-found: error
       - name: Publish self-contained Windows application
         shell: pwsh
         run: |
