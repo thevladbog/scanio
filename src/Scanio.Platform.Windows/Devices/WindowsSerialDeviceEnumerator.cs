@@ -58,10 +58,11 @@ public sealed class WindowsSerialDeviceEnumerator : ISerialDeviceEnumerator
 
             var hardwareId = deviceProperties.HardwareIds.FirstOrDefault(value =>
                 !string.IsNullOrWhiteSpace(value));
-            var (vendorId, productId) = ParseUsbIds(hardwareId);
+            var (vendorId, productId) = deviceProperties.HardwareIds
+                .Select(ParseUsbIds)
+                .FirstOrDefault(ids => ids.VendorId is not null && ids.ProductId is not null);
             var serialNumber = NormalizeOptional(deviceProperties.SerialNumber);
-            var instanceId = NormalizeOptional(deviceProperties.InstanceId);
-            var stableId = CreateStableId(serialNumber, instanceId, vendorId, productId);
+            var stableId = CreateStableId(serialNumber, vendorId, productId);
 
             devices.Add(
                 new SerialDeviceInfo(
@@ -110,7 +111,6 @@ public sealed class WindowsSerialDeviceEnumerator : ISerialDeviceEnumerator
 
     private static string? CreateStableId(
         string? serialNumber,
-        string? instanceId,
         ushort? vendorId,
         ushort? productId)
     {
@@ -122,7 +122,7 @@ public sealed class WindowsSerialDeviceEnumerator : ISerialDeviceEnumerator
                 : $"serial:{normalizedSerial}";
         }
 
-        return instanceId is null ? null : $"pnp:{instanceId.ToUpperInvariant()}";
+        return null;
     }
 }
 

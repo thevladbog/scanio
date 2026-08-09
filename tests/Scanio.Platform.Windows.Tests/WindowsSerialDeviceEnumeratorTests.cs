@@ -1,5 +1,7 @@
 using Scanio.Domain.Transport;
 using Scanio.Platform.Windows.Devices;
+using System.Reflection;
+using System.Runtime.InteropServices;
 
 namespace Scanio.Platform.Windows.Tests;
 
@@ -70,26 +72,58 @@ public sealed class WindowsSerialDeviceEnumeratorTests
         Assert.AreEqual("COM4", beforeDevice.PortName);
         Assert.AreEqual("COM18", afterDevice.PortName);
         Assert.AreEqual(beforeDevice.StableId, afterDevice.StableId);
-        Assert.AreEqual("pnp:USB\\VID_05E0&PID_1200\\6&2A95EF5&0&2", afterDevice.StableId);
+        Assert.AreEqual("serial:05E0:1200:ZBR-001", afterDevice.StableId);
     }
 
     [TestMethod]
-    public async Task EnumerateAsync_UsesOnlyPassiveMetadataEnumeration()
+    public async Task EnumerateAsync_DoesNotTreatLocationDerivedInstanceIdAsStableIdentity()
     {
-        var source = new RecordingSerialDeviceSource(
-            new WindowsSerialDeviceProperties(
-                PortName: "COM7",
-                FriendlyName: "Scanner (COM7)",
-                Manufacturer: null,
-                HardwareIds: [],
-                InstanceId: null,
-                SerialNumber: null));
-        var enumerator = new WindowsSerialDeviceEnumerator(source);
+        var enumerator = new WindowsSerialDeviceEnumerator(CreateLocationDerivedZebraSource("COM7"));
 
-        _ = await enumerator.EnumerateAsync(CancellationToken.None);
+        var device = (await enumerator.EnumerateAsync(CancellationToken.None))[0];
 
-        Assert.AreEqual(1, source.MetadataEnumerationCount);
-        Assert.AreEqual(0, source.PortOpenAttemptCount);
+        Assert.IsNull(device.StableId);
+        Assert.IsFalse(device.HasStableIdentity);
+    }
+
+    [TestMethod]
+    public async Task EnumerateAsync_FindsUsbIdsInAnyHardwareId()
+    {
+        var enumerator = new WindowsSerialDeviceEnumerator(
+            new RecordingSerialDeviceSource(
+                new WindowsSerialDeviceProperties(
+                    PortName: "COM9",
+                    FriendlyName: "Scanner (COM9)",
+                    Manufacturer: null,
+                    HardwareIds: ["USB\\Class_02&SubClass_02", "USB\\VID_05F9&PID_2214"],
+                    InstanceId: null,
+                    SerialNumber: "DLG-9")));
+
+        var device = (await enumerator.EnumerateAsync(CancellationToken.None))[0];
+
+        Assert.AreEqual((ushort)0x05F9, device.VendorId);
+        Assert.AreEqual((ushort)0x2214, device.ProductId);
+        Assert.AreEqual("serial:05F9:2214:DLG-9", device.StableId);
+    }
+
+    [TestMethod]
+    public void PlatformAssembly_HasNoPortOpeningDependencyOrCreateFileImport()
+    {
+        var assembly = typeof(WindowsSerialDeviceEnumerator).Assembly;
+
+        Assert.IsFalse(assembly.GetReferencedAssemblies().Any(reference =>
+            string.Equals(reference.Name, "System.IO.Ports", StringComparison.Ordinal)));
+
+        var importedEntryPoints = assembly.GetTypes()
+            .SelectMany(type => type.GetMethods(
+                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance))
+            .Select(method => method.GetCustomAttribute<DllImportAttribute>())
+            .Where(attribute => attribute is not null)
+            .Select(attribute => attribute!.EntryPoint ?? string.Empty)
+            .ToArray();
+
+        CollectionAssert.DoesNotContain(importedEntryPoints, "CreateFileW");
+        CollectionAssert.DoesNotContain(importedEntryPoints, "CreateFileA");
     }
 
     [TestMethod]
@@ -104,7 +138,6 @@ public sealed class WindowsSerialDeviceEnumeratorTests
             await enumerator.EnumerateAsync(cancellation.Token));
 
         Assert.AreEqual(0, source.MetadataEnumerationCount);
-        Assert.AreEqual(0, source.PortOpenAttemptCount);
     }
 
     private static RecordingSerialDeviceSource CreateZebraSource(string portName, string friendlyName) =>
@@ -112,6 +145,16 @@ public sealed class WindowsSerialDeviceEnumeratorTests
             new WindowsSerialDeviceProperties(
                 PortName: portName,
                 FriendlyName: friendlyName,
+                Manufacturer: "Zebra Technologies",
+                HardwareIds: ["USB\\VID_05E0&PID_1200"],
+                InstanceId: "USB\\VID_05E0&PID_1200\\ZBR-001",
+                SerialNumber: "ZBR-001"));
+
+    private static RecordingSerialDeviceSource CreateLocationDerivedZebraSource(string portName) =>
+        new(
+            new WindowsSerialDeviceProperties(
+                PortName: portName,
+                FriendlyName: $"Zebra CDC Scanner ({portName})",
                 Manufacturer: "Zebra Technologies",
                 HardwareIds: ["USB\\VID_05E0&PID_1200"],
                 InstanceId: "USB\\VID_05E0&PID_1200\\6&2A95EF5&0&2",
@@ -124,8 +167,6 @@ public sealed class WindowsSerialDeviceEnumeratorTests
 
         public int MetadataEnumerationCount { get; private set; }
 
-        public int PortOpenAttemptCount { get; private set; }
-
         public IReadOnlyList<WindowsSerialDeviceProperties> EnumeratePresentDevices(
             CancellationToken cancellationToken)
         {
@@ -134,9 +175,5 @@ public sealed class WindowsSerialDeviceEnumeratorTests
             return _devices;
         }
 
-        // Deliberately outside the injected passive interface. If production code ever
-        // grows a probing dependency, this recording seam is where the contract test
-        // must observe it.
-        public void RecordPortOpenAttempt() => PortOpenAttemptCount++;
     }
 }
