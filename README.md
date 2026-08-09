@@ -4,7 +4,7 @@ Scanio is a local Windows diagnostic utility for barcode scanners. The current a
 
 ## Download and run
 
-Download `Scanio-0.5.0-alpha.1-win-x64-portable.zip` and `SHA256SUMS.txt` from [GitHub Releases](https://github.com/thevladbog/scanio/releases/tag/v0.5.0-alpha.1).
+Download `Scanio-0.5.0-alpha.2-win-x64-portable.zip` and `SHA256SUMS.txt` from [GitHub Releases](https://github.com/thevladbog/scanio/releases/tag/v0.5.0-alpha.2).
 
 1. Verify the ZIP SHA-256 checksum.
 2. Extract the complete ZIP to a writable directory.
@@ -25,7 +25,7 @@ The package is self-contained and does not require a preinstalled .NET runtime. 
 - live scan ledger with duplicate counts, RAW, HEX, framing reason, and read chunks;
 - UTF-8, ASCII, Windows-1251, and Latin-1 decoding;
 - GS1 application-identifier parsing with FNC1/GS separator handling and validation;
-- offline Честный знак field extraction with conservative local product-group candidates;
+- offline GS1 DataMatrix marking-field extraction with conservative local product-group candidates;
 - EAN-8, EAN-13, and UPC-A check-digit validation;
 - IATA BCBP mandatory-field parsing with partial-data diagnostics;
 - safe HTTP/HTTPS URL recognition without automatic navigation;
@@ -46,7 +46,7 @@ The package is self-contained and does not require a preinstalled .NET runtime. 
 
 Direct raw USB HID/POS capture, global keyboard hooks, automatic scanner identification, installer, automatic updates, telemetry, accounts, cloud sync, Linux, and macOS application support are not included. Keyboard scanner mode observes reconstructed text only while Scanio's dedicated input has focus; it is not raw USB capture.
 
-Payload structure does not prove the physical barcode symbology. Scanio only reports exact physical symbology when future transport/AIM evidence provides it. Честный знак analysis is fully offline, does not contact official services, does not verify cryptographic validity, and returns multiple candidates or `Not determined` when local structural rules are ambiguous.
+The `GS1 DataMatrix` label for a recognized serialized marking payload is a structural inference. Payload structure alone does not prove the physical barcode symbology; exact physical evidence requires a transport-provided identifier such as AIM. Analysis is fully offline, does not contact official services, does not verify cryptographic validity, and returns multiple candidates or `Not determined` when local structural rules are ambiguous.
 
 Physical keyboard-wedge, Datalogic, and Zebra verification is intentionally marked **not run** until tested on real Windows hardware. Use [the acceptance matrix](docs/acceptance/com-capture-matrix.md) to record results. See [Notebook and export](docs/notebook-and-export.md) for persistence paths, formats, and recovery boundaries.
 

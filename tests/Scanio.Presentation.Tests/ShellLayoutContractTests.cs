@@ -131,7 +131,7 @@ public sealed class ShellLayoutContractTests
     }
 
     [TestMethod]
-    public void PrimaryButton_UsesGraphiteAccessibleStatesAndReservesSignalForFocus()
+    public void PrimaryButton_UsesAccessibleStatesAndReservesBrightSignalForFocus()
     {
         var layoutDirectory = Path.Combine(AppContext.BaseDirectory, "LayoutContracts");
         var theme = LoadResources(Path.Combine(layoutDirectory, "Theme.xaml"));
@@ -176,6 +176,119 @@ public sealed class ShellLayoutContractTests
             var ratio = ContrastRatio(foreground, ResolveColor(stateBackground, theme));
             Assert.IsGreaterThanOrEqualTo(4.5d, ratio, $"Primary action state has only {ratio:F2}:1 text contrast.");
         }
+    }
+
+    [TestMethod]
+    public void PrimaryButton_FillRemainsDistinctOnLightAndDarkSurfaces()
+    {
+        var layoutDirectory = Path.Combine(AppContext.BaseDirectory, "LayoutContracts");
+        var theme = LoadResources(Path.Combine(layoutDirectory, "Theme.xaml"));
+        var controls = XDocument.Load(Path.Combine(layoutDirectory, "Controls.xaml"));
+        var primary = FindStyle(controls, "Button", "PrimaryButton");
+        var normalSetters = primary.Elements(Presentation + "Setter")
+            .ToDictionary(
+                element => element.Attribute("Property")!.Value,
+                element => element.Attribute("Value")!.Value,
+                StringComparer.Ordinal);
+
+        var fill = ResolveColor(normalSetters["Background"], theme);
+        var foreground = ResolveColor(normalSetters["Foreground"], theme);
+        var lightSurface = ResolveColor("{DynamicResource Brush.SurfacePrimary}", theme);
+        var darkSurface = ResolveColor("{DynamicResource Brush.SurfaceInk}", theme);
+
+        Assert.IsGreaterThanOrEqualTo(
+            3d,
+            ContrastRatio(fill, lightSurface),
+            "Primary actions must remain visually distinct on light workspaces.");
+        Assert.IsGreaterThanOrEqualTo(
+            3d,
+            ContrastRatio(fill, darkSurface),
+            "Primary actions must not disappear into the dark connection-status panel.");
+        Assert.IsGreaterThanOrEqualTo(
+            4.5d,
+            ContrastRatio(foreground, fill),
+            "Primary action labels must remain readable against the action fill.");
+    }
+
+    [TestMethod]
+    public void EveryButton_UsesAReviewedSharedStyle()
+    {
+        var layoutDirectory = Path.Combine(AppContext.BaseDirectory, "LayoutContracts");
+        var approvedStyles = new HashSet<string>(StringComparer.Ordinal)
+        {
+            "CommandButton", "PrimaryButton", "SecondaryButton", "QuietButton", "DangerButton"
+        };
+        var offenders = new List<string>();
+
+        foreach (var file in new[]
+                 {
+                     "MainWindow.xaml", "ConnectionView.xaml", "MonitorView.xaml",
+                     "NotebookView.xaml", "HistoryView.xaml", "SettingsView.xaml"
+                 })
+        {
+            var document = XDocument.Load(Path.Combine(layoutDirectory, file));
+            foreach (var button in document.Descendants(Presentation + "Button"))
+            {
+                var style = (string?)button.Attribute("Style");
+                var styleKey = style is null ? null : ExtractResourceKey(style);
+                if (styleKey is null || !approvedStyles.Contains(styleKey))
+                {
+                    offenders.Add($"{file}: {style ?? "<default style>"}");
+                }
+            }
+        }
+
+        Assert.IsEmpty(
+            offenders,
+            $"Every button must use a reviewed shared style: {string.Join(", ", offenders)}");
+    }
+
+    [TestMethod]
+    public void SupportingButtonStyles_KeepReadableLabels()
+    {
+        var layoutDirectory = Path.Combine(AppContext.BaseDirectory, "LayoutContracts");
+        var theme = LoadResources(Path.Combine(layoutDirectory, "Theme.xaml"));
+        var controls = XDocument.Load(Path.Combine(layoutDirectory, "Controls.xaml"));
+        var command = FindStyle(controls, "Button", "CommandButton");
+        var danger = FindStyle(controls, "Button", "DangerButton");
+        var commandSetters = command.Elements(Presentation + "Setter")
+            .ToDictionary(
+                element => element.Attribute("Property")!.Value,
+                element => element.Attribute("Value")!.Value,
+                StringComparer.Ordinal);
+        var dangerSetters = danger.Elements(Presentation + "Setter")
+            .ToDictionary(
+                element => element.Attribute("Property")!.Value,
+                element => element.Attribute("Value")!.Value,
+                StringComparer.Ordinal);
+        var commandBackground = ResolveColor(commandSetters["Background"], theme);
+
+        Assert.IsGreaterThanOrEqualTo(
+            4.5d,
+            ContrastRatio(ResolveColor(commandSetters["Foreground"], theme), commandBackground),
+            "Command, secondary, and quiet buttons must keep readable labels on light surfaces.");
+        Assert.IsGreaterThanOrEqualTo(
+            4.5d,
+            ContrastRatio(ResolveColor(dangerSetters["Foreground"], theme), commandBackground),
+            "Danger buttons must keep readable labels against their inherited background.");
+    }
+
+    [TestMethod]
+    public void TextBlocks_DoNotOverrideTheForegroundInheritedFromButtons()
+    {
+        var layoutDirectory = Path.Combine(AppContext.BaseDirectory, "LayoutContracts");
+        var controls = XDocument.Load(Path.Combine(layoutDirectory, "Controls.xaml"));
+        var implicitTextBlockStyle = controls.Descendants(Presentation + "Style")
+            .SingleOrDefault(element =>
+                (string?)element.Attribute("TargetType") == "TextBlock" &&
+                element.Attribute(Xaml + "Key") is null);
+        var overridesForeground = implicitTextBlockStyle?
+            .Elements(Presentation + "Setter")
+            .Any(element => (string?)element.Attribute("Property") == "Foreground") == true;
+
+        Assert.IsFalse(
+            overridesForeground,
+            "Implicit TextBlock styling must not replace the foreground supplied by a containing Button.");
     }
 
     private static XElement FindStyle(XDocument document, string targetType, string? key = null) =>

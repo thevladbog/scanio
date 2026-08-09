@@ -98,6 +98,7 @@ public sealed class ConnectionViewModel : ObservableObject
 
             OnPropertyChanged(nameof(IsSerialMode));
             OnPropertyChanged(nameof(IsKeyboardMode));
+            RaiseSerialActionProperties();
             OnPropertyChanged(nameof(IsKeyboardStartVisible));
             OnPropertyChanged(nameof(IsKeyboardStopVisible));
             ConnectCommand.RaiseCanExecuteChanged();
@@ -174,6 +175,7 @@ public sealed class ConnectionViewModel : ObservableObject
             {
                 OnPropertyChanged(nameof(StateTitle));
                 OnPropertyChanged(nameof(IsEditingEnabled));
+                RaiseSerialActionProperties();
                 RaiseKeyboardProperties();
                 RefreshCommand.RaiseCanExecuteChanged();
                 ConnectCommand.RaiseCanExecuteChanged();
@@ -212,6 +214,11 @@ public sealed class ConnectionViewModel : ObservableObject
     public bool IsKeyboardStartVisible => IsKeyboardMode && !IsKeyboardCaptureActive;
 
     public bool IsKeyboardStopVisible => IsKeyboardMode && IsKeyboardCaptureActive;
+
+    public bool IsSerialConnectVisible => IsSerialMode && !IsSerialDisconnectVisible;
+
+    public bool IsSerialDisconnectVisible =>
+        IsSerialMode && State is (ConnectionState.Connected or ConnectionState.DeviceRemoved or ConnectionState.Disconnecting);
 
     public string KeyboardStatusTitle => IsKeyboardCaptureActive
         ? _localizer[IsKeyboardSurfaceFocused
@@ -415,6 +422,12 @@ public sealed class ConnectionViewModel : ObservableObject
         OnPropertyChanged(nameof(IsKeyboardStartVisible));
         OnPropertyChanged(nameof(IsKeyboardStopVisible));
         OnPropertyChanged(nameof(KeyboardStatusTitle));
+    }
+
+    private void RaiseSerialActionProperties()
+    {
+        OnPropertyChanged(nameof(IsSerialConnectVisible));
+        OnPropertyChanged(nameof(IsSerialDisconnectVisible));
     }
 
     private void CancelKeyboardDeadline(bool discardPending = false)

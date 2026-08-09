@@ -15,7 +15,7 @@ public sealed class LocalizationSurfaceTests
 
     private static readonly HashSet<string> RussianNeutralWords = new(StringComparer.Ordinal)
     {
-        "AI", "BCBP", "COM", "CSV", "EAN/UPC", "English", "Enter", "GS", "GS1", "GTIN",
+        "AI", "BCBP", "COM", "CSV", "DataMatrix", "EAN/UPC", "English", "Enter", "GS", "GS1", "GTIN",
         "GitHub", "HEX", "HTTP", "HTTPS", "IATA", "JSON", "RAW", "Releases", "RTS", "Scanio", "SQLite",
         "SSCC", "Tab", "TXT", "URL", "USB", "UTF-8", "Windows", "XON/XOFF"
     };
@@ -79,6 +79,28 @@ public sealed class LocalizationSurfaceTests
     }
 
     [TestMethod]
+    public void SerialConnection_ExposesMutuallyExclusiveConnectAndDisconnectActions()
+    {
+        var directory = Path.Combine(AppContext.BaseDirectory, "LayoutContracts");
+        var document = XDocument.Load(Path.Combine(directory, "ConnectionView.xaml"));
+        var buttons = document.Descendants(Presentation + "Button").ToArray();
+        var connect = buttons.Single(element =>
+            ((string?)element.Attribute("Command"))?.Contains("ConnectCommand", StringComparison.Ordinal) == true);
+        var disconnect = buttons.Single(element =>
+            ((string?)element.Attribute("Command"))?.Contains("DisconnectCommand", StringComparison.Ordinal) == true);
+
+        Assert.AreEqual(
+            "{Binding IsSerialConnectVisible, Converter={StaticResource BooleanToVisibility}}",
+            (string?)connect.Attribute("Visibility"));
+        Assert.AreEqual(
+            "{Binding IsSerialDisconnectVisible, Converter={StaticResource BooleanToVisibility}}",
+            (string?)disconnect.Attribute("Visibility"));
+        Assert.AreEqual(
+            "{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Connection.Disconnect]}",
+            (string?)disconnect.Attribute("Content"));
+    }
+
+    [TestMethod]
     public void KeyboardCaptureWarning_IsLocalizedAndDisclosesReconstructedFocusedInput()
     {
         var directory = Path.Combine(AppContext.BaseDirectory, "LayoutContracts");
@@ -104,6 +126,7 @@ public sealed class LocalizationSurfaceTests
             "Точный формат данных",
             "Предположение по структуре",
             "Строка элементов GS1",
+            "Честный знак",
             "ЖИВАЯ ЛЕНТА",
             "Сканы",
             "ФАКТ",

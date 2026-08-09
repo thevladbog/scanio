@@ -9,9 +9,9 @@
     <Color x:Key="Color.BorderDefault">#CFCBC0</Color>
     <Color x:Key="Color.Signal">#008FD5</Color>
     <Color x:Key="Color.SignalSurface">#DCEFF7</Color>
-    <Color x:Key="Color.ActionPrimary">#171A1D</Color>
-    <Color x:Key="Color.ActionPrimaryHover">#2A3035</Color>
-    <Color x:Key="Color.ActionPrimaryPressed">#0D0F11</Color>
+    <Color x:Key="Color.ActionPrimary">#006D9F</Color>
+    <Color x:Key="Color.ActionPrimaryHover">#0077B3</Color>
+    <Color x:Key="Color.ActionPrimaryPressed">#005F8F</Color>
     <Color x:Key="Color.ActionDisabled">#D8D5CD</Color>
     <Color x:Key="Color.ActionTextDisabled">#777873</Color>
     <Color x:Key="Color.Success">#156C52</Color>
@@ -73,7 +73,7 @@
     <CornerRadius x:Key="Radius.Tile">8</CornerRadius>
     <sys:Double x:Key="Size.ControlHeight">38</sys:Double>
     <sys:Double x:Key="Size.PrimaryActionHeight">48</sys:Double>
-    <sys:Double x:Key="Size.LedgerRowCompact">54</sys:Double>
+    <sys:Double x:Key="Size.LedgerRowCompact">48</sys:Double>
     <sys:Double x:Key="Size.LedgerRowComfortable">66</sys:Double>
     <sys:Double x:Key="Size.MonitorLedgerWide">370</sys:Double>
     <sys:Double x:Key="Size.MonitorWorkspaceWide">710</sys:Double>

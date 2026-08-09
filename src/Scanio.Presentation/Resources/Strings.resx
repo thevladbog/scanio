@@ -156,13 +156,13 @@
   <data name="History.NotFinished" xml:space="preserve"><value>Не завершена</value></data>
   <data name="Analysis.Format.GS1" xml:space="preserve"><value>Данные GS1</value></data>
   <data name="Analysis.Format.PlainText" xml:space="preserve"><value>Обычный текст</value></data>
-  <data name="Analysis.Format.HonestSign" xml:space="preserve"><value>Честный знак</value></data>
+  <data name="Analysis.Format.HonestSign" xml:space="preserve"><value>GS1 DataMatrix</value></data>
   <data name="Analysis.EAN/UPC.Evidence" xml:space="preserve"><value>Длина цифровой строки соответствует формату; проверена контрольная цифра.</value></data>
   <data name="Analysis.EAN/UPC.Summary" xml:space="preserve"><value>Товарный код EAN/UPC.</value></data>
   <data name="Analysis.GS1.Evidence" xml:space="preserve"><value>Обнаружена поддерживаемая структура идентификаторов применения GS1.</value></data>
   <data name="Analysis.GS1.Summary" xml:space="preserve"><value>Структурированные поля GS1.</value></data>
   <data name="Analysis.HonestSign.Evidence" xml:space="preserve"><value>Присутствуют GTIN (01) и серийный номер (21); онлайн-проверка не выполнялась.</value></data>
-  <data name="Analysis.HonestSign.Summary" xml:space="preserve"><value>Код маркировки «Честный знак».</value></data>
+  <data name="Analysis.HonestSign.Summary" xml:space="preserve"><value>Данные GS1 DataMatrix с GTIN и серийным номером.</value></data>
   <data name="Analysis.IATA BCBP.Evidence" xml:space="preserve"><value>Данные соответствуют обязательной структуре посадочного талона IATA BCBP.</value></data>
   <data name="Analysis.IATA BCBP.Summary" xml:space="preserve"><value>Посадочный талон IATA BCBP.</value></data>
   <data name="Analysis.URL.Evidence" xml:space="preserve"><value>Полезная нагрузка является абсолютным HTTP- или HTTPS-адресом.</value></data>

@@ -174,7 +174,10 @@
                 <Grid Grid.Row="3">
                     <Button Content="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Connection.Connect]}"
                             Command="{Binding ConnectCommand}" Style="{DynamicResource PrimaryButton}"
-                            Visibility="{Binding IsSerialMode, Converter={StaticResource BooleanToVisibility}}" />
+                            Visibility="{Binding IsSerialConnectVisible, Converter={StaticResource BooleanToVisibility}}" />
+                    <Button Content="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Connection.Disconnect]}"
+                            Command="{Binding DisconnectCommand}" Style="{DynamicResource DangerButton}"
+                            Visibility="{Binding IsSerialDisconnectVisible, Converter={StaticResource BooleanToVisibility}}" />
                     <Button Content="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Connection.Keyboard.Start]}"
                             Command="{Binding StartKeyboardTestCommand}" Style="{DynamicResource PrimaryButton}"
                             Visibility="{Binding IsKeyboardStartVisible, Converter={StaticResource BooleanToVisibility}}" />

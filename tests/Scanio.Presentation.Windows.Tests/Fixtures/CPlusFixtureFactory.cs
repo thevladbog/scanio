@@ -155,7 +155,7 @@ internal static class CPlusFixtureFactory
                 new FixturePlatformInteractionService(),
                 true,
                 @"C:\Users\Operator\AppData\Local\Scanio\Data\scanio-notebook.sqlite3",
-                "0.5.0-alpha.1",
+                "0.5.0-alpha.2",
                 new Uri("https://github.com/thevladbog/scanio/releases"));
             var shell = new ShellViewModel(
                 connectionViewModel,
@@ -221,10 +221,10 @@ internal static class CPlusFixtureFactory
 
     private static AnalysisResult CreateEvidenceAnalysis() => AnalysisResult.Match(
         "HonestSign",
-        "Честный знак",
+        "GS1 DataMatrix",
         AnalysisConfidence.Exact,
         "GTIN (01) and serial (21) are present; no online check was performed.",
-        "Honest Sign marking code.",
+        "GS1 DataMatrix data with a GTIN and serial number.",
         [
             new AnalysisField("01", "GTIN", "04601234567893"),
             new AnalysisField("21", "Serial number", "SERIAL-000042"),

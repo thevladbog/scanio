@@ -8,6 +8,7 @@ public sealed class DisplaySettingsSource : INotifyPropertyChanged
     private bool _showEscapedControls = true;
     private bool _showHexPreview = true;
     private bool _showChunkBoundaries = true;
+    private bool _isCompact;
     private double _ledgerRowHeight = 66d;
 
     private DisplaySettingsSource()
@@ -21,6 +22,8 @@ public sealed class DisplaySettingsSource : INotifyPropertyChanged
     public bool ShowHexPreview => _showHexPreview;
 
     public bool ShowChunkBoundaries => _showChunkBoundaries;
+
+    public bool IsCompact => _isCompact;
 
     public double LedgerRowHeight => _ledgerRowHeight;
 
@@ -61,9 +64,10 @@ public sealed class DisplaySettingsSource : INotifyPropertyChanged
         Publish(ref _showEscapedControls, settings.ShowEscapedControls, nameof(ShowEscapedControls));
         Publish(ref _showHexPreview, settings.ShowHexPreview, nameof(ShowHexPreview));
         Publish(ref _showChunkBoundaries, settings.ShowChunkBoundaries, nameof(ShowChunkBoundaries));
+        Publish(ref _isCompact, settings.ListDensity == ListDensity.Compact, nameof(IsCompact));
         Publish(
             ref _ledgerRowHeight,
-            settings.ListDensity == ListDensity.Compact ? 54d : 66d,
+            settings.ListDensity == ListDensity.Compact ? 48d : 66d,
             nameof(LedgerRowHeight));
     }
 

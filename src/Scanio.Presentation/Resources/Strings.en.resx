@@ -156,7 +156,7 @@
   <data name="History.NotFinished" xml:space="preserve"><value>Not finished</value></data>
   <data name="Analysis.Format.GS1" xml:space="preserve"><value>GS1 element string</value></data>
   <data name="Analysis.Format.PlainText" xml:space="preserve"><value>Plain text</value></data>
-  <data name="Analysis.Format.HonestSign" xml:space="preserve"><value>Honest Sign</value></data>
+  <data name="Analysis.Format.HonestSign" xml:space="preserve"><value>GS1 DataMatrix</value></data>
   <data name="Analysis.Generic.Evidence" xml:space="preserve"><value>Structure identified by a local analyzer.</value></data>
   <data name="Analysis.Generic.Summary" xml:space="preserve"><value>Structural analysis result.</value></data>
   <data name="Analysis.ValidationError" xml:space="preserve"><value>Validation error: {0}</value></data>
@@ -172,7 +172,7 @@
   <data name="Analysis.GS1.Evidence" xml:space="preserve"><value>A supported GS1 application identifier structure was detected.</value></data>
   <data name="Analysis.GS1.Summary" xml:space="preserve"><value>Structured GS1 fields.</value></data>
   <data name="Analysis.HonestSign.Evidence" xml:space="preserve"><value>GTIN (01) and serial (21) are present; no online check was performed.</value></data>
-  <data name="Analysis.HonestSign.Summary" xml:space="preserve"><value>Honest Sign marking code.</value></data>
+  <data name="Analysis.HonestSign.Summary" xml:space="preserve"><value>GS1 DataMatrix data with a GTIN and serial number.</value></data>
   <data name="Analysis.IATA BCBP.Evidence" xml:space="preserve"><value>Data matches the mandatory IATA BCBP boarding pass structure.</value></data>
   <data name="Analysis.IATA BCBP.Summary" xml:space="preserve"><value>IATA BCBP boarding pass.</value></data>
   <data name="Analysis.URL.Evidence" xml:space="preserve"><value>The payload is an absolute HTTP or HTTPS address.</value></data>

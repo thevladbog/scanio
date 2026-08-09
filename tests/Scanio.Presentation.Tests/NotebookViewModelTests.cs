@@ -88,6 +88,44 @@ public sealed class NotebookViewModelTests
     }
 
     [TestMethod]
+    public async Task EnglishLanguage_ReplacesUntouchedDefaultSessionInTheExportFileName()
+    {
+        var monitor = new LiveMonitor();
+        var repository = new FakeRepository();
+        var interaction = new FakeInteraction();
+        var settings = new TestSettingsService();
+        var localizer = new UiLocalizer(settings);
+        await using var recorder = new NotebookRecorder(repository, monitor, () => DateTimeOffset.UnixEpoch);
+        var viewModel = new NotebookViewModel(recorder, interaction, localizer);
+        Assert.StartsWith("Сессия ", viewModel.SessionName);
+
+        localizer.SetLanguage(UiLanguage.English);
+
+        Assert.StartsWith("Session ", viewModel.SessionName);
+        await viewModel.StartCommand.ExecuteAsync();
+        monitor.Append(CreateScan(1, "one"), CreateDecoded("one"), []);
+        await viewModel.StopCommand.ExecuteAsync();
+        await viewModel.ExportTextCommand.ExecuteAsync();
+        Assert.StartsWith("Session ", interaction.SuggestedNames.Single());
+    }
+
+    [TestMethod]
+    public async Task LanguageChange_DoesNotReplaceACustomSessionName()
+    {
+        var monitor = new LiveMonitor();
+        var repository = new FakeRepository();
+        var interaction = new FakeInteraction();
+        var settings = new TestSettingsService();
+        var localizer = new UiLocalizer(settings);
+        await using var recorder = new NotebookRecorder(repository, monitor, () => DateTimeOffset.UnixEpoch);
+        var viewModel = new NotebookViewModel(recorder, interaction, localizer) { SessionName = "Line A" };
+
+        localizer.SetLanguage(UiLanguage.English);
+
+        Assert.AreEqual("Line A", viewModel.SessionName);
+    }
+
+    [TestMethod]
     public async Task Notebook_SummaryAndUniqueCopyUseByteExactPayloadIdentity()
     {
         var monitor = new LiveMonitor();
@@ -429,10 +467,12 @@ public sealed class NotebookViewModelTests
         public bool ConfirmDeleteResult { get; init; }
         public List<string> Errors { get; } = [];
         public List<NotebookExportFormat> RequestedFormats { get; } = [];
+        public List<string> SuggestedNames { get; } = [];
         public void SetClipboardText(string text) => ClipboardText = text;
         public string? ChooseExportPath(NotebookExportFormat format, string suggestedName)
         {
             RequestedFormats.Add(format);
+            SuggestedNames.Add(suggestedName);
             return null;
         }
         public bool ConfirmDelete(string sessionName) => ConfirmDeleteResult;

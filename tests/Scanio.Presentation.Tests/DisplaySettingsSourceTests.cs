@@ -25,7 +25,8 @@ public sealed class DisplaySettingsSourceTests
         Assert.IsFalse(source.ShowEscapedControls);
         Assert.IsFalse(source.ShowHexPreview);
         Assert.IsFalse(source.ShowChunkBoundaries);
-        Assert.AreEqual(54d, source.LedgerRowHeight);
+        Assert.IsTrue(source.IsCompact);
+        Assert.AreEqual(48d, source.LedgerRowHeight);
     }
 
     [TestMethod]
@@ -46,7 +47,12 @@ public sealed class DisplaySettingsSourceTests
         source.PropertyChanged -= OnPropertyChanged;
         Assert.AreEqual(66d, source.LedgerRowHeight);
         CollectionAssert.AreEquivalent(
-            new[] { nameof(DisplaySettingsSource.ShowHexPreview), nameof(DisplaySettingsSource.LedgerRowHeight) },
+            new[]
+            {
+                nameof(DisplaySettingsSource.ShowHexPreview),
+                nameof(DisplaySettingsSource.IsCompact),
+                nameof(DisplaySettingsSource.LedgerRowHeight)
+            },
             notifications);
 
         void OnPropertyChanged(object? sender, PropertyChangedEventArgs args) => notifications.Add(args.PropertyName);
