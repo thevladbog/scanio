@@ -143,6 +143,104 @@ public sealed class ConnectionViewModelTests
         Assert.IsFalse(activeInput.AppendText("after-disconnect"));
     }
 
+    [TestMethod]
+    public async Task ConnectionService_RejectedKeyboardRetryPreservesActiveKeyboardOwnership()
+    {
+        var coordinator = new ConnectionCoordinator(new BlockingPipeline());
+        var service = new ConnectionService(coordinator);
+        await service.ConnectKeyboardAsync(CancellationToken.None);
+        var activeInput = service.KeyboardInput;
+        var activeSnapshot = service.CurrentSnapshot;
+
+        try
+        {
+            await Assert.ThrowsExactlyAsync<InvalidOperationException>(async () =>
+                await service.ConnectKeyboardAsync(CancellationToken.None));
+
+            Assert.AreSame(activeInput, service.KeyboardInput);
+            Assert.AreSame(activeSnapshot, service.CurrentSnapshot);
+            Assert.AreEqual(ConnectionState.Connected, service.CurrentSnapshot?.State);
+        }
+        finally
+        {
+            await service.DisconnectAsync(CancellationToken.None);
+        }
+    }
+
+    [TestMethod]
+    public async Task ConnectionService_RejectedSerialAttemptPreservesActiveKeyboardOwnership()
+    {
+        var coordinator = new ConnectionCoordinator(new BlockingPipeline());
+        var service = new ConnectionService(coordinator, (_, _) => new FakeScannerTransport());
+        await service.ConnectKeyboardAsync(CancellationToken.None);
+        var activeInput = service.KeyboardInput;
+        var activeSnapshot = service.CurrentSnapshot;
+
+        try
+        {
+            await Assert.ThrowsExactlyAsync<InvalidOperationException>(async () =>
+                await service.ConnectAsync(
+                    Device("COM7"),
+                    SerialConnectionOptions.Default("COM7"),
+                    CancellationToken.None));
+
+            Assert.AreSame(activeInput, service.KeyboardInput);
+            Assert.AreSame(activeSnapshot, service.CurrentSnapshot);
+            Assert.AreEqual(TransportKind.KeyboardCapture, service.CurrentSnapshot?.Identity.Kind);
+            Assert.AreEqual(ConnectionState.Connected, service.CurrentSnapshot?.State);
+        }
+        finally
+        {
+            await service.DisconnectAsync(CancellationToken.None);
+        }
+    }
+
+    [TestMethod]
+    [Timeout(5_000, CooperativeCancellation = true)]
+    public async Task ConnectionService_DelayedOldKeyboardTerminalCannotClearNewGeneration()
+    {
+        var coordinator = new ConnectionCoordinator(new BlockingPipeline());
+        var delayedStatusEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var releaseDelayedStatus = new ManualResetEventSlim();
+        var delayOldDetectedStatus = false;
+        coordinator.StatusChanged += (_, status) =>
+        {
+            if (delayOldDetectedStatus && status.State == ConnectionState.Detected)
+            {
+                delayedStatusEntered.TrySetResult();
+                releaseDelayedStatus.Wait(TimeSpan.FromSeconds(4));
+            }
+        };
+        var service = new ConnectionService(coordinator);
+        await service.ConnectKeyboardAsync(CancellationToken.None);
+        var oldIdentity = service.CurrentSnapshot!.Identity;
+        await service.DisconnectAsync(CancellationToken.None);
+        delayOldDetectedStatus = true;
+        var delayedNotification = Task.Run(() => coordinator.ReportDetected(oldIdentity));
+        await delayedStatusEntered.Task.WaitAsync(TimeSpan.FromSeconds(1));
+
+        try
+        {
+            await service.ConnectKeyboardAsync(CancellationToken.None);
+            var newInput = service.KeyboardInput;
+            var newSnapshot = service.CurrentSnapshot;
+
+            releaseDelayedStatus.Set();
+            await delayedNotification.WaitAsync(TimeSpan.FromSeconds(1));
+
+            Assert.IsNotNull(newInput);
+            Assert.AreSame(newInput, service.KeyboardInput);
+            Assert.AreSame(newSnapshot, service.CurrentSnapshot);
+            Assert.AreEqual(ConnectionState.Connected, service.CurrentSnapshot?.State);
+        }
+        finally
+        {
+            releaseDelayedStatus.Set();
+            await delayedNotification.WaitAsync(TimeSpan.FromSeconds(1));
+            await service.DisconnectAsync(CancellationToken.None);
+        }
+    }
+
     private static ConnectionViewModel CreateViewModel(
         ISerialDeviceEnumerator enumerator,
         IConnectionService connection)
