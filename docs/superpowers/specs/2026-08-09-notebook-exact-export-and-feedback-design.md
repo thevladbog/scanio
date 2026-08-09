@@ -1,7 +1,7 @@
 # Notebook Exact Export and Duplicate Feedback Design
 
 **Date:** 2026-08-09
-**Status:** Approved in conversation; awaiting written-spec review
+**Status:** Approved
 
 ## Goal
 
