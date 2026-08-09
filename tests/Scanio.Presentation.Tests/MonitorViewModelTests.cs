@@ -136,6 +136,30 @@ public sealed class MonitorViewModelTests
     }
 
     [TestMethod]
+    public void KnownAnalyzerFormat_DoesNotLeakItsRussianDomainLabelIntoEnglishUi()
+    {
+        var analysis = AnalysisResult.Match(
+            "HonestSign",
+            "Честный знак",
+            AnalysisConfidence.Exact,
+            "Serialized marking structure.",
+            "Marking code.");
+        var monitor = new LiveMonitor();
+        monitor.Append(Scan(1, "value"), Decoded("value"), [analysis]);
+        var settings = new TestSettingsService();
+        var localizer = new UiLocalizer(settings);
+        localizer.SetLanguage(UiLanguage.English);
+        var viewModel = new MonitorViewModel(
+            monitor,
+            new FakeConnectionService(),
+            new FakeClipboardService(),
+            localizer);
+
+        Assert.AreEqual("Honest Sign", viewModel.SelectedEvent!.Format);
+        Assert.AreEqual("Honest Sign", viewModel.SelectedEvent.Analyses.Single().Format);
+    }
+
+    [TestMethod]
     public async Task CopyActions_PreservePayloadSeparatorsAndExposeRawHexAndJson()
     {
         var monitor = new LiveMonitor();

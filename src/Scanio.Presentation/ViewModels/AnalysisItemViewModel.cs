@@ -42,11 +42,6 @@ public sealed class AnalysisItemViewModel
 
     private static string TranslateFormat(AnalysisResult result, IUiLocalizer localizer)
     {
-        if (localizer.Language == UiLanguage.English)
-        {
-            return result.Format;
-        }
-
         return result.AnalyzerName switch
         {
             "GS1" => localizer["Analysis.Format.GS1"],
