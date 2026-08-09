@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
+using System.Windows.Data;
 using System.Windows.Media;
 using Scanio.Presentation.Settings;
 using Scanio.Presentation.Tests.Infrastructure;
@@ -153,6 +154,38 @@ public sealed class RenderedLayoutTests
                 Assert.IsNotNull(hexPanel, $"{label} has no HEX evidence container.");
                 Assert.AreEqual(variant.ShowHexPreview, hexPanel.IsVisible, label);
                 Assert.AreEqual(variant.ShowChunkBoundaries, chunks.IsVisible, label);
+            }
+        });
+    }
+
+    [TestMethod]
+    public void SettingsDensityVariants_SelectBoundOptionAndPublishMatchingSharedRowHeight()
+    {
+        WpfTestHost.Run(() =>
+        {
+            foreach (var variant in RenderedEvidenceMatrix.Settings)
+            {
+                using var fixture = CPlusFixtureFactory.Create(variant);
+                Prepare(fixture.Window, variant.Width, variant.Height);
+                var label = $"Settings/{variant.ListDensity}/{variant.Width}x{variant.Height}";
+                AssertWorkspaceLayout(fixture.Window, ShellDestination.Settings, label);
+
+                var densityOptions = Descendants<RadioButton>(fixture.Window)
+                    .Where(option => string.Equals(option.GroupName, "Density", StringComparison.Ordinal))
+                    .ToArray();
+                Assert.HasCount(2, densityOptions, $"{label} must expose both density options.");
+
+                var selected = densityOptions.SingleOrDefault(option => option.IsChecked == true);
+                Assert.IsNotNull(selected, $"{label} must select exactly one density option.");
+                var binding = BindingOperations.GetBindingExpression(selected, ToggleButton.IsCheckedProperty);
+                Assert.IsNotNull(binding, $"{label} selected density option is not bound to Settings.");
+
+                var expectedBinding = variant.ListDensity == ListDensity.Compact
+                    ? nameof(SettingsViewModel.IsCompact)
+                    : nameof(SettingsViewModel.IsComfortable);
+                var expectedHeight = variant.ListDensity == ListDensity.Compact ? 54d : 66d;
+                Assert.AreEqual(expectedBinding, binding.ParentBinding.Path.Path, label);
+                Assert.AreEqual(expectedHeight, DisplaySettingsSource.Current.LedgerRowHeight, 0.01d, label);
             }
         });
     }

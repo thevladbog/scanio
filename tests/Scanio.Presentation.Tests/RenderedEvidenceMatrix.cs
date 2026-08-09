@@ -46,8 +46,14 @@ internal static class RenderedEvidenceMatrix
         MonitorVariant(true, "monitor-evidence-on-en-1440x900.png")
     ];
 
+    public static IReadOnlyList<RenderedEvidenceVariant> Settings { get; } =
+    [
+        SettingsVariant(ListDensity.Compact, "settings-density-compact-en-1440x900.png"),
+        SettingsVariant(ListDensity.Comfortable, "settings-density-comfortable-en-1440x900.png")
+    ];
+
     public static IEnumerable<RenderedEvidenceVariant> All =>
-        Connection.Concat(Density).Concat(Monitor);
+        Connection.Concat(Density).Concat(Monitor).Concat(Settings);
 
     private static RenderedEvidenceVariant ConnectionVariant(
         UiLanguage language,
@@ -92,4 +98,16 @@ internal static class RenderedEvidenceMatrix
             ListDensity.Comfortable,
             ShowHexPreview: evidenceVisible,
             ShowChunkBoundaries: evidenceVisible);
+
+    private static RenderedEvidenceVariant SettingsVariant(ListDensity listDensity, string screenshotName) =>
+        new(
+            screenshotName,
+            UiLanguage.English,
+            ShellDestination.Settings,
+            1440,
+            900,
+            ConnectionMode.Serial,
+            listDensity,
+            ShowHexPreview: true,
+            ShowChunkBoundaries: true);
 }

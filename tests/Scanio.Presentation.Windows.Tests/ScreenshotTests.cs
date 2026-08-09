@@ -32,7 +32,7 @@ public sealed class ScreenshotTests
     }
 
     [TestMethod]
-    public void CaptureRequiredConnectionDensityAndMonitorEvidenceVariants()
+    public void CaptureRequiredRenderedEvidenceVariants()
     {
         WpfTestHost.Run(() =>
         {

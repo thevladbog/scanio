@@ -66,12 +66,28 @@ public sealed class RenderedEvidenceMatrixTests
     }
 
     [TestMethod]
+    public void SettingsMatrix_CoversCompactAndComfortableDensityEvidence()
+    {
+        var actual = RenderedEvidenceMatrix.Settings
+            .Select(variant => (variant.Destination, variant.ListDensity, variant.Width, variant.Height))
+            .ToArray();
+
+        CollectionAssert.AreEquivalent(
+            new[]
+            {
+                (ShellDestination.Settings, ListDensity.Compact, 1440, 900),
+                (ShellDestination.Settings, ListDensity.Comfortable, 1440, 900)
+            },
+            actual);
+    }
+
+    [TestMethod]
     public void EveryEvidenceVariant_HasAStableDistinctScreenshotName()
     {
         var variants = RenderedEvidenceMatrix.All.ToArray();
         var names = variants.Select(variant => variant.ScreenshotName).ToArray();
 
-        Assert.HasCount(18, variants);
+        Assert.HasCount(20, variants);
         Assert.AreEqual(names.Length, names.Distinct(StringComparer.Ordinal).Count());
         Assert.IsTrue(names.All(name => name.EndsWith(".png", StringComparison.Ordinal)));
         Assert.IsTrue(names.All(name => name.Contains('x', StringComparison.Ordinal)));
