@@ -12,7 +12,9 @@ public static class Gs1AiCatalog
             ["17"] = new("17", "Expiration date", 6, 6, true, Gs1CharacterSet.Numeric, IsDate: true),
             ["21"] = new("21", "Serial number", 1, 20, false, Gs1CharacterSet.Gs1Text),
             ["91"] = new("91", "Verification key", 1, 90, false, Gs1CharacterSet.Gs1Text),
-            ["92"] = new("92", "Crypto tail", 1, 90, false, Gs1CharacterSet.Gs1Text)
+            ["92"] = new("92", "Crypto tail", 1, 90, false, Gs1CharacterSet.Gs1Text),
+            ["93"] = new("93", "Verification code", 1, 90, false, Gs1CharacterSet.Gs1Text),
+            ["8005"] = new("8005", "Price per unit", 6, 6, true, Gs1CharacterSet.Numeric)
         };
 
     public static bool TryResolve(ReadOnlySpan<char> input, out Gs1ApplicationIdentifier identifier, out int codeLength)
@@ -27,6 +29,13 @@ public static class Gs1AiCatalog
                 isCurrencyPrice ? 18 : 15,
                 false,
                 Gs1CharacterSet.Numeric);
+            codeLength = 4;
+            return true;
+        }
+
+        if (input.Length >= 4 && Exact.TryGetValue(input[..4].ToString(), out var exactFour))
+        {
+            identifier = exactFour;
             codeLength = 4;
             return true;
         }
