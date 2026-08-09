@@ -14,6 +14,20 @@ namespace Scanio.Presentation.Tests;
 public sealed class ShutdownTests
 {
     [TestMethod]
+    public async Task WindowShutdown_ReturnsWhenTheGraceDeadlineWins()
+    {
+        var driverShutdown = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var graceDeadline = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        var guardedShutdown = WindowShutdownGuard.WaitAsync(driverShutdown.Task, graceDeadline.Task);
+
+        Assert.IsFalse(guardedShutdown.IsCompleted);
+        graceDeadline.SetResult();
+        await guardedShutdown.WaitAsync(TimeSpan.FromSeconds(1));
+        Assert.IsFalse(driverShutdown.Task.IsCompleted);
+    }
+
+    [TestMethod]
     public async Task Shutdown_DoesNotReturnUntilBlockedTransportIsClosedAndDisposed()
     {
         var pipeline = new BlockingPipeline();

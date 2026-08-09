@@ -5,6 +5,7 @@ namespace Scanio.Presentation;
 
 public partial class MainWindow : System.Windows.Window
 {
+    private static readonly TimeSpan ShutdownGracePeriod = TimeSpan.FromSeconds(2);
     private readonly ShellViewModel _viewModel;
     private bool _shutdownComplete;
 
@@ -28,16 +29,14 @@ public partial class MainWindow : System.Windows.Window
         IsEnabled = false;
         try
         {
-            await _viewModel.ShutdownAsync(CancellationToken.None);
-            _shutdownComplete = true;
-            Close();
+            using var cancellation = new CancellationTokenSource(ShutdownGracePeriod);
+            var shutdown = _viewModel.ShutdownAsync(cancellation.Token);
+            await WindowShutdownGuard.WaitAsync(shutdown, Task.Delay(ShutdownGracePeriod));
         }
         finally
         {
-            if (!_shutdownComplete)
-            {
-                IsEnabled = true;
-            }
+            _shutdownComplete = true;
+            Close();
         }
     }
 
