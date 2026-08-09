@@ -63,10 +63,11 @@ public sealed class HistoryViewModel : ObservableObject
         RenameCommand = new AsyncCommand(_ => ExecuteSafelyAsync(RenameAsync), () =>
             CanMutateSelectedSession && !string.IsNullOrWhiteSpace(RenameText));
         DeleteCommand = new AsyncCommand(_ => ExecuteSafelyAsync(DeleteAsync), () => CanMutateSelectedSession);
-        CopyAllCommand = RecordCommand(CopyAllAsync);
-        CopyUniqueCommand = RecordCommand(CopyUniqueAsync);
-        CopyEscapedCommand = RecordCommand(CopyEscapedAsync);
+        CopyAllCommand = RecordCommand(() => CopyExactAsync(unique: false));
+        CopyUniqueCommand = RecordCommand(() => CopyExactAsync(unique: true));
+        CopyEscapedCommand = RecordCommand(CopyReadableAsync);
         ExportTextCommand = ExportCommand(NotebookExportFormat.Text);
+        ExportReadableTextCommand = ExportCommand(NotebookExportFormat.ReadableText);
         ExportCsvCommand = ExportCommand(NotebookExportFormat.Csv);
         ExportJsonCommand = ExportCommand(NotebookExportFormat.Json);
         if (_recorder is not null)
@@ -121,6 +122,7 @@ public sealed class HistoryViewModel : ObservableObject
     public AsyncCommand CopyUniqueCommand { get; }
     public AsyncCommand CopyEscapedCommand { get; }
     public AsyncCommand ExportTextCommand { get; }
+    public AsyncCommand ExportReadableTextCommand { get; }
     public AsyncCommand ExportCsvCommand { get; }
     public AsyncCommand ExportJsonCommand { get; }
     public int RecordCount => Records.Count;
@@ -177,25 +179,18 @@ public sealed class HistoryViewModel : ObservableObject
         await RefreshAsync();
     }
 
-    private Task CopyAllAsync()
+    private Task CopyExactAsync(bool unique)
     {
-        _interaction.SetClipboardText(string.Join(
-            Environment.NewLine,
-            Records.Select(item => item.Record.Decoded.Text)));
+        _interaction.SetClipboardText(NotebookExportService.BuildExactClipboardText(
+            Records.Select(item => item.Record),
+            unique));
         return Task.CompletedTask;
     }
 
-    private Task CopyUniqueAsync()
+    private Task CopyReadableAsync()
     {
-        _interaction.SetClipboardText(string.Join(
-            Environment.NewLine,
-            Records.Select(item => item.Record.Decoded.Text).Distinct(StringComparer.Ordinal)));
-        return Task.CompletedTask;
-    }
-
-    private Task CopyEscapedAsync()
-    {
-        _interaction.SetClipboardText(NotebookExportService.BuildClipboardText(Records.Select(item => item.Record)));
+        _interaction.SetClipboardText(NotebookExportService.BuildReadableClipboardText(
+            Records.Select(item => item.Record)));
         return Task.CompletedTask;
     }
 
@@ -230,6 +225,7 @@ public sealed class HistoryViewModel : ObservableObject
         CopyUniqueCommand.RaiseCanExecuteChanged();
         CopyEscapedCommand.RaiseCanExecuteChanged();
         ExportTextCommand.RaiseCanExecuteChanged();
+        ExportReadableTextCommand.RaiseCanExecuteChanged();
         ExportCsvCommand.RaiseCanExecuteChanged();
         ExportJsonCommand.RaiseCanExecuteChanged();
     }

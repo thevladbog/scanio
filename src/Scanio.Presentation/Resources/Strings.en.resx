@@ -119,9 +119,10 @@
   <data name="Notebook.Copy" xml:space="preserve"><value>Copy</value></data>
   <data name="Notebook.CopyAll" xml:space="preserve"><value>All values</value></data>
   <data name="Notebook.CopyUnique" xml:space="preserve"><value>Unique values only</value></data>
-  <data name="Notebook.CopyEscaped" xml:space="preserve"><value>Escaped control characters</value></data>
+  <data name="Notebook.CopyEscaped" xml:space="preserve"><value>Copy as readable text (&lt;GS&gt;)</value></data>
   <data name="Notebook.Export" xml:space="preserve"><value>Export</value></data>
   <data name="Notebook.ExportText" xml:space="preserve"><value>Export TXT</value></data>
+  <data name="Notebook.ExportReadableText" xml:space="preserve"><value>Export readable TXT (&lt;GS&gt;)</value></data>
   <data name="Notebook.ExportCsv" xml:space="preserve"><value>Export CSV</value></data>
   <data name="Notebook.ExportJson" xml:space="preserve"><value>Diagnostic JSON</value></data>
   <data name="Notebook.State.Recording" xml:space="preserve"><value>Recording</value></data>

@@ -18,13 +18,7 @@ public sealed class WindowsNotebookInteractionService : INotebookInteractionServ
 
     public string? ChooseExportPath(NotebookExportFormat format, string suggestedName)
     {
-        var (extension, filter) = format switch
-        {
-            NotebookExportFormat.Text => ("txt", "Text files (*.txt)|*.txt"),
-            NotebookExportFormat.Csv => ("csv", "CSV files (*.csv)|*.csv"),
-            NotebookExportFormat.Json => ("json", "JSON files (*.json)|*.json"),
-            _ => throw new ArgumentOutOfRangeException(nameof(format), format, null)
-        };
+        var (extension, filter) = GetExportFileType(format);
         var dialog = new SaveFileDialog
         {
             AddExtension = true,
@@ -35,6 +29,16 @@ public sealed class WindowsNotebookInteractionService : INotebookInteractionServ
         };
         return dialog.ShowDialog() == true ? dialog.FileName : null;
     }
+
+    internal static (string Extension, string Filter) GetExportFileType(NotebookExportFormat format) =>
+        format switch
+        {
+            NotebookExportFormat.Text => ("txt", "Text files (*.txt)|*.txt"),
+            NotebookExportFormat.ReadableText => ("txt", "Text files (*.txt)|*.txt"),
+            NotebookExportFormat.Csv => ("csv", "CSV files (*.csv)|*.csv"),
+            NotebookExportFormat.Json => ("json", "JSON files (*.json)|*.json"),
+            _ => throw new ArgumentOutOfRangeException(nameof(format), format, null)
+        };
 
     public bool ConfirmDelete(string sessionName) =>
         System.Windows.MessageBox.Show(

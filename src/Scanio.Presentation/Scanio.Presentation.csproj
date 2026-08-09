@@ -8,6 +8,9 @@
     <ProjectReference Include="..\Scanio.Transports\Scanio.Transports.csproj" />
     <ProjectReference Include="..\Scanio.Storage\Scanio.Storage.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Scanio.Presentation.Windows.Tests" />
+  </ItemGroup>
   <PropertyGroup>
     <AssemblyName>Scanio</AssemblyName>
     <TargetFrameworks>net10.0;net10.0-windows10.0.19041.0</TargetFrameworks>

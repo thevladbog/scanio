@@ -40,11 +40,116 @@ public sealed class NotebookViewModelTests
         Assert.AreEqual("one" + Environment.NewLine + "one", interaction.ClipboardText);
 
         await viewModel.ExportTextCommand.ExecuteAsync();
+        await viewModel.ExportReadableTextCommand.ExecuteAsync();
         await viewModel.ExportCsvCommand.ExecuteAsync();
         await viewModel.ExportJsonCommand.ExecuteAsync();
         CollectionAssert.AreEqual(
-            new[] { NotebookExportFormat.Text, NotebookExportFormat.Csv, NotebookExportFormat.Json },
+            new[]
+            {
+                NotebookExportFormat.Text,
+                NotebookExportFormat.ReadableText,
+                NotebookExportFormat.Csv,
+                NotebookExportFormat.Json
+            },
             interaction.RequestedFormats.ToArray());
+    }
+
+    [TestMethod]
+    public async Task Notebook_CopyCommandsPreserveExactControlsAndOfferReadableText()
+    {
+        var monitor = new LiveMonitor();
+        var repository = new FakeRepository();
+        var interaction = new FakeInteraction();
+        await using var recorder = new NotebookRecorder(repository, monitor, () => DateTimeOffset.UnixEpoch);
+        var viewModel = new NotebookViewModel(recorder, interaction) { SessionName = "Shift" };
+
+        await viewModel.StartCommand.ExecuteAsync();
+        monitor.Append(
+            CreateScan(1, "01\u001D21"),
+            CreateDecoded("01\u001D21", "01<GS>21"),
+            []);
+        await viewModel.StopCommand.ExecuteAsync();
+
+        await viewModel.CopyAllCommand.ExecuteAsync();
+        Assert.AreEqual($"01\u001D21", interaction.ClipboardText);
+
+        await viewModel.CopyEscapedCommand.ExecuteAsync();
+        Assert.AreEqual("01<GS>21", interaction.ClipboardText);
+
+        await viewModel.ExportReadableTextCommand.ExecuteAsync();
+        CollectionAssert.Contains(
+            interaction.RequestedFormats,
+            NotebookExportFormat.ReadableText);
+    }
+
+    [TestMethod]
+    public async Task Notebook_NewRowsPulseAsUniqueOrDuplicateAndThenClear()
+    {
+        var monitor = new LiveMonitor();
+        var repository = new FakeRepository();
+        var interaction = new FakeInteraction();
+        var releasePulse = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        await using var recorder = new NotebookRecorder(repository, monitor, () => DateTimeOffset.UnixEpoch);
+        var viewModel = new NotebookViewModel(
+            recorder,
+            interaction,
+            localizer: null,
+            delay: _ => releasePulse.Task)
+        {
+            SessionName = "Shift"
+        };
+
+        Assert.IsFalse(viewModel.ExportReadableTextCommand.CanExecute(null));
+        await viewModel.StartCommand.ExecuteAsync();
+        monitor.Append(CreateScan(1, "one"), CreateDecoded("one"), []);
+        monitor.Append(CreateScan(2, "one"), CreateDecoded("one"), []);
+        await viewModel.StopCommand.ExecuteAsync();
+
+        Assert.HasCount(2, viewModel.Records);
+        Assert.IsTrue(viewModel.Records[0].IsArrivalPulseActive);
+        Assert.IsFalse(viewModel.Records[0].IsDuplicate);
+        Assert.IsTrue(viewModel.Records[1].IsArrivalPulseActive);
+        Assert.IsTrue(viewModel.Records[1].IsDuplicate);
+        Assert.IsTrue(viewModel.ExportReadableTextCommand.CanExecute(null));
+
+        var clearedProperties = new List<string?>();
+        foreach (var item in viewModel.Records)
+        {
+            item.PropertyChanged += (_, args) => clearedProperties.Add(args.PropertyName);
+        }
+
+        releasePulse.SetResult();
+        await WaitUntilAsync(() => viewModel.Records.All(item => !item.IsArrivalPulseActive));
+
+        Assert.AreEqual(2, clearedProperties.Count(name => name == nameof(NotebookRecordItemViewModel.IsArrivalPulseActive)));
+
+        var historical = new NotebookRecordItemViewModel(
+            CreateRecord(Guid.NewGuid(), 3, "historical"));
+        Assert.IsFalse(historical.IsArrivalPulseActive);
+    }
+
+    [TestMethod]
+    public async Task Notebook_FailedPulseDelayClearsWithoutShowingAnOperationError()
+    {
+        var monitor = new LiveMonitor();
+        var repository = new FakeRepository();
+        var interaction = new FakeInteraction();
+        await using var recorder = new NotebookRecorder(repository, monitor, () => DateTimeOffset.UnixEpoch);
+        var viewModel = new NotebookViewModel(
+            recorder,
+            interaction,
+            localizer: null,
+            delay: _ => Task.FromException(new InvalidOperationException("Pulse failed")))
+        {
+            SessionName = "Shift"
+        };
+
+        await viewModel.StartCommand.ExecuteAsync();
+        monitor.Append(CreateScan(1, "one"), CreateDecoded("one"), []);
+        await viewModel.StopCommand.ExecuteAsync();
+        await WaitUntilAsync(() => viewModel.Records.Count == 1 && !viewModel.Records[0].IsArrivalPulseActive);
+
+        Assert.IsEmpty(interaction.Errors);
     }
 
     [TestMethod]
@@ -63,11 +168,19 @@ public sealed class NotebookViewModelTests
         await viewModel.CopyUniqueCommand.ExecuteAsync();
         await viewModel.CopyEscapedCommand.ExecuteAsync();
         await viewModel.ExportTextCommand.ExecuteAsync();
+        await viewModel.ExportReadableTextCommand.ExecuteAsync();
         await viewModel.ExportCsvCommand.ExecuteAsync();
         await viewModel.ExportJsonCommand.ExecuteAsync();
         CollectionAssert.AreEqual(
-            new[] { NotebookExportFormat.Text, NotebookExportFormat.Csv, NotebookExportFormat.Json },
+            new[]
+            {
+                NotebookExportFormat.Text,
+                NotebookExportFormat.ReadableText,
+                NotebookExportFormat.Csv,
+                NotebookExportFormat.Json
+            },
             interaction.RequestedFormats.ToArray());
+        Assert.IsFalse(viewModel.Records.Single().IsArrivalPulseActive);
         viewModel.RenameText = "Renamed";
         await viewModel.RenameCommand.ExecuteAsync();
         Assert.AreEqual("Renamed", viewModel.Sessions.Single().Name);
@@ -110,8 +223,12 @@ public sealed class NotebookViewModelTests
             new TransportIdentity(TransportKind.Serial, "COM7", "COM7"));
     }
 
-    private static DecodedPayload CreateDecoded(string value) =>
-        DecodedPayload.Create(System.Text.Encoding.UTF8.GetBytes(value), PayloadTextEncoding.Utf8, value, value);
+    private static DecodedPayload CreateDecoded(string value, string? escapedDisplay = null) =>
+        DecodedPayload.Create(
+            System.Text.Encoding.UTF8.GetBytes(value),
+            PayloadTextEncoding.Utf8,
+            value,
+            escapedDisplay ?? value);
 
     private static NotebookRecord CreateRecord(Guid sessionId, long sequence, string value) =>
         NotebookRecord.Create(
@@ -122,6 +239,15 @@ public sealed class NotebookViewModelTests
             [],
             1,
             DateTimeOffset.UnixEpoch);
+
+    private static async Task WaitUntilAsync(Func<bool> condition)
+    {
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        while (!condition())
+        {
+            await Task.Delay(10, timeout.Token);
+        }
+    }
 
     private sealed class FakeInteraction : INotebookInteractionService
     {

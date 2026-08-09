@@ -3,9 +3,14 @@ using Scanio.Presentation.Localization;
 
 namespace Scanio.Presentation.ViewModels;
 
-public sealed class NotebookRecordItemViewModel
+public sealed class NotebookRecordItemViewModel : ObservableObject
 {
-    public NotebookRecordItemViewModel(NotebookRecord record, IUiLocalizer? localizer = null)
+    private bool _isArrivalPulseActive;
+
+    public NotebookRecordItemViewModel(
+        NotebookRecord record,
+        IUiLocalizer? localizer = null,
+        bool pulseArrival = false)
     {
         ArgumentNullException.ThrowIfNull(record);
         Record = record;
@@ -21,6 +26,7 @@ public sealed class NotebookRecordItemViewModel
         Transport = record.Scan.Transport.DisplayName;
         ByteCount = record.Scan.RawBytes.Length;
         DuplicateCount = record.DuplicateCount;
+        _isArrivalPulseActive = pulseArrival;
     }
 
     public NotebookRecord Record { get; }
@@ -31,4 +37,13 @@ public sealed class NotebookRecordItemViewModel
     public string Transport { get; }
     public int ByteCount { get; }
     public int DuplicateCount { get; }
+    public bool IsDuplicate => DuplicateCount > 1;
+
+    public bool IsArrivalPulseActive
+    {
+        get => _isArrivalPulseActive;
+        private set => SetProperty(ref _isArrivalPulseActive, value);
+    }
+
+    public void ClearArrivalPulse() => IsArrivalPulseActive = false;
 }

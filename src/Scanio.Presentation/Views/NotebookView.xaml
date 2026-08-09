@@ -90,6 +90,42 @@
                                     <ColumnDefinition Width="120" />
                                     <ColumnDefinition Width="54" />
                                 </Grid.ColumnDefinitions>
+                                <Border Grid.ColumnSpan="5" IsHitTestVisible="False" Opacity="0">
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Style.Triggers>
+                                                <MultiDataTrigger>
+                                                    <MultiDataTrigger.Conditions>
+                                                        <Condition Binding="{Binding IsArrivalPulseActive}" Value="True" />
+                                                        <Condition Binding="{Binding IsDuplicate}" Value="False" />
+                                                    </MultiDataTrigger.Conditions>
+                                                    <Setter Property="Background" Value="{DynamicResource Brush.SignalSurface}" />
+                                                    <MultiDataTrigger.EnterActions>
+                                                        <BeginStoryboard>
+                                                            <Storyboard>
+                                                                <DoubleAnimation Storyboard.TargetProperty="Opacity" From="1" To="0" Duration="0:0:0.6" />
+                                                            </Storyboard>
+                                                        </BeginStoryboard>
+                                                    </MultiDataTrigger.EnterActions>
+                                                </MultiDataTrigger>
+                                                <MultiDataTrigger>
+                                                    <MultiDataTrigger.Conditions>
+                                                        <Condition Binding="{Binding IsArrivalPulseActive}" Value="True" />
+                                                        <Condition Binding="{Binding IsDuplicate}" Value="True" />
+                                                    </MultiDataTrigger.Conditions>
+                                                    <Setter Property="Background" Value="{DynamicResource Brush.WarningSurface}" />
+                                                    <MultiDataTrigger.EnterActions>
+                                                        <BeginStoryboard>
+                                                            <Storyboard>
+                                                                <DoubleAnimation Storyboard.TargetProperty="Opacity" From="1" To="0" Duration="0:0:0.6" />
+                                                            </Storyboard>
+                                                        </BeginStoryboard>
+                                                    </MultiDataTrigger.EnterActions>
+                                                </MultiDataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                </Border>
                                 <TextBlock Text="{Binding Sequence}" Style="{DynamicResource DataText}" />
                                 <TextBlock Grid.Column="1" Text="{Binding Timestamp}" Foreground="{DynamicResource Brush.TextSecondary}" />
                                 <TextBlock Grid.Column="2" Text="{Binding Payload}" FontFamily="{DynamicResource Font.Data}"
@@ -116,6 +152,7 @@
                     <Border BorderBrush="{DynamicResource Brush.BorderDefault}" BorderThickness="0,1,0,0" Margin="0,24,0,20" />
                     <TextBlock Text="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Notebook.Export]}" Style="{DynamicResource PanelTitle}" Margin="0,0,0,14" />
                     <Button Content="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Notebook.ExportText]}" Command="{Binding ExportTextCommand}" Style="{DynamicResource SecondaryButton}" />
+                    <Button Content="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Notebook.ExportReadableText]}" Command="{Binding ExportReadableTextCommand}" Style="{DynamicResource SecondaryButton}" Margin="0,8,0,0" />
                     <Button Content="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Notebook.ExportCsv]}" Command="{Binding ExportCsvCommand}" Style="{DynamicResource SecondaryButton}" Margin="0,8,0,0" />
                     <Button Content="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Notebook.ExportJson]}" Command="{Binding ExportJsonCommand}" Style="{DynamicResource SecondaryButton}" Margin="0,8,0,0" />
                 </StackPanel>

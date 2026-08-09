@@ -11,28 +11,33 @@ public sealed class NotebookViewModel : ObservableObject
     private readonly NotebookRecorder _recorder;
     private readonly INotebookInteractionService _interaction;
     private readonly IUiLocalizer? _localizer;
+    private readonly Func<TimeSpan, Task> _delay;
     private readonly SynchronizationContext? _synchronizationContext = SynchronizationContext.Current;
     private string _sessionName;
+    private static readonly TimeSpan ArrivalPulseDuration = TimeSpan.FromMilliseconds(600);
 
     public NotebookViewModel(
         NotebookRecorder recorder,
         INotebookInteractionService interaction,
-        IUiLocalizer? localizer = null)
+        IUiLocalizer? localizer = null,
+        Func<TimeSpan, Task>? delay = null)
     {
         ArgumentNullException.ThrowIfNull(recorder);
         ArgumentNullException.ThrowIfNull(interaction);
         _recorder = recorder;
         _interaction = interaction;
         _localizer = localizer;
+        _delay = delay ?? (duration => Task.Delay(duration));
         _sessionName = $"{(_localizer?["Notebook.DefaultSession"] ?? "Сессия")} {DateTime.Now:yyyy-MM-dd HH-mm}";
         StartCommand = new AsyncCommand(_ => ExecuteSafelyAsync(StartAsync), () => CanStart);
         PauseCommand = new AsyncCommand(_ => ExecuteSafelyAsync(PauseAsync), () => CanPause);
         ResumeCommand = new AsyncCommand(_ => ExecuteSafelyAsync(ResumeAsync), () => CanResume);
         StopCommand = new AsyncCommand(_ => ExecuteSafelyAsync(StopAsync), () => CanStop);
-        CopyAllCommand = RecordCommand(CopyAllAsync);
-        CopyUniqueCommand = RecordCommand(CopyUniqueAsync);
-        CopyEscapedCommand = RecordCommand(CopyEscapedAsync);
+        CopyAllCommand = RecordCommand(() => CopyExactAsync(unique: false));
+        CopyUniqueCommand = RecordCommand(() => CopyExactAsync(unique: true));
+        CopyEscapedCommand = RecordCommand(CopyReadableAsync);
         ExportTextCommand = ExportCommand(NotebookExportFormat.Text);
+        ExportReadableTextCommand = ExportCommand(NotebookExportFormat.ReadableText);
         ExportCsvCommand = ExportCommand(NotebookExportFormat.Csv);
         ExportJsonCommand = ExportCommand(NotebookExportFormat.Json);
         _recorder.Changed += OnRecorderChanged;
@@ -99,6 +104,7 @@ public sealed class NotebookViewModel : ObservableObject
     public AsyncCommand CopyUniqueCommand { get; }
     public AsyncCommand CopyEscapedCommand { get; }
     public AsyncCommand ExportTextCommand { get; }
+    public AsyncCommand ExportReadableTextCommand { get; }
     public AsyncCommand ExportCsvCommand { get; }
     public AsyncCommand ExportJsonCommand { get; }
 
@@ -125,25 +131,18 @@ public sealed class NotebookViewModel : ObservableObject
 
     private async Task StopAsync() => await _recorder.StopAsync();
 
-    private Task CopyAllAsync()
+    private Task CopyExactAsync(bool unique)
     {
-        _interaction.SetClipboardText(string.Join(
-            Environment.NewLine,
-            Records.Select(item => item.Record.Decoded.Text)));
+        _interaction.SetClipboardText(NotebookExportService.BuildExactClipboardText(
+            Records.Select(item => item.Record),
+            unique));
         return Task.CompletedTask;
     }
 
-    private Task CopyUniqueAsync()
+    private Task CopyReadableAsync()
     {
-        _interaction.SetClipboardText(string.Join(
-            Environment.NewLine,
-            Records.Select(item => item.Record.Decoded.Text).Distinct(StringComparer.Ordinal)));
-        return Task.CompletedTask;
-    }
-
-    private Task CopyEscapedAsync()
-    {
-        _interaction.SetClipboardText(NotebookExportService.BuildClipboardText(Records.Select(item => item.Record)));
+        _interaction.SetClipboardText(NotebookExportService.BuildReadableClipboardText(
+            Records.Select(item => item.Record)));
         return Task.CompletedTask;
     }
 
@@ -189,7 +188,9 @@ public sealed class NotebookViewModel : ObservableObject
 
     private void OnRecordPersisted(object? sender, NotebookRecordPersistedEventArgs args) => RunOnUi(() =>
     {
-        Records.Add(new NotebookRecordItemViewModel(args.Record, _localizer));
+        var item = new NotebookRecordItemViewModel(args.Record, _localizer, pulseArrival: true);
+        Records.Add(item);
+        Observe(ClearArrivalPulseAsync(item));
         RaiseSummaryProperties();
         RaiseRecordCommands();
     });
@@ -200,6 +201,7 @@ public sealed class NotebookViewModel : ObservableObject
         CopyUniqueCommand.RaiseCanExecuteChanged();
         CopyEscapedCommand.RaiseCanExecuteChanged();
         ExportTextCommand.RaiseCanExecuteChanged();
+        ExportReadableTextCommand.RaiseCanExecuteChanged();
         ExportCsvCommand.RaiseCanExecuteChanged();
         ExportJsonCommand.RaiseCanExecuteChanged();
     }
@@ -209,6 +211,31 @@ public sealed class NotebookViewModel : ObservableObject
 
     private AsyncCommand ExportCommand(NotebookExportFormat format) =>
         new(_ => ExecuteSafelyAsync(() => ExportAsync(format)), () => Records.Count > 0);
+
+    private async Task ClearArrivalPulseAsync(NotebookRecordItemViewModel item)
+    {
+        try
+        {
+            await _delay(ArrivalPulseDuration);
+        }
+        catch (Exception)
+        {
+            // Arrival feedback must never surface as an operation failure.
+        }
+        finally
+        {
+            RunOnUi(item.ClearArrivalPulse);
+        }
+    }
+
+    private static void Observe(Task task)
+    {
+        _ = task.ContinueWith(
+            completed => _ = completed.Exception,
+            CancellationToken.None,
+            TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default);
+    }
 
     private void RaiseSummaryProperties()
     {
