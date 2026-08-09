@@ -40,7 +40,7 @@ public sealed class RenderedLayoutTests
                 }
 
                 AssertSiblingControlsDoNotOverlap(fixture.Window, label);
-                AssertReferenceColumnsRemainUsable(fixture.Window, label);
+                AssertReferenceColumnsRemainUsable(fixture.Window, destination, label);
             }
         });
     }
@@ -214,7 +214,10 @@ public sealed class RenderedLayoutTests
         }
     }
 
-    private static void AssertReferenceColumnsRemainUsable(Window window, string label)
+    private static void AssertReferenceColumnsRemainUsable(
+        Window window,
+        ShellDestination destination,
+        string label)
     {
         var screen = Descendants<UserControl>(window).LastOrDefault();
         var rootGrid = screen?.Content as Grid;
@@ -223,11 +226,40 @@ public sealed class RenderedLayoutTests
             return;
         }
 
+        if (destination == ShellDestination.Settings)
+        {
+            AssertSettingsColumnsRemainUsable(rootGrid, label);
+            return;
+        }
+
         foreach (var column in rootGrid.ColumnDefinitions)
         {
             Assert.IsGreaterThanOrEqualTo(200, column.ActualWidth,
                 $"{label} collapses a primary workspace column to {column.ActualWidth:0.#} px.");
         }
+    }
+
+    private static void AssertSettingsColumnsRemainUsable(Grid rootGrid, string label)
+    {
+        Assert.AreEqual(3, rootGrid.ColumnDefinitions.Count,
+            $"{label} must keep two content columns separated by one divider.");
+
+        foreach (var index in new[] { 0, 2 })
+        {
+            var content = rootGrid.ColumnDefinitions[index];
+            Assert.IsTrue(content.Width.IsStar,
+                $"{label} content column {index} must remain star-sized.");
+            Assert.IsGreaterThanOrEqualTo(200, content.ActualWidth,
+                $"{label} collapses Settings content column {index} to {content.ActualWidth:0.#} px.");
+        }
+
+        var divider = rootGrid.ColumnDefinitions[1];
+        Assert.IsTrue(divider.Width.IsAbsolute,
+            $"{label} Settings divider must remain fixed-width.");
+        Assert.AreEqual(1d, divider.Width.Value, 0.01d,
+            $"{label} declares a {divider.Width.Value:0.##}-DIP Settings divider instead of 1 DIP.");
+        Assert.AreEqual(1d, divider.ActualWidth, 0.5d,
+            $"{label} renders a {divider.ActualWidth:0.##}-DIP Settings divider instead of 1 DIP.");
     }
 
     private static Rect Bounds(FrameworkElement element, Window window) =>
