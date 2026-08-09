@@ -13,6 +13,13 @@ public sealed class LocalizationSurfaceTests
         "RAW", "HEX", "PAYLOAD", "DTR", "RTS", "•••", "—"
     };
 
+    private static readonly HashSet<string> RussianNeutralWords = new(StringComparer.Ordinal)
+    {
+        "AI", "BCBP", "COM", "CSV", "EAN/UPC", "English", "Enter", "GS", "GS1", "GTIN",
+        "GitHub", "HEX", "HTTP", "HTTPS", "IATA", "JSON", "RAW", "Releases", "RTS", "Scanio", "SQLite",
+        "SSCC", "Tab", "TXT", "URL", "USB", "UTF-8", "Windows", "XON/XOFF"
+    };
+
     [TestMethod]
     public void EveryVisibleXamlLiteral_IsNeutralOrResourceBound()
     {
@@ -77,6 +84,41 @@ public sealed class LocalizationSurfaceTests
         Assert.IsTrue(english["Connection.Keyboard.Warning"].Contains("focused", StringComparison.OrdinalIgnoreCase));
     }
 
+    [TestMethod]
+    public void RussianDisplayResources_ContainOnlyRussianCopyAndApprovedTechnicalTokens()
+    {
+        var directory = Path.Combine(AppContext.BaseDirectory, "LayoutContracts");
+        var russian = ResourceValues(Path.Combine(directory, "Strings.resx"));
+        var retiredCopy = new[]
+        {
+            "Терминатор",
+            "Пауза чтения",
+            "Точный формат данных",
+            "Предположение по структуре",
+            "Строка элементов GS1"
+        };
+
+        var leakedWords = russian
+            .SelectMany(pair => LatinWords(pair.Value).Select(word => $"{pair.Key}: {word}"))
+            .Where(entry => !RussianNeutralWords.Contains(entry[(entry.LastIndexOf(' ') + 1)..]))
+            .ToArray();
+        var retiredValues = russian
+            .Where(pair => retiredCopy.Contains(pair.Value, StringComparer.Ordinal))
+            .Select(pair => $"{pair.Key}: {pair.Value}")
+            .ToArray();
+
+        Assert.IsEmpty(
+            leakedWords,
+            $"Russian display copy leaks non-approved English words: {string.Join(", ", leakedWords)}");
+        Assert.IsFalse(
+            russian.Values.Any(value => value.Contains("Termination", StringComparison.Ordinal) ||
+                                         value.Contains("Portable", StringComparison.Ordinal)),
+            "Russian display copy must translate known Termination and Portable leaks.");
+        Assert.IsEmpty(
+            retiredValues,
+            $"Russian display copy still contains retired literal phrasing: {string.Join(", ", retiredValues)}");
+    }
+
     private static string[] ResourceKeys(string path) => XDocument.Load(path)
         .Root!
         .Elements("data")
@@ -91,4 +133,29 @@ public sealed class LocalizationSurfaceTests
             element => element.Attribute("name")!.Value,
             element => element.Element("value")!.Value,
             StringComparer.Ordinal);
+
+    private static IEnumerable<string> LatinWords(string value)
+    {
+        var start = -1;
+        for (var index = 0; index <= value.Length; index++)
+        {
+            var character = index < value.Length ? value[index] : '\0';
+            var belongsToWord = character is >= 'A' and <= 'Z' or >= 'a' and <= 'z' or >= '0' and <= '9' or
+                '/' or '+' or '-' or '.';
+            if (belongsToWord && start < 0)
+            {
+                start = index;
+            }
+            else if (!belongsToWord && start >= 0)
+            {
+                var word = value[start..index].TrimEnd('.', '-', '/');
+                if (word.Any(character => character is >= 'A' and <= 'Z' or >= 'a' and <= 'z'))
+                {
+                    yield return word;
+                }
+
+                start = -1;
+            }
+        }
+    }
 }

@@ -9,6 +9,11 @@
     <Color x:Key="Color.BorderDefault">#CFCBC0</Color>
     <Color x:Key="Color.Signal">#008FD5</Color>
     <Color x:Key="Color.SignalSurface">#DCEFF7</Color>
+    <Color x:Key="Color.ActionPrimary">#171A1D</Color>
+    <Color x:Key="Color.ActionPrimaryHover">#2A3035</Color>
+    <Color x:Key="Color.ActionPrimaryPressed">#0D0F11</Color>
+    <Color x:Key="Color.ActionDisabled">#D8D5CD</Color>
+    <Color x:Key="Color.ActionTextDisabled">#777873</Color>
     <Color x:Key="Color.Success">#156C52</Color>
     <Color x:Key="Color.SuccessSurface">#DDECE6</Color>
     <Color x:Key="Color.Warning">#8A570C</Color>
@@ -25,6 +30,11 @@
     <SolidColorBrush x:Key="Brush.BorderDefault" Color="{DynamicResource Color.BorderDefault}" />
     <SolidColorBrush x:Key="Brush.Signal" Color="{DynamicResource Color.Signal}" />
     <SolidColorBrush x:Key="Brush.SignalSurface" Color="{DynamicResource Color.SignalSurface}" />
+    <SolidColorBrush x:Key="Brush.ActionPrimary" Color="{DynamicResource Color.ActionPrimary}" />
+    <SolidColorBrush x:Key="Brush.ActionPrimaryHover" Color="{DynamicResource Color.ActionPrimaryHover}" />
+    <SolidColorBrush x:Key="Brush.ActionPrimaryPressed" Color="{DynamicResource Color.ActionPrimaryPressed}" />
+    <SolidColorBrush x:Key="Brush.ActionDisabled" Color="{DynamicResource Color.ActionDisabled}" />
+    <SolidColorBrush x:Key="Brush.ActionTextDisabled" Color="{DynamicResource Color.ActionTextDisabled}" />
     <SolidColorBrush x:Key="Brush.Success" Color="{DynamicResource Color.Success}" />
     <SolidColorBrush x:Key="Brush.SuccessSurface" Color="{DynamicResource Color.SuccessSurface}" />
     <SolidColorBrush x:Key="Brush.Warning" Color="{DynamicResource Color.Warning}" />

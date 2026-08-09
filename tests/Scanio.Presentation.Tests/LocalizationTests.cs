@@ -41,6 +41,18 @@ public sealed class LocalizationTests
         Assert.AreEqual("Missing.Resource", localizer["Missing.Resource"]);
     }
 
+    [TestMethod]
+    public void RussianOperationalCopy_UsesTheApprovedPlainLanguage()
+    {
+        var localizer = new UiLocalizer(new InMemorySettingsService(new AppSettings()));
+
+        Assert.AreEqual("Завершён по символу окончания", localizer["Completion.Terminator"]);
+        Assert.AreEqual("Завершён после паузы", localizer["Completion.SilenceTimeout"]);
+        Assert.AreEqual("Распознано точно", localizer["Confidence.Exact"]);
+        Assert.AreEqual("Похоже на этот формат", localizer["Confidence.Inferred"]);
+        Assert.AreEqual("Данные GS1", localizer["Analysis.Format.GS1"]);
+    }
+
     private sealed class InMemorySettingsService : IAppSettingsService
     {
         public InMemorySettingsService(AppSettings current) => Current = current;

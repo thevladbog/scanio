@@ -122,7 +122,7 @@ public sealed class MonitorViewModelTests
 
         Assert.HasCount(1, viewModel.SelectedEvent!.Analyses);
         var displayed = viewModel.SelectedEvent.Analyses.Single();
-        Assert.AreEqual("Предположение по структуре", displayed.Confidence);
+        Assert.AreEqual("Похоже на этот формат", displayed.Confidence);
         Assert.AreEqual("04601234567893", displayed.Fields.Single().Value);
         CollectionAssert.Contains(displayed.Errors.ToArray(), "Ошибка проверки: Fixture error.");
         CollectionAssert.Contains(displayed.Warnings.ToArray(), "Предупреждение проверки: Fixture warning.");
@@ -139,7 +139,7 @@ public sealed class MonitorViewModelTests
             "Marking payload.",
             validationWarnings:
             [
-                "Variable-length AI 21 reaches the end of the payload; a missing GS separator may make following fields ambiguous.",
+                "Variable-length AI 92 reaches the end of the payload; a missing GS separator may make following fields ambiguous.",
                 "Verification key AI 91 is not present.",
                 "Crypto tail AI 92 is not present.",
                 "Product-group candidates use bundled structural rules only; official online validity was not checked."
@@ -148,10 +148,14 @@ public sealed class MonitorViewModelTests
 
         var displayed = new AnalysisItemViewModel(analysis, localizer);
 
+        Assert.AreEqual(
+            "Variable-length AI 92 reaches the end of the payload; a missing GS separator may make following fields ambiguous.",
+            analysis.ValidationWarnings[0],
+            "The analyzer/domain warning must remain unchanged at the presentation boundary.");
         CollectionAssert.AreEqual(
             new[]
             {
-                "Поле переменной длины AI 21 дошло до конца данных. Возможно, пропущен разделитель GS, поэтому следующие поля могут быть разобраны неоднозначно.",
+                "Поле 92 (AI 92) прочитано до конца кода. Это нормально, если оно последнее. Если после него должны быть другие данные, сканер не передал разделитель GS.",
                 "В данных нет ключа проверки с идентификатором применения AI 91.",
                 "В данных нет криптографического хвоста с идентификатором применения AI 92.",
                 "Товарная группа определена только по встроенным структурным правилам; официальная онлайн-проверка не выполнялась."
@@ -175,7 +179,7 @@ public sealed class MonitorViewModelTests
 
         var selected = viewModel.SelectedEvent!;
         CollectionAssert.AreEqual(
-            new[] { "Честный знак", "Строка элементов GS1" },
+            new[] { "Честный знак", "Данные GS1" },
             selected.Analyses.Select(item => item.Format).ToArray());
         Assert.AreEqual("Честный знак", selected.Format);
     }
@@ -200,7 +204,7 @@ public sealed class MonitorViewModelTests
             new FakeClipboardService(),
             localizer);
 
-        Assert.AreEqual("Строка элементов GS1", viewModel.SelectedEvent!.Format);
+        Assert.AreEqual("Данные GS1", viewModel.SelectedEvent!.Format);
         Assert.AreEqual("Партия", viewModel.SelectedEvent.Analyses.Single().Fields.Single().Name);
 
         localizer.SetLanguage(UiLanguage.English);

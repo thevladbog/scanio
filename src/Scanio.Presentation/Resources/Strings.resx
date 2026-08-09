@@ -31,8 +31,8 @@
   <data name="Settings.Monitor" xml:space="preserve"><value>Отображение монитора</value></data>
   <data name="Settings.Density" xml:space="preserve"><value>Плотность списков</value></data>
   <data name="Settings.LocalData" xml:space="preserve"><value>Локальные данные</value></data>
-  <data name="Confidence.Exact" xml:space="preserve"><value>Точный формат данных</value></data>
-  <data name="Confidence.Inferred" xml:space="preserve"><value>Предположение по структуре</value></data>
+  <data name="Confidence.Exact" xml:space="preserve"><value>Распознано точно</value></data>
+  <data name="Confidence.Inferred" xml:space="preserve"><value>Похоже на этот формат</value></data>
   <data name="Confidence.Unknown" xml:space="preserve"><value>Не определено</value></data>
   <data name="Standard.HEX" xml:space="preserve"><value>HEX</value></data>
   <data name="Connection.State.Detected" xml:space="preserve"><value>Обнаружено</value></data>
@@ -65,7 +65,7 @@
   <data name="Settings.Compact" xml:space="preserve"><value>Компактная</value></data>
   <data name="Settings.Comfortable" xml:space="preserve"><value>Комфортная</value></data>
   <data name="Settings.Mode" xml:space="preserve"><value>Режим</value></data>
-  <data name="Settings.Portable" xml:space="preserve"><value>Portable</value></data>
+  <data name="Settings.Portable" xml:space="preserve"><value>Портативный режим</value></data>
   <data name="Settings.Installed" xml:space="preserve"><value>Установлено</value></data>
   <data name="Settings.DatabasePath" xml:space="preserve"><value>База данных</value></data>
   <data name="Settings.Version" xml:space="preserve"><value>Версия</value></data>
@@ -73,8 +73,8 @@
   <data name="Settings.OpenReleases" xml:space="preserve"><value>Открыть GitHub Releases</value></data>
   <data name="Analysis.UnknownFormat" xml:space="preserve"><value>Не определено</value></data>
   <data name="Analysis.NoMatch" xml:space="preserve"><value>Ни один анализатор не распознал структуру.</value></data>
-  <data name="Completion.Terminator" xml:space="preserve"><value>Терминатор</value></data>
-  <data name="Completion.SilenceTimeout" xml:space="preserve"><value>Пауза чтения</value></data>
+  <data name="Completion.Terminator" xml:space="preserve"><value>Завершён по символу окончания</value></data>
+  <data name="Completion.SilenceTimeout" xml:space="preserve"><value>Завершён после паузы</value></data>
   <data name="Completion.BufferOverflow" xml:space="preserve"><value>Переполнение буфера</value></data>
   <data name="Common.Refresh" xml:space="preserve"><value>Обновить</value></data>
   <data name="Common.Bytes" xml:space="preserve"><value>байт</value></data>
@@ -152,7 +152,7 @@
   <data name="History.Rename" xml:space="preserve"><value>Переименовать</value></data>
   <data name="History.DeleteSelected" xml:space="preserve"><value>Удалить выбранную сессию</value></data>
   <data name="History.NotFinished" xml:space="preserve"><value>Не завершена</value></data>
-  <data name="Analysis.Format.GS1" xml:space="preserve"><value>Строка элементов GS1</value></data>
+  <data name="Analysis.Format.GS1" xml:space="preserve"><value>Данные GS1</value></data>
   <data name="Analysis.Format.PlainText" xml:space="preserve"><value>Обычный текст</value></data>
   <data name="Analysis.Format.HonestSign" xml:space="preserve"><value>Честный знак</value></data>
   <data name="Analysis.EAN/UPC.Evidence" xml:space="preserve"><value>Длина цифровой строки соответствует формату; проверена контрольная цифра.</value></data>
@@ -171,7 +171,7 @@
   <data name="Analysis.Generic.Summary" xml:space="preserve"><value>Результат структурного анализа.</value></data>
   <data name="Analysis.ValidationError" xml:space="preserve"><value>Ошибка проверки: {0}</value></data>
   <data name="Analysis.ValidationWarning" xml:space="preserve"><value>Предупреждение проверки: {0}</value></data>
-  <data name="Analysis.Warning.VariableLengthAiAtEnd" xml:space="preserve"><value>Поле переменной длины AI {0} дошло до конца данных. Возможно, пропущен разделитель GS, поэтому следующие поля могут быть разобраны неоднозначно.</value></data>
+  <data name="Analysis.Warning.VariableLengthAiAtEnd" xml:space="preserve"><value>Поле {0} (AI {0}) прочитано до конца кода. Это нормально, если оно последнее. Если после него должны быть другие данные, сканер не передал разделитель GS.</value></data>
   <data name="Analysis.Warning.VerificationKeyMissing" xml:space="preserve"><value>В данных нет ключа проверки с идентификатором применения AI 91.</value></data>
   <data name="Analysis.Warning.CryptoTailMissing" xml:space="preserve"><value>В данных нет криптографического хвоста с идентификатором применения AI 92.</value></data>
   <data name="Analysis.Warning.ProductGroupOffline" xml:space="preserve"><value>Товарная группа определена только по встроенным структурным правилам; официальная онлайн-проверка не выполнялась.</value></data>
