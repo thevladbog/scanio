@@ -59,6 +59,15 @@ public sealed class NotebookViewModelTests
         await viewModel.RefreshCommand.ExecuteAsync();
         await viewModel.OpenCommand.ExecuteAsync();
         Assert.HasCount(1, viewModel.Records);
+        await viewModel.CopyAllCommand.ExecuteAsync();
+        await viewModel.CopyUniqueCommand.ExecuteAsync();
+        await viewModel.CopyEscapedCommand.ExecuteAsync();
+        await viewModel.ExportTextCommand.ExecuteAsync();
+        await viewModel.ExportCsvCommand.ExecuteAsync();
+        await viewModel.ExportJsonCommand.ExecuteAsync();
+        CollectionAssert.AreEqual(
+            new[] { NotebookExportFormat.Text, NotebookExportFormat.Csv, NotebookExportFormat.Json },
+            interaction.RequestedFormats.ToArray());
         viewModel.RenameText = "Renamed";
         await viewModel.RenameCommand.ExecuteAsync();
         Assert.AreEqual("Renamed", viewModel.Sessions.Single().Name);

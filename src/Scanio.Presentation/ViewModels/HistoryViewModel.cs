@@ -36,7 +36,6 @@ public sealed class HistoryViewModel : ObservableObject
     private readonly SynchronizationContext? _synchronizationContext = SynchronizationContext.Current;
     private NotebookSessionItemViewModel? _selectedSession;
     private string _renameText = string.Empty;
-    private NotebookExportFormat _selectedExportFormat = NotebookExportFormat.Csv;
 
     public HistoryViewModel(
         INotebookRepository repository,
@@ -53,8 +52,12 @@ public sealed class HistoryViewModel : ObservableObject
         RenameCommand = new AsyncCommand(_ => ExecuteSafelyAsync(RenameAsync), () =>
             CanMutateSelectedSession && !string.IsNullOrWhiteSpace(RenameText));
         DeleteCommand = new AsyncCommand(_ => ExecuteSafelyAsync(DeleteAsync), () => CanMutateSelectedSession);
-        CopyCommand = new AsyncCommand(_ => ExecuteSafelyAsync(CopyAsync), () => Records.Count > 0);
-        ExportCommand = new AsyncCommand(_ => ExecuteSafelyAsync(ExportAsync), () => Records.Count > 0);
+        CopyAllCommand = RecordCommand(CopyAllAsync);
+        CopyUniqueCommand = RecordCommand(CopyUniqueAsync);
+        CopyEscapedCommand = RecordCommand(CopyEscapedAsync);
+        ExportTextCommand = ExportCommand(NotebookExportFormat.Text);
+        ExportCsvCommand = ExportCommand(NotebookExportFormat.Csv);
+        ExportJsonCommand = ExportCommand(NotebookExportFormat.Json);
         if (_recorder is not null)
         {
             _recorder.Changed += (_, _) => RunOnUi(() =>
@@ -95,20 +98,17 @@ public sealed class HistoryViewModel : ObservableObject
         }
     }
 
-    public NotebookExportFormat SelectedExportFormat
-    {
-        get => _selectedExportFormat;
-        set => SetProperty(ref _selectedExportFormat, value);
-    }
-
-    public IReadOnlyList<NotebookExportFormat> ExportFormats { get; } = Enum.GetValues<NotebookExportFormat>();
-
     public AsyncCommand RefreshCommand { get; }
     public AsyncCommand OpenCommand { get; }
     public AsyncCommand RenameCommand { get; }
     public AsyncCommand DeleteCommand { get; }
-    public AsyncCommand CopyCommand { get; }
-    public AsyncCommand ExportCommand { get; }
+    public AsyncCommand CopyAllCommand { get; }
+    public AsyncCommand CopyUniqueCommand { get; }
+    public AsyncCommand CopyEscapedCommand { get; }
+    public AsyncCommand ExportTextCommand { get; }
+    public AsyncCommand ExportCsvCommand { get; }
+    public AsyncCommand ExportJsonCommand { get; }
+    public int RecordCount => Records.Count;
 
     private bool CanMutateSelectedSession =>
         SelectedSession is not null && _recorder?.CurrentSession?.Id != SelectedSession.Session.Id;
@@ -162,19 +162,35 @@ public sealed class HistoryViewModel : ObservableObject
         await RefreshAsync();
     }
 
-    private Task CopyAsync()
+    private Task CopyAllAsync()
+    {
+        _interaction.SetClipboardText(string.Join(
+            Environment.NewLine,
+            Records.Select(item => item.Record.Decoded.Text)));
+        return Task.CompletedTask;
+    }
+
+    private Task CopyUniqueAsync()
+    {
+        _interaction.SetClipboardText(string.Join(
+            Environment.NewLine,
+            Records.Select(item => item.Record.Decoded.Text).Distinct(StringComparer.Ordinal)));
+        return Task.CompletedTask;
+    }
+
+    private Task CopyEscapedAsync()
     {
         _interaction.SetClipboardText(NotebookExportService.BuildClipboardText(Records.Select(item => item.Record)));
         return Task.CompletedTask;
     }
 
-    private Task ExportAsync()
+    private Task ExportAsync(NotebookExportFormat format)
     {
         var selected = SelectedSession ?? throw new InvalidOperationException("Select a notebook session first.");
-        var path = _interaction.ChooseExportPath(SelectedExportFormat, selected.Name);
+        var path = _interaction.ChooseExportPath(format, selected.Name);
         if (path is not null)
         {
-            NotebookExportService.Export(path, SelectedExportFormat, Records.Select(item => item.Record));
+            NotebookExportService.Export(path, format, Records.Select(item => item.Record));
         }
 
         return Task.CompletedTask;
@@ -194,9 +210,20 @@ public sealed class HistoryViewModel : ObservableObject
 
     private void RaiseRecordCommands()
     {
-        CopyCommand.RaiseCanExecuteChanged();
-        ExportCommand.RaiseCanExecuteChanged();
+        OnPropertyChanged(nameof(RecordCount));
+        CopyAllCommand.RaiseCanExecuteChanged();
+        CopyUniqueCommand.RaiseCanExecuteChanged();
+        CopyEscapedCommand.RaiseCanExecuteChanged();
+        ExportTextCommand.RaiseCanExecuteChanged();
+        ExportCsvCommand.RaiseCanExecuteChanged();
+        ExportJsonCommand.RaiseCanExecuteChanged();
     }
+
+    private AsyncCommand RecordCommand(Func<Task> action) =>
+        new(_ => ExecuteSafelyAsync(action), () => Records.Count > 0);
+
+    private AsyncCommand ExportCommand(NotebookExportFormat format) =>
+        new(_ => ExecuteSafelyAsync(() => ExportAsync(format)), () => Records.Count > 0);
 
     private void EnsureSessionIsNotActive(NotebookSessionItemViewModel selected)
     {
