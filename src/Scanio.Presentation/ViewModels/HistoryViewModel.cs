@@ -43,6 +43,7 @@ public sealed class HistoryViewModel : ObservableObject
     private readonly NotebookRecorder? _recorder;
     private readonly IUiLocalizer? _localizer;
     private readonly SynchronizationContext? _synchronizationContext = SynchronizationContext.Current;
+    private readonly List<NotebookRecord> _occurrences = [];
     private NotebookSessionItemViewModel? _selectedSession;
     private string _renameText = string.Empty;
 
@@ -125,7 +126,7 @@ public sealed class HistoryViewModel : ObservableObject
     public AsyncCommand ExportReadableTextCommand { get; }
     public AsyncCommand ExportCsvCommand { get; }
     public AsyncCommand ExportJsonCommand { get; }
-    public int RecordCount => Records.Count;
+    public int RecordCount => _occurrences.Count;
 
     private bool CanMutateSelectedSession =>
         SelectedSession is not null && _recorder?.CurrentSession?.Id != SelectedSession.Session.Id;
@@ -141,6 +142,7 @@ public sealed class HistoryViewModel : ObservableObject
         }
 
         SelectedSession = Sessions.FirstOrDefault();
+        _occurrences.Clear();
         Records.Clear();
         RaiseRecordCommands();
     }
@@ -149,10 +151,12 @@ public sealed class HistoryViewModel : ObservableObject
     {
         var selected = SelectedSession ?? throw new InvalidOperationException("Select a notebook session first.");
         var records = await Task.Run(() => _repository.GetRecords(selected.Session.Id));
+        _occurrences.Clear();
+        _occurrences.AddRange(records);
         Records.Clear();
-        foreach (var record in records)
+        foreach (var item in NotebookRecordGrouping.Build(_occurrences, _localizer))
         {
-            Records.Add(new NotebookRecordItemViewModel(record, _localizer));
+            Records.Add(item);
         }
 
         RaiseRecordCommands();
@@ -182,7 +186,7 @@ public sealed class HistoryViewModel : ObservableObject
     private Task CopyExactAsync(bool unique)
     {
         _interaction.SetClipboardText(NotebookExportService.BuildExactClipboardText(
-            Records.Select(item => item.Record),
+            _occurrences,
             unique));
         return Task.CompletedTask;
     }
@@ -190,7 +194,7 @@ public sealed class HistoryViewModel : ObservableObject
     private Task CopyReadableAsync()
     {
         _interaction.SetClipboardText(NotebookExportService.BuildReadableClipboardText(
-            Records.Select(item => item.Record)));
+            _occurrences));
         return Task.CompletedTask;
     }
 
@@ -200,7 +204,7 @@ public sealed class HistoryViewModel : ObservableObject
         var path = _interaction.ChooseExportPath(format, selected.Name);
         if (path is not null)
         {
-            NotebookExportService.Export(path, format, Records.Select(item => item.Record));
+            NotebookExportService.Export(path, format, _occurrences);
         }
 
         return Task.CompletedTask;
@@ -231,10 +235,10 @@ public sealed class HistoryViewModel : ObservableObject
     }
 
     private AsyncCommand RecordCommand(Func<Task> action) =>
-        new(_ => ExecuteSafelyAsync(action), () => Records.Count > 0);
+        new(_ => ExecuteSafelyAsync(action), () => _occurrences.Count > 0);
 
     private AsyncCommand ExportCommand(NotebookExportFormat format) =>
-        new(_ => ExecuteSafelyAsync(() => ExportAsync(format)), () => Records.Count > 0);
+        new(_ => ExecuteSafelyAsync(() => ExportAsync(format)), () => _occurrences.Count > 0);
 
     private void EnsureSessionIsNotActive(NotebookSessionItemViewModel selected)
     {

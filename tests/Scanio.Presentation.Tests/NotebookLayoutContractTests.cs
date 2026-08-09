@@ -58,6 +58,17 @@ public sealed class NotebookLayoutContractTests
     }
 
     [TestMethod]
+    public void Notebook_UsesLocalizedOccurrenceLabelInTheLastRecordColumn()
+    {
+        var document = XDocument.Load(Path.Combine(AppContext.BaseDirectory, "LayoutContracts", "NotebookView.xaml"));
+
+        var lastColumn = document.Descendants(Presentation + "TextBlock")
+            .Single(element => (string?)element.Attribute("Grid.Column") == "4");
+        Assert.AreEqual("{Binding OccurrenceLabel}", (string?)lastColumn.Attribute("Text"));
+        Assert.IsFalse(lastColumn.Attributes().Any(attribute => attribute.Value.Contains("StringFormat=×", StringComparison.Ordinal)));
+    }
+
+    [TestMethod]
     public void NotebookAndHistory_ExposeReadableTextExportAction()
     {
         foreach (var fileName in new[] { "NotebookView.xaml", "HistoryView.xaml" })

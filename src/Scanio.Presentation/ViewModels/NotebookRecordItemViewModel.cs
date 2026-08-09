@@ -1,5 +1,6 @@
 using Scanio.Application.Notebook;
 using Scanio.Presentation.Localization;
+using Scanio.Presentation.Settings;
 
 namespace Scanio.Presentation.ViewModels;
 
@@ -10,7 +11,8 @@ public sealed class NotebookRecordItemViewModel : ObservableObject
     public NotebookRecordItemViewModel(
         NotebookRecord record,
         IUiLocalizer? localizer = null,
-        bool pulseArrival = false)
+        bool pulseArrival = false,
+        int occurrenceCount = 1)
     {
         ArgumentNullException.ThrowIfNull(record);
         Record = record;
@@ -26,6 +28,10 @@ public sealed class NotebookRecordItemViewModel : ObservableObject
         Transport = record.Scan.Transport.DisplayName;
         ByteCount = record.Scan.RawBytes.Length;
         DuplicateCount = record.DuplicateCount;
+        OccurrenceCount = occurrenceCount;
+        OccurrenceLabel = FormatOccurrenceCount(
+            occurrenceCount,
+            localizer?.Language ?? UiLanguage.Russian);
         _isArrivalPulseActive = pulseArrival;
     }
 
@@ -37,7 +43,9 @@ public sealed class NotebookRecordItemViewModel : ObservableObject
     public string Transport { get; }
     public int ByteCount { get; }
     public int DuplicateCount { get; }
-    public bool IsDuplicate => DuplicateCount > 1;
+    public int OccurrenceCount { get; }
+    public string OccurrenceLabel { get; }
+    public bool IsDuplicate => OccurrenceCount > 1;
 
     public bool IsArrivalPulseActive
     {
@@ -46,4 +54,12 @@ public sealed class NotebookRecordItemViewModel : ObservableObject
     }
 
     public void ClearArrivalPulse() => IsArrivalPulseActive = false;
+
+    public static string FormatOccurrenceCount(int count, UiLanguage language) =>
+        count <= 1 ? string.Empty :
+        language == UiLanguage.English ? $"{count} scans" :
+        count % 10 == 1 && count % 100 != 11 ? $"{count} раз" :
+        count % 10 is >= 2 and <= 4 && count % 100 is not (>= 12 and <= 14)
+            ? $"{count} раза"
+            : $"{count} раз";
 }

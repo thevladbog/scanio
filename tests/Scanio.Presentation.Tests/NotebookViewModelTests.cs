@@ -27,7 +27,9 @@ public sealed class NotebookViewModelTests
         await viewModel.CopyAllCommand.ExecuteAsync();
 
         Assert.AreEqual("Запись выключена", viewModel.StateLabel);
-        Assert.HasCount(2, viewModel.Records);
+        Assert.HasCount(1, viewModel.Records);
+        Assert.AreEqual(2, viewModel.Records.Single().OccurrenceCount);
+        Assert.AreEqual("2 раза", viewModel.Records.Single().OccurrenceLabel);
         Assert.AreEqual("one" + Environment.NewLine + "one", interaction.ClipboardText);
         Assert.AreEqual(2, viewModel.TotalCount);
         Assert.AreEqual(1, viewModel.UniqueCount);
@@ -97,13 +99,16 @@ public sealed class NotebookViewModelTests
         await viewModel.StopCommand.ExecuteAsync();
         await viewModel.CopyUniqueCommand.ExecuteAsync();
 
+        Assert.HasCount(2, viewModel.Records);
+        Assert.IsTrue(viewModel.Records.All(item => item.OccurrenceCount == 1));
+        Assert.IsTrue(viewModel.Records.All(item => item.OccurrenceLabel == string.Empty));
         Assert.AreEqual(2, viewModel.UniqueCount);
         Assert.AreEqual(0, viewModel.DuplicateCount);
         Assert.AreEqual($"same{Environment.NewLine}same", interaction.ClipboardText);
     }
 
     [TestMethod]
-    public async Task Notebook_NewRowsPulseAsUniqueOrDuplicateAndThenClear()
+    public async Task Notebook_RepeatedGroupMovesToLatestPositionAndOwnsTheArrivalPulse()
     {
         var monitor = new LiveMonitor();
         var repository = new FakeRepository();
@@ -126,18 +131,30 @@ public sealed class NotebookViewModelTests
 
         Assert.IsFalse(viewModel.ExportReadableTextCommand.CanExecute(null));
         await viewModel.StartCommand.ExecuteAsync();
-        monitor.Append(CreateScan(1, "one"), CreateDecoded("one"), []);
-        monitor.Append(CreateScan(2, "one"), CreateDecoded("one"), []);
+        monitor.Append(CreateScan(1, "A"), CreateDecoded("A"), []);
+        monitor.Append(CreateScan(2, "B"), CreateDecoded("B"), []);
+        monitor.Append(CreateScan(3, "A"), CreateDecoded("A"), []);
         await viewModel.StopCommand.ExecuteAsync();
 
         Assert.HasCount(2, viewModel.Records);
-        Assert.IsTrue(viewModel.Records[0].IsArrivalPulseActive);
+        Assert.AreEqual("B", viewModel.Records[0].Payload);
+        Assert.AreEqual(2, viewModel.Records[0].Sequence);
+        Assert.IsFalse(viewModel.Records[0].IsArrivalPulseActive);
         Assert.IsFalse(viewModel.Records[0].IsDuplicate);
+        Assert.AreEqual("A", viewModel.Records[1].Payload);
+        Assert.AreEqual(3, viewModel.Records[1].Sequence);
+        Assert.AreEqual(2, viewModel.Records[1].OccurrenceCount);
+        Assert.AreEqual("2 раза", viewModel.Records[1].OccurrenceLabel);
         Assert.IsTrue(viewModel.Records[1].IsArrivalPulseActive);
         Assert.IsTrue(viewModel.Records[1].IsDuplicate);
         Assert.IsTrue(viewModel.ExportReadableTextCommand.CanExecute(null));
         CollectionAssert.AreEqual(
-            new[] { TimeSpan.FromMilliseconds(600), TimeSpan.FromMilliseconds(600) },
+            new[]
+            {
+                TimeSpan.FromMilliseconds(600),
+                TimeSpan.FromMilliseconds(600),
+                TimeSpan.FromMilliseconds(600)
+            },
             requestedPulseDurations);
 
         var clearedProperties = new List<string?>();
@@ -149,7 +166,7 @@ public sealed class NotebookViewModelTests
         releasePulse.SetResult();
         await WaitUntilAsync(() => viewModel.Records.All(item => !item.IsArrivalPulseActive));
 
-        Assert.AreEqual(2, clearedProperties.Count(name => name == nameof(NotebookRecordItemViewModel.IsArrivalPulseActive)));
+        Assert.AreEqual(1, clearedProperties.Count(name => name == nameof(NotebookRecordItemViewModel.IsArrivalPulseActive)));
 
         var historical = new NotebookRecordItemViewModel(
             CreateRecord(Guid.NewGuid(), 3, "historical"));
@@ -214,6 +231,45 @@ public sealed class NotebookViewModelTests
         Assert.AreEqual("Renamed", viewModel.Sessions.Single().Name);
         await viewModel.DeleteCommand.ExecuteAsync();
         Assert.IsEmpty(viewModel.Sessions);
+    }
+
+    [TestMethod]
+    public async Task History_GroupsLatestPayloadRowsButCopiesEveryOccurrence()
+    {
+        var repository = new FakeRepository();
+        var session = repository.CreateSession("Grouped", DateTimeOffset.UnixEpoch);
+        repository.Append(CreateRecord(session.Id, 1, "A"));
+        repository.Append(CreateRecord(session.Id, 2, "B"));
+        repository.Append(CreateRecord(session.Id, 3, "A"));
+        var interaction = new FakeInteraction();
+        var viewModel = new HistoryViewModel(repository, interaction);
+
+        await viewModel.RefreshCommand.ExecuteAsync();
+        await viewModel.OpenCommand.ExecuteAsync();
+        await viewModel.CopyAllCommand.ExecuteAsync();
+
+        Assert.HasCount(2, viewModel.Records);
+        CollectionAssert.AreEqual(new[] { "B", "A" }, viewModel.Records.Select(item => item.Payload).ToArray());
+        Assert.AreEqual(3, viewModel.Records[1].Sequence);
+        Assert.AreEqual(2, viewModel.Records[1].OccurrenceCount);
+        Assert.AreEqual($"A{Environment.NewLine}B{Environment.NewLine}A", interaction.ClipboardText);
+    }
+
+    [TestMethod]
+    [DataRow(1, Scanio.Presentation.Settings.UiLanguage.Russian, "")]
+    [DataRow(2, Scanio.Presentation.Settings.UiLanguage.Russian, "2 раза")]
+    [DataRow(3, Scanio.Presentation.Settings.UiLanguage.Russian, "3 раза")]
+    [DataRow(5, Scanio.Presentation.Settings.UiLanguage.Russian, "5 раз")]
+    [DataRow(11, Scanio.Presentation.Settings.UiLanguage.Russian, "11 раз")]
+    [DataRow(21, Scanio.Presentation.Settings.UiLanguage.Russian, "21 раз")]
+    [DataRow(22, Scanio.Presentation.Settings.UiLanguage.Russian, "22 раза")]
+    [DataRow(2, Scanio.Presentation.Settings.UiLanguage.English, "2 scans")]
+    public void Occurrence_FormatsLocalizedCountLabel(
+        int count,
+        Scanio.Presentation.Settings.UiLanguage language,
+        string expected)
+    {
+        Assert.AreEqual(expected, NotebookRecordItemViewModel.FormatOccurrenceCount(count, language));
     }
 
     [TestMethod]

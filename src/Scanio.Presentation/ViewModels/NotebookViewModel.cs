@@ -13,6 +13,7 @@ public sealed class NotebookViewModel : ObservableObject
     private readonly IUiLocalizer? _localizer;
     private readonly Func<TimeSpan, Task> _delay;
     private readonly SynchronizationContext? _synchronizationContext = SynchronizationContext.Current;
+    private readonly List<NotebookRecord> _occurrences = [];
     private string _sessionName;
     private static readonly TimeSpan ArrivalPulseDuration = TimeSpan.FromMilliseconds(600);
 
@@ -46,11 +47,10 @@ public sealed class NotebookViewModel : ObservableObject
         {
             _localizer.PropertyChanged += (_, _) => RunOnUi(() =>
             {
-                var records = Records.Select(item => item.Record).ToArray();
                 Records.Clear();
-                foreach (var record in records)
+                foreach (var item in NotebookRecordGrouping.Build(_occurrences, _localizer))
                 {
-                    Records.Add(new NotebookRecordItemViewModel(record, _localizer));
+                    Records.Add(item);
                 }
 
                 OnPropertyChanged(nameof(StateLabel));
@@ -91,9 +91,9 @@ public sealed class NotebookViewModel : ObservableObject
     public bool IsOff => _recorder.State == NotebookRecordingState.Off;
     public bool IsRecording => _recorder.State == NotebookRecordingState.Recording;
     public bool IsPaused => _recorder.State == NotebookRecordingState.Paused;
-    public int TotalCount => Records.Count;
+    public int TotalCount => _occurrences.Count;
     public int UniqueCount => NotebookExportService.CountUniquePayloads(
-        Records.Select(item => item.Record));
+        _occurrences);
     public int DuplicateCount => Math.Max(0, TotalCount - UniqueCount);
     public string DeviceLabel => Records.FirstOrDefault()?.Record.Scan.Transport.DisplayName ?? "—";
 
@@ -112,6 +112,7 @@ public sealed class NotebookViewModel : ObservableObject
     private Task StartAsync()
     {
         _recorder.Start(SessionName);
+        _occurrences.Clear();
         Records.Clear();
         RaiseSummaryProperties();
         RaiseRecordCommands();
@@ -135,7 +136,7 @@ public sealed class NotebookViewModel : ObservableObject
     private Task CopyExactAsync(bool unique)
     {
         _interaction.SetClipboardText(NotebookExportService.BuildExactClipboardText(
-            Records.Select(item => item.Record),
+            _occurrences,
             unique));
         return Task.CompletedTask;
     }
@@ -143,7 +144,7 @@ public sealed class NotebookViewModel : ObservableObject
     private Task CopyReadableAsync()
     {
         _interaction.SetClipboardText(NotebookExportService.BuildReadableClipboardText(
-            Records.Select(item => item.Record)));
+            _occurrences));
         return Task.CompletedTask;
     }
 
@@ -152,7 +153,7 @@ public sealed class NotebookViewModel : ObservableObject
         var path = _interaction.ChooseExportPath(format, SanitizeFileName(SessionName));
         if (path is not null)
         {
-            NotebookExportService.Export(path, format, Records.Select(item => item.Record));
+            NotebookExportService.Export(path, format, _occurrences);
         }
 
         return Task.CompletedTask;
@@ -189,7 +190,28 @@ public sealed class NotebookViewModel : ObservableObject
 
     private void OnRecordPersisted(object? sender, NotebookRecordPersistedEventArgs args) => RunOnUi(() =>
     {
-        var item = new NotebookRecordItemViewModel(args.Record, _localizer, pulseArrival: true);
+        _occurrences.Add(args.Record);
+        foreach (var visibleItem in Records)
+        {
+            visibleItem.ClearArrivalPulse();
+        }
+
+        var key = NotebookPayloadIdentity.Create(args.Record.Scan.PayloadBytes.AsSpan());
+        var previous = Records.FirstOrDefault(item =>
+            StringComparer.Ordinal.Equals(
+                NotebookPayloadIdentity.Create(item.Record.Scan.PayloadBytes.AsSpan()),
+                key));
+        var occurrenceCount = previous?.OccurrenceCount + 1 ?? 1;
+        if (previous is not null)
+        {
+            Records.Remove(previous);
+        }
+
+        var item = new NotebookRecordItemViewModel(
+            args.Record,
+            _localizer,
+            pulseArrival: true,
+            occurrenceCount: occurrenceCount);
         Records.Add(item);
         Observe(ClearArrivalPulseAsync(item));
         RaiseSummaryProperties();
