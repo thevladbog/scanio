@@ -14,6 +14,7 @@
     <UseWPF Condition="'$(TargetFramework)' == 'net10.0-windows10.0.19041.0'">true</UseWPF>
     <OutputType Condition="'$(TargetFramework)' == 'net10.0-windows10.0.19041.0'">WinExe</OutputType>
     <RuntimeIdentifiers Condition="'$(TargetFramework)' == 'net10.0-windows10.0.19041.0'">win-x64</RuntimeIdentifiers>
+    <ApplicationIcon Condition="'$(TargetFramework)' == 'net10.0-windows10.0.19041.0'">Assets\scanio.ico</ApplicationIcon>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
   </PropertyGroup>
   <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">

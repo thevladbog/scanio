@@ -1,6 +1,6 @@
 # Scanio C+ design recovery specification
 
-**Status:** Proposed recovery specification for user review
+**Status:** Approved for implementation
 
 **Date:** 2026-08-09
 
