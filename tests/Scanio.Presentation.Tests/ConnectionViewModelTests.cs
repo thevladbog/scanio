@@ -343,6 +343,27 @@ public sealed class ConnectionViewModelTests
     }
 
     [TestMethod]
+    public async Task SerialPrimaryAction_SwitchesFromConnectToDisconnectAndBack()
+    {
+        var connection = new FakeConnectionService();
+        var viewModel = CreateViewModel(new FakeDeviceEnumerator(Device("COM7")), connection);
+        await viewModel.RefreshCommand.ExecuteAsync();
+
+        Assert.IsTrue(viewModel.IsSerialConnectVisible);
+        Assert.IsFalse(viewModel.IsSerialDisconnectVisible);
+
+        await viewModel.ConnectCommand.ExecuteAsync();
+
+        Assert.IsFalse(viewModel.IsSerialConnectVisible);
+        Assert.IsTrue(viewModel.IsSerialDisconnectVisible);
+
+        await viewModel.DisconnectCommand.ExecuteAsync();
+
+        Assert.IsTrue(viewModel.IsSerialConnectVisible);
+        Assert.IsFalse(viewModel.IsSerialDisconnectVisible);
+    }
+
+    [TestMethod]
     public void ConnectionSnapshot_ExposesEndpointAndFullFriendlyNameSeparately()
     {
         var identity = new TransportIdentity(
@@ -666,6 +687,17 @@ public sealed class ConnectionViewModelTests
             {
                 await _allowConnect.Task.WaitAsync(cancellationToken);
             }
+
+            var identity = new TransportIdentity(
+                TransportKind.Serial,
+                device.StableId ?? $"serial:{device.PortName}",
+                device.FriendlyName,
+                device.HardwareId,
+                device.PortName);
+            State = ConnectionState.Connected;
+            ActiveIdentity = identity;
+            CurrentSnapshot = new ConnectionPresentationSnapshot(identity, State, options);
+            StateChanged?.Invoke(this, new ConnectionStateChangedEventArgs(State, identity));
         }
 
         public Task DisconnectAsync(CancellationToken cancellationToken)
@@ -674,6 +706,7 @@ public sealed class ConnectionViewModelTests
             var priorIdentity = ActiveIdentity;
             State = ConnectionState.Disconnected;
             ActiveIdentity = null;
+            CurrentSnapshot = null;
             KeyboardCaptureInput.IsConnected = false;
             StateChanged?.Invoke(this, new ConnectionStateChangedEventArgs(State, priorIdentity));
             return Task.CompletedTask;

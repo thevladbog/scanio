@@ -116,6 +116,31 @@ public sealed class RenderedLayoutTests
                 {
                     Assert.AreEqual(ConnectionState.Connected, fixture.Connection.State, label);
                     Assert.IsNotNull(fixture.Connection.ConnectionSnapshot, label);
+
+                    var connectedAction = Descendants<Button>(fixture.Window)
+                        .Single(button =>
+                            button.IsVisible &&
+                            (ReferenceEquals(button.Command, fixture.Connection.ConnectCommand) ||
+                             ReferenceEquals(button.Command, fixture.Connection.DisconnectCommand)));
+                    Assert.AreSame(fixture.Connection.DisconnectCommand, connectedAction.Command, label);
+                    Assert.AreEqual(
+                        variant.Language == UiLanguage.Russian ? "Отключить" : "Disconnect",
+                        connectedAction.Content,
+                        $"{label} must replace Connect with Disconnect after a successful connection.");
+
+                    fixture.Connection.DisconnectCommand.ExecuteAsync().GetAwaiter().GetResult();
+                    fixture.Window.UpdateLayout();
+
+                    var disconnectedAction = Descendants<Button>(fixture.Window)
+                        .Single(button =>
+                            button.IsVisible &&
+                            (ReferenceEquals(button.Command, fixture.Connection.ConnectCommand) ||
+                             ReferenceEquals(button.Command, fixture.Connection.DisconnectCommand)));
+                    Assert.AreSame(fixture.Connection.ConnectCommand, disconnectedAction.Command, label);
+                    Assert.AreEqual(
+                        variant.Language == UiLanguage.Russian ? "Подключить" : "Connect",
+                        disconnectedAction.Content,
+                        $"{label} must restore Connect after disconnection.");
                 }
 
                 Assert.AreEqual(keyboardMode, captureSurface.IsVisible, label);
@@ -326,6 +351,7 @@ public sealed class RenderedLayoutTests
             Assert.IsGreaterThanOrEqualTo(1, button.ActualWidth, $"{label} has a zero-width button: {button.Content}");
             Assert.IsGreaterThanOrEqualTo(32, button.ActualHeight, $"{label} has an undersized action: {button.Content}");
             AssertInsideWindow(button, window, label);
+            AssertButtonLabelContrast(button, label);
         }
 
         AssertSiblingControlsDoNotOverlap(window, label);
@@ -339,6 +365,69 @@ public sealed class RenderedLayoutTests
         var viewport = new Rect(0, 0, window.ActualWidth, window.ActualHeight);
         Assert.IsTrue(viewport.Contains(bounds.TopLeft) && viewport.Contains(bounds.BottomRight),
             $"{label} clips action '{(element as Button)?.Content}' at {bounds} inside {viewport}.");
+    }
+
+    private static void AssertButtonLabelContrast(Button button, string label)
+    {
+        var background = FindEffectiveBackground(button);
+        var foregrounds = Descendants<TextBlock>(button)
+            .Where(text => text.IsVisible)
+            .Select(text => text.Foreground)
+            .OfType<SolidColorBrush>()
+            .Select(brush => brush.Color)
+            .ToArray();
+        if (foregrounds.Length == 0 && button.Foreground is SolidColorBrush buttonForeground)
+        {
+            foregrounds = [buttonForeground.Color];
+        }
+
+        Assert.IsNotNull(background, $"{label} cannot resolve the background behind '{button.Content}'.");
+        Assert.IsNotEmpty(foregrounds, $"{label} cannot resolve the label color for '{button.Content}'.");
+        var minimum = button.IsEnabled ? 4.5d : 3d;
+        foreach (var foreground in foregrounds)
+        {
+            var ratio = ContrastRatio(foreground, background.Value);
+            Assert.IsGreaterThanOrEqualTo(
+                minimum,
+                ratio,
+                $"{label} button '{button.Content}' has only {ratio:F2}:1 label contrast.");
+        }
+    }
+
+    private static Color? FindEffectiveBackground(DependencyObject element)
+    {
+        for (DependencyObject? current = element; current is not null; current = VisualTreeHelper.GetParent(current))
+        {
+            var brush = current switch
+            {
+                Control control => control.Background,
+                Panel panel => panel.Background,
+                Border border => border.Background,
+                _ => null
+            };
+            if (brush is SolidColorBrush solid && solid.Opacity > 0.01 && solid.Color.A > 0)
+            {
+                return solid.Color;
+            }
+        }
+
+        return null;
+    }
+
+    private static double ContrastRatio(Color first, Color second)
+    {
+        var lighter = Math.Max(RelativeLuminance(first), RelativeLuminance(second));
+        var darker = Math.Min(RelativeLuminance(first), RelativeLuminance(second));
+        return (lighter + 0.05d) / (darker + 0.05d);
+    }
+
+    private static double RelativeLuminance(Color color) =>
+        0.2126d * Linearize(color.R) + 0.7152d * Linearize(color.G) + 0.0722d * Linearize(color.B);
+
+    private static double Linearize(byte channel)
+    {
+        var value = channel / 255d;
+        return value <= 0.04045d ? value / 12.92d : Math.Pow((value + 0.055d) / 1.055d, 2.4d);
     }
 
     private static void AssertButtonContentFits(
