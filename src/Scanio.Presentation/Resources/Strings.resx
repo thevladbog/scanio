@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
+  <data name="Nav.Connection" xml:space="preserve"><value>Подключение</value></data>
+  <data name="Nav.Monitor" xml:space="preserve"><value>Монитор</value></data>
+  <data name="Nav.Notebook" xml:space="preserve"><value>Блокнот</value></data>
+  <data name="Nav.History" xml:space="preserve"><value>История</value></data>
+  <data name="Nav.Settings" xml:space="preserve"><value>Настройки</value></data>
+  <data name="Connection.NotConnected" xml:space="preserve"><value>Нет подключения</value></data>
+  <data name="Connection.Connected" xml:space="preserve"><value>Подключено</value></data>
+  <data name="Connection.Disconnect" xml:space="preserve"><value>Отключить</value></data>
+  <data name="Connection.Connect" xml:space="preserve"><value>Подключить</value></data>
+  <data name="Connection.Refresh" xml:space="preserve"><value>Обновить</value></data>
+  <data name="Monitor.CopyCode" xml:space="preserve"><value>Скопировать код</value></data>
+  <data name="Monitor.CopyRaw" xml:space="preserve"><value>Скопировать RAW</value></data>
+  <data name="Monitor.CopyHex" xml:space="preserve"><value>Скопировать HEX</value></data>
+  <data name="Monitor.CopyJson" xml:space="preserve"><value>Скопировать диагностический JSON</value></data>
+  <data name="Monitor.Copied" xml:space="preserve"><value>Скопировано</value></data>
+  <data name="Notebook.Start" xml:space="preserve"><value>Начать запись</value></data>
+  <data name="Notebook.Pause" xml:space="preserve"><value>Пауза</value></data>
+  <data name="Notebook.Resume" xml:space="preserve"><value>Продолжить</value></data>
+  <data name="Notebook.Stop" xml:space="preserve"><value>Остановить</value></data>
+  <data name="History.Delete" xml:space="preserve"><value>Удалить сессию</value></data>
+  <data name="Settings.Language" xml:space="preserve"><value>Язык</value></data>
+  <data name="Settings.Russian" xml:space="preserve"><value>Русский</value></data>
+  <data name="Settings.English" xml:space="preserve"><value>English</value></data>
+  <data name="Settings.Monitor" xml:space="preserve"><value>Отображение монитора</value></data>
+  <data name="Settings.Density" xml:space="preserve"><value>Плотность списков</value></data>
+  <data name="Settings.LocalData" xml:space="preserve"><value>Локальные данные</value></data>
+  <data name="Confidence.Exact" xml:space="preserve"><value>Точное совпадение</value></data>
+  <data name="Confidence.Inferred" xml:space="preserve"><value>Предположение</value></data>
+  <data name="Confidence.Unknown" xml:space="preserve"><value>Не определено</value></data>
+  <data name="Standard.HEX" xml:space="preserve"><value>HEX</value></data>
+</root>

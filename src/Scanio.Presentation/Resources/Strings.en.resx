@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
+  <data name="Nav.Connection" xml:space="preserve"><value>Connection</value></data>
+  <data name="Nav.Monitor" xml:space="preserve"><value>Monitor</value></data>
+  <data name="Nav.Notebook" xml:space="preserve"><value>Notebook</value></data>
+  <data name="Nav.History" xml:space="preserve"><value>History</value></data>
+  <data name="Nav.Settings" xml:space="preserve"><value>Settings</value></data>
+  <data name="Connection.NotConnected" xml:space="preserve"><value>Not connected</value></data>
+  <data name="Connection.Connected" xml:space="preserve"><value>Connected</value></data>
+  <data name="Connection.Disconnect" xml:space="preserve"><value>Disconnect</value></data>
+  <data name="Connection.Connect" xml:space="preserve"><value>Connect</value></data>
+  <data name="Connection.Refresh" xml:space="preserve"><value>Refresh</value></data>
+  <data name="Monitor.CopyCode" xml:space="preserve"><value>Copy code</value></data>
+  <data name="Monitor.CopyRaw" xml:space="preserve"><value>Copy RAW</value></data>
+  <data name="Monitor.CopyHex" xml:space="preserve"><value>Copy HEX</value></data>
+  <data name="Monitor.CopyJson" xml:space="preserve"><value>Copy diagnostic JSON</value></data>
+  <data name="Monitor.Copied" xml:space="preserve"><value>Copied</value></data>
+  <data name="Notebook.Start" xml:space="preserve"><value>Start recording</value></data>
+  <data name="Notebook.Pause" xml:space="preserve"><value>Pause</value></data>
+  <data name="Notebook.Resume" xml:space="preserve"><value>Resume</value></data>
+  <data name="Notebook.Stop" xml:space="preserve"><value>Stop</value></data>
+  <data name="History.Delete" xml:space="preserve"><value>Delete session</value></data>
+  <data name="Settings.Language" xml:space="preserve"><value>Language</value></data>
+  <data name="Settings.Russian" xml:space="preserve"><value>Русский</value></data>
+  <data name="Settings.English" xml:space="preserve"><value>English</value></data>
+  <data name="Settings.Monitor" xml:space="preserve"><value>Monitor display</value></data>
+  <data name="Settings.Density" xml:space="preserve"><value>List density</value></data>
+  <data name="Settings.LocalData" xml:space="preserve"><value>Local data</value></data>
+  <data name="Confidence.Exact" xml:space="preserve"><value>Exact match</value></data>
+  <data name="Confidence.Inferred" xml:space="preserve"><value>Inferred</value></data>
+  <data name="Confidence.Unknown" xml:space="preserve"><value>Unknown</value></data>
+  <data name="Standard.HEX" xml:space="preserve"><value>HEX</value></data>
+</root>
