@@ -221,6 +221,34 @@ public sealed class SerialTransportTests
 
     [TestMethod]
     [Timeout(2_000, CooperativeCancellation = true)]
+    public async Task CloseAsync_ClosesTheHandleToInterruptAReadThatIgnoresCancellation()
+    {
+        var adapter = new FakeSerialPortAdapter { IgnoreReadCancellationUntilClose = true };
+        var transport = CreateTransport(adapter);
+        await transport.OpenAsync(CancellationToken.None);
+        await using var chunks = transport.ReadAllAsync(CancellationToken.None).GetAsyncEnumerator();
+        var pendingRead = chunks.MoveNextAsync().AsTask();
+        await adapter.ReadStarted.Task.WaitAsync(TimeSpan.FromSeconds(1));
+
+        var closing = transport.CloseAsync(CancellationToken.None).AsTask();
+        try
+        {
+            await adapter.CloseStarted.Task.WaitAsync(TimeSpan.FromMilliseconds(250));
+        }
+        finally
+        {
+            adapter.ReleaseBlockedRead();
+            await closing.WaitAsync(TimeSpan.FromSeconds(1));
+            await transport.DisposeAsync();
+        }
+
+        Assert.IsFalse(await pendingRead);
+        Assert.AreEqual(ConnectionState.Disconnected, transport.State);
+        Assert.AreEqual(1, adapter.CloseCount);
+    }
+
+    [TestMethod]
+    [Timeout(2_000, CooperativeCancellation = true)]
     public async Task CloseAsync_CannotCloseBeforeReadRegistrationThenAllowAnAdapterRead()
     {
         var adapter = new FakeSerialPortAdapter { BlockReads = true };
@@ -277,6 +305,8 @@ public sealed class SerialTransportTests
 
         public bool BlockReads { get; init; }
 
+        public bool IgnoreReadCancellationUntilClose { get; init; }
+
         public int OpenCount { get; private set; }
 
         public int CloseCount { get; private set; }
@@ -288,6 +318,12 @@ public sealed class SerialTransportTests
         public bool ReadWasCancelled { get; private set; }
 
         public TaskCompletionSource<bool> ReadStarted { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public TaskCompletionSource<bool> CloseStarted { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        private TaskCompletionSource<bool> BlockedReadReleased { get; } =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         public void Open()
@@ -315,6 +351,12 @@ public sealed class SerialTransportTests
                 return bytes.Length;
             }
 
+            if (IgnoreReadCancellationUntilClose)
+            {
+                await BlockedReadReleased.Task;
+                throw new IOException("The serial handle was closed during a pending read.");
+            }
+
             if (!BlockReads)
             {
                 await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
@@ -333,9 +375,16 @@ public sealed class SerialTransportTests
             }
         }
 
-        public void Close() => CloseCount++;
+        public void Close()
+        {
+            CloseCount++;
+            CloseStarted.TrySetResult(true);
+            BlockedReadReleased.TrySetResult(true);
+        }
 
         public void Dispose() => DisposeCount++;
+
+        public void ReleaseBlockedRead() => BlockedReadReleased.TrySetResult(true);
     }
 
     private sealed class WindowsUnauthorizedAccessException : UnauthorizedAccessException

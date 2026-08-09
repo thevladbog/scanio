@@ -236,7 +236,8 @@ public sealed class SerialTransport : IScannerTransport
             }
 
             _lifetimeCancellation!.Cancel();
-            _closeTask = CloseOpenedAdapterAsync(_activeReadCompletion?.Task, preserveDeviceRemoved);
+            var activeRead = _activeReadCompletion?.Task;
+            _closeTask = Task.Run(() => CloseOpenedAdapterAsync(activeRead, preserveDeviceRemoved));
             return new ValueTask(_closeTask);
         }
     }
@@ -253,14 +254,18 @@ public sealed class SerialTransport : IScannerTransport
 
     private async Task CloseOpenedAdapterAsync(Task? activeRead, bool preserveDeviceRemoved)
     {
-        if (activeRead is not null)
-        {
-            await activeRead.ConfigureAwait(false);
-        }
-
         try
         {
+            // Some Windows serial drivers do not complete BaseStream.ReadAsync
+            // when only its CancellationToken is cancelled. Closing the handle
+            // interrupts that OS read; run this method off the UI thread because
+            // SerialPort.Close is synchronous and driver-controlled.
             _adapter.Close();
+
+            if (activeRead is not null)
+            {
+                await activeRead.ConfigureAwait(false);
+            }
         }
         catch
         {

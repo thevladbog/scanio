@@ -160,6 +160,20 @@ public sealed class ConnectionCoordinator
     {
         Publish(ConnectionState.Disconnecting, session.Transport.Identity);
         session.Lifetime.Cancel();
+
+        Task closeTask;
+        try
+        {
+            // A Windows serial read may ignore token cancellation until its
+            // handle is closed. Start closing before awaiting the processing
+            // loop so neither side waits indefinitely for the other.
+            closeTask = session.Transport.CloseAsync(CancellationToken.None).AsTask();
+        }
+        catch (Exception exception)
+        {
+            closeTask = Task.FromException(exception);
+        }
+
         try
         {
             await session.Processing.ConfigureAwait(false);
@@ -175,7 +189,7 @@ public sealed class ConnectionCoordinator
 
         try
         {
-            await CloseAndDisposeAsync(session.Transport).ConfigureAwait(false);
+            await AwaitCloseAndDisposeAsync(session.Transport, closeTask).ConfigureAwait(false);
         }
         catch
         {
@@ -188,6 +202,33 @@ public sealed class ConnectionCoordinator
         ClearActive(session);
         session.Lifetime.Dispose();
         Publish(ConnectionState.Disconnected, session.Transport.Identity);
+    }
+
+    private static async Task AwaitCloseAndDisposeAsync(IScannerTransport transport, Task closeTask)
+    {
+        Exception? closeFailure = null;
+        try
+        {
+            await closeTask.ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            closeFailure = exception;
+        }
+
+        try
+        {
+            await transport.DisposeAsync().ConfigureAwait(false);
+        }
+        catch when (closeFailure is not null)
+        {
+            throw closeFailure;
+        }
+
+        if (closeFailure is not null)
+        {
+            throw closeFailure;
+        }
     }
 
     private async Task ObserveCompletionAsync(ActiveSession session)

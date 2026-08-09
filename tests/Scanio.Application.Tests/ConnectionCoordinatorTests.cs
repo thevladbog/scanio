@@ -149,6 +149,31 @@ public sealed class ConnectionCoordinatorTests
     }
 
     [TestMethod]
+    [Timeout(2_000, CooperativeCancellation = true)]
+    public async Task DisconnectAsync_ClosesTransportBeforeAwaitingProcessingThatIgnoresCancellation()
+    {
+        var pipeline = new CloseDrivenPipeline();
+        var transport = new FakeTransport("COM7") { OnClose = pipeline.Complete };
+        var coordinator = new ConnectionCoordinator(pipeline);
+        await coordinator.ConnectAsync(transport, CancellationToken.None);
+
+        var disconnecting = coordinator.DisconnectAsync(CancellationToken.None);
+        try
+        {
+            await transport.CloseStarted.Task.WaitAsync(TimeSpan.FromMilliseconds(250));
+        }
+        finally
+        {
+            pipeline.Complete();
+            await disconnecting.WaitAsync(TimeSpan.FromSeconds(1));
+        }
+
+        Assert.AreEqual(1, transport.CloseCount);
+        Assert.AreEqual(1, transport.DisposeCount);
+        Assert.AreEqual(ConnectionState.Disconnected, coordinator.Events[^1].State);
+    }
+
+    [TestMethod]
     [DataRow(ConnectionState.Busy)]
     [DataRow(ConnectionState.AccessDenied)]
     [DataRow(ConnectionState.TransportError)]
@@ -185,6 +210,17 @@ public sealed class ConnectionCoordinatorTests
         }
     }
 
+    private sealed class CloseDrivenPipeline : IScanProcessingPipeline
+    {
+        private readonly TaskCompletionSource _completion =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public Task ProcessAsync(IScannerTransport transport, CancellationToken cancellationToken) =>
+            _completion.Task;
+
+        public void Complete() => _completion.TrySetResult();
+    }
+
     private sealed class FakeTransport(string stableId) : IScannerTransport
     {
         private readonly TaskCompletionSource _closePermission =
@@ -200,6 +236,8 @@ public sealed class ConnectionCoordinatorTests
         public bool BlockClose { get; init; }
 
         public bool ThrowOnClose { get; init; }
+
+        public Action? OnClose { get; init; }
 
         public int OpenCount { get; private set; }
 
@@ -235,6 +273,7 @@ public sealed class ConnectionCoordinatorTests
         {
             CloseCount++;
             CloseStarted.TrySetResult();
+            OnClose?.Invoke();
             if (BlockClose)
             {
                 await _closePermission.Task.WaitAsync(cancellationToken);
