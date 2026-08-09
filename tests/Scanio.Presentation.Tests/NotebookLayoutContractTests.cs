@@ -70,6 +70,24 @@ public sealed class NotebookLayoutContractTests
     }
 
     [TestMethod]
+    public void NotebookAndHistory_WrapReadableActionLabels()
+    {
+        foreach (var fileName in new[] { "NotebookView.xaml", "HistoryView.xaml" })
+        {
+            var document = XDocument.Load(Path.Combine(AppContext.BaseDirectory, "LayoutContracts", fileName));
+            foreach (var command in new[] { "CopyEscapedCommand", "ExportReadableTextCommand" })
+            {
+                var button = document.Descendants(Presentation + "Button")
+                    .Single(element => (string?)element.Attribute("Command") == $"{{Binding {command}}}");
+                var label = button.Element(Presentation + "TextBlock");
+
+                Assert.IsNotNull(label, $"{fileName}/{command} must render its full localized label.");
+                Assert.AreEqual("Wrap", (string?)label.Attribute("TextWrapping"), $"{fileName}/{command}");
+            }
+        }
+    }
+
+    [TestMethod]
     public void Notebook_ReadableTextResourcesUseVisibleGsLabels()
     {
         AssertResourceValues(

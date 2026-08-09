@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Media;
+using System.Globalization;
 using Scanio.Presentation.Settings;
 using Scanio.Presentation.ViewModels;
 using Scanio.Presentation.Windows.Tests.Fixtures;
@@ -44,6 +45,31 @@ public sealed class RenderedLayoutTests
         });
     }
 
+    [TestMethod]
+    public void ReadableNotebookActions_KeepFullLabelsAtMinimumSizeInBothLanguages()
+    {
+        WpfTestHost.Run(() =>
+        {
+            foreach (var language in Enum.GetValues<UiLanguage>())
+            foreach (var destination in new[] { ShellDestination.Notebook, ShellDestination.History })
+            {
+                using var fixture = CPlusFixtureFactory.Create(language, destination);
+                Prepare(fixture.Window, 1024, 700);
+                var label = $"{language}/{destination}/1024x700";
+                var readableActions = Descendants<Button>(fixture.Window)
+                    .Where(button => button.IsVisible)
+                    .Where(button => ButtonText(button)?.Contains("<GS>", StringComparison.Ordinal) == true)
+                    .ToArray();
+
+                Assert.HasCount(2, readableActions, $"{label} must expose both readable-text actions.");
+                foreach (var button in readableActions)
+                {
+                    AssertButtonContentFits(button, fixture.Window, language, label);
+                }
+            }
+        });
+    }
+
     internal static void Prepare(Window window, double width, double height)
     {
         window.Width = width;
@@ -80,6 +106,49 @@ public sealed class RenderedLayoutTests
         var viewport = new Rect(0, 0, window.ActualWidth, window.ActualHeight);
         Assert.IsTrue(viewport.Contains(bounds.TopLeft) && viewport.Contains(bounds.BottomRight),
             $"{label} clips action '{(element as Button)?.Content}' at {bounds} inside {viewport}.");
+    }
+
+    private static void AssertButtonContentFits(
+        Button button,
+        Window window,
+        UiLanguage language,
+        string label)
+    {
+        var text = ButtonText(button);
+        Assert.IsNotNull(text);
+        var presenter = Descendants<ContentPresenter>(button).Single();
+        var presenterBounds = Bounds(presenter, window);
+        var buttonBounds = Bounds(button, window);
+        Assert.IsTrue(
+            buttonBounds.Contains(presenterBounds.TopLeft) && buttonBounds.Contains(presenterBounds.BottomRight),
+            $"{label} clips the content presenter for '{text}' at {presenterBounds} inside {buttonBounds}.");
+
+        var textBlock = button.Content as TextBlock;
+        var formatted = new FormattedText(
+            text,
+            CultureInfo.GetCultureInfo(language == UiLanguage.English ? "en-US" : "ru-RU"),
+            button.FlowDirection,
+            new Typeface(
+                textBlock?.FontFamily ?? button.FontFamily,
+                textBlock?.FontStyle ?? button.FontStyle,
+                textBlock?.FontWeight ?? button.FontWeight,
+                textBlock?.FontStretch ?? button.FontStretch),
+            textBlock?.FontSize ?? button.FontSize,
+            Brushes.Black,
+            VisualTreeHelper.GetDpi(button).PixelsPerDip);
+        if (textBlock?.TextWrapping != TextWrapping.NoWrap)
+        {
+            formatted.MaxTextWidth = presenter.ActualWidth;
+        }
+
+        Assert.IsGreaterThanOrEqualTo(
+            formatted.WidthIncludingTrailingWhitespace - 0.5,
+            presenter.ActualWidth,
+            $"{label} clips readable label '{text}' horizontally.");
+        Assert.IsGreaterThanOrEqualTo(
+            formatted.Height - 0.5,
+            presenter.ActualHeight,
+            $"{label} clips readable label '{text}' vertically.");
     }
 
     private static void AssertSiblingControlsDoNotOverlap(Window window, string label)
@@ -121,4 +190,12 @@ public sealed class RenderedLayoutTests
     private static Rect Bounds(FrameworkElement element, Window window) =>
         element.TransformToAncestor(window)
             .TransformBounds(new Rect(0, 0, element.ActualWidth, element.ActualHeight));
+
+    private static string? ButtonText(Button button) => button.Content switch
+    {
+        string value => value,
+        TextBlock textBlock => textBlock.Text,
+        AccessText accessText => accessText.Text,
+        _ => null
+    };
 }
