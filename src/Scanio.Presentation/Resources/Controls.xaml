@@ -73,6 +73,7 @@
     <Style x:Key="CommandButton" TargetType="Button">
         <Setter Property="MinHeight" Value="{DynamicResource Size.ControlHeight}" />
         <Setter Property="Padding" Value="{DynamicResource Inset.3}" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
         <Setter Property="Background" Value="{DynamicResource Brush.SurfacePrimary}" />
         <Setter Property="Foreground" Value="{DynamicResource Brush.TextPrimary}" />
         <Setter Property="BorderBrush" Value="{DynamicResource Brush.BorderDefault}" />
@@ -94,6 +95,10 @@
     <Style TargetType="ComboBox">
         <Setter Property="MinHeight" Value="{DynamicResource Size.ControlHeight}" />
         <Setter Property="Padding" Value="{DynamicResource Inset.2}" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+    <Style TargetType="ComboBoxItem">
+        <Setter Property="VerticalContentAlignment" Value="Center" />
     </Style>
     <Style TargetType="ListViewItem">
         <Setter Property="Padding" Value="{DynamicResource Inset.3}" />

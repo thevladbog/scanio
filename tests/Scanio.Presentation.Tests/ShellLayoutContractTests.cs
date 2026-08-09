@@ -115,6 +115,37 @@ public sealed class ShellLayoutContractTests
         Assert.AreEqual("SemiBold", checkedSetters["FontWeight"]);
     }
 
+    [TestMethod]
+    public void FormControls_CenterTheirLabelsVertically()
+    {
+        var layoutDirectory = Path.Combine(AppContext.BaseDirectory, "LayoutContracts");
+        var controls = XDocument.Load(Path.Combine(layoutDirectory, "Controls.xaml"));
+
+        var commandButton = FindStyle(controls, "Button", "CommandButton");
+        var comboBox = FindStyle(controls, "ComboBox");
+        var comboBoxItem = FindStyle(controls, "ComboBoxItem");
+
+        AssertStyleSetter(commandButton, "VerticalContentAlignment", "Center");
+        AssertStyleSetter(comboBox, "VerticalContentAlignment", "Center");
+        AssertStyleSetter(comboBoxItem, "VerticalContentAlignment", "Center");
+    }
+
+    private static XElement FindStyle(XDocument document, string targetType, string? key = null) =>
+        document.Descendants(Presentation + "Style")
+            .Single(element =>
+                (string?)element.Attribute("TargetType") == targetType &&
+                (string?)element.Attribute(Xaml + "Key") == key);
+
+    private static void AssertStyleSetter(XElement style, string property, string expectedValue)
+    {
+        var actualValue = style.Elements(Presentation + "Setter")
+            .SingleOrDefault(element => (string?)element.Attribute("Property") == property)
+            ?.Attribute("Value")
+            ?.Value;
+
+        Assert.AreEqual(expectedValue, actualValue);
+    }
+
     private static Dictionary<string, string> LoadResources(string path) =>
         XDocument.Load(path).Root!.Elements()
             .Where(element => element.Attribute(Xaml + "Key") is not null)
