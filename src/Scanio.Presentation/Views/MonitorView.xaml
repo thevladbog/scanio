@@ -71,7 +71,8 @@
                 <StackPanel>
                     <TextBlock Text="{Binding SelectedEvent.Sequence, StringFormat=#{0}, TargetNullValue=—}"
                                Style="{DynamicResource KickerText}" />
-                    <TextBlock Text="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Monitor.Title]}" Style="{DynamicResource PageTitle}" Margin="0,5,12,0" />
+                    <TextBlock Text="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Monitor.Title]}"
+                               Style="{DynamicResource PageTitle}" TextWrapping="Wrap" Margin="0,5,12,0" />
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Bottom">
                     <TextBlock Text="{Binding CopyFeedback}" Foreground="{DynamicResource Brush.Success}"

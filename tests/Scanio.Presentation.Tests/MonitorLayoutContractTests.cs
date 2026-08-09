@@ -40,6 +40,16 @@ public sealed class MonitorLayoutContractTests
     }
 
     [TestMethod]
+    public void Monitor_TitleWrapsInsteadOfClippingBesideTheCopyAction()
+    {
+        var monitor = Load();
+        var title = monitor.Descendants(Presentation + "TextBlock")
+            .Single(element => ((string?)element.Attribute("Text"))?.Contains("Monitor.Title", StringComparison.Ordinal) == true);
+
+        Assert.AreEqual("Wrap", (string?)title.Attribute("TextWrapping"));
+    }
+
+    [TestMethod]
     public void Monitor_ExposesStructuredInspectorSections()
     {
         var monitor = Load();
