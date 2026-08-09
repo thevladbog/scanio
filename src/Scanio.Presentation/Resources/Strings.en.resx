@@ -5,6 +5,7 @@
   <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
   <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
   <data name="Nav.Connection" xml:space="preserve"><value>Connection</value></data>
+  <data name="App.Title" xml:space="preserve"><value>Scanio</value></data>
   <data name="Nav.Monitor" xml:space="preserve"><value>Monitor</value></data>
   <data name="Nav.Notebook" xml:space="preserve"><value>Notebook</value></data>
   <data name="Nav.History" xml:space="preserve"><value>History</value></data>
@@ -75,4 +76,132 @@
   <data name="Completion.Terminator" xml:space="preserve"><value>Terminator</value></data>
   <data name="Completion.SilenceTimeout" xml:space="preserve"><value>Read silence</value></data>
   <data name="Completion.BufferOverflow" xml:space="preserve"><value>Buffer overflow</value></data>
+  <data name="Common.Refresh" xml:space="preserve"><value>Refresh</value></data>
+  <data name="Common.Bytes" xml:space="preserve"><value>bytes</value></data>
+  <data name="Common.Records" xml:space="preserve"><value>records</value></data>
+  <data name="Connection.Devices" xml:space="preserve"><value>DEVICES</value></data>
+  <data name="Connection.Ports" xml:space="preserve"><value>COM ports</value></data>
+  <data name="Connection.Title" xml:space="preserve"><value>Connect a scanner</value></data>
+  <data name="Connection.Subtitle" xml:space="preserve"><value>Select a COM device and connect manually. Refreshing the list never opens a port.</value></data>
+  <data name="Connection.BaudRate" xml:space="preserve"><value>BAUD RATE</value></data>
+  <data name="Connection.DataBits" xml:space="preserve"><value>DATA BITS</value></data>
+  <data name="Connection.Parity" xml:space="preserve"><value>PARITY</value></data>
+  <data name="Connection.StopBits" xml:space="preserve"><value>STOP BITS</value></data>
+  <data name="Connection.Handshake" xml:space="preserve"><value>FLOW CONTROL</value></data>
+  <data name="Connection.Status" xml:space="preserve"><value>STATUS</value></data>
+  <data name="Connection.NoPort" xml:space="preserve"><value>No port selected</value></data>
+  <data name="Monitor.Live" xml:space="preserve"><value>LIVE FEED</value></data>
+  <data name="Monitor.Scans" xml:space="preserve"><value>Scans</value></data>
+  <data name="Monitor.Latest" xml:space="preserve"><value>Return to latest</value></data>
+  <data name="Monitor.Title" xml:space="preserve"><value>Content, bytes, and structure</value></data>
+  <data name="Monitor.Waiting" xml:space="preserve"><value>Waiting for the first scan…</value></data>
+  <data name="Monitor.Fact" xml:space="preserve"><value>FACT</value></data>
+  <data name="Monitor.Interpretation" xml:space="preserve"><value>INTERPRETATION</value></data>
+  <data name="Monitor.Footer" xml:space="preserve"><value>RAW and HEX are primary evidence. Format is an analyzer interpretation.</value></data>
+  <data name="Monitor.Inspector" xml:space="preserve"><value>INSPECTOR</value></data>
+  <data name="Monitor.Connection" xml:space="preserve"><value>Connection</value></data>
+  <data name="Monitor.Measurement" xml:space="preserve"><value>Measurement</value></data>
+  <data name="Monitor.Started" xml:space="preserve"><value>Started</value></data>
+  <data name="Monitor.Ended" xml:space="preserve"><value>Ended</value></data>
+  <data name="Monitor.Duration" xml:space="preserve"><value>Duration</value></data>
+  <data name="Monitor.Reads" xml:space="preserve"><value>Transport reads</value></data>
+  <data name="Notebook.Active" xml:space="preserve"><value>NOTEBOOK · ACTIVE SESSION</value></data>
+  <data name="Notebook.Title" xml:space="preserve"><value>Current session codes</value></data>
+  <data name="Notebook.Session" xml:space="preserve"><value>SESSION</value></data>
+  <data name="Notebook.Summary" xml:space="preserve"><value>Recording summary</value></data>
+  <data name="Notebook.Total" xml:space="preserve"><value>Total</value></data>
+  <data name="Notebook.Unique" xml:space="preserve"><value>Unique</value></data>
+  <data name="Notebook.Duplicates" xml:space="preserve"><value>Duplicates</value></data>
+  <data name="Notebook.Scanner" xml:space="preserve"><value>SCANNER</value></data>
+  <data name="Notebook.LocalNotice" xml:space="preserve"><value>Data is stored locally in SQLite.</value></data>
+  <data name="Notebook.Recorded" xml:space="preserve"><value>RECORDED SCANS</value></data>
+  <data name="Notebook.Actions" xml:space="preserve"><value>ACTIONS</value></data>
+  <data name="Notebook.Copy" xml:space="preserve"><value>Copy</value></data>
+  <data name="Notebook.CopyAll" xml:space="preserve"><value>All values</value></data>
+  <data name="Notebook.CopyUnique" xml:space="preserve"><value>Unique values only</value></data>
+  <data name="Notebook.CopyEscaped" xml:space="preserve"><value>Escaped control characters</value></data>
+  <data name="Notebook.Export" xml:space="preserve"><value>Export</value></data>
+  <data name="Notebook.ExportText" xml:space="preserve"><value>Export TXT</value></data>
+  <data name="Notebook.ExportCsv" xml:space="preserve"><value>Export CSV</value></data>
+  <data name="Notebook.ExportJson" xml:space="preserve"><value>Diagnostic JSON</value></data>
+  <data name="Notebook.State.Recording" xml:space="preserve"><value>Recording</value></data>
+  <data name="Notebook.State.Paused" xml:space="preserve"><value>Paused</value></data>
+  <data name="Notebook.State.Off" xml:space="preserve"><value>Recording off</value></data>
+  <data name="Notebook.DefaultSession" xml:space="preserve"><value>Session</value></data>
+  <data name="History.Kicker" xml:space="preserve"><value>HISTORY</value></data>
+  <data name="History.Title" xml:space="preserve"><value>Saved sessions</value></data>
+  <data name="History.Selected" xml:space="preserve"><value>SELECTED SESSION</value></data>
+  <data name="History.Select" xml:space="preserve"><value>Select a session</value></data>
+  <data name="History.Open" xml:space="preserve"><value>Open</value></data>
+  <data name="History.Rename" xml:space="preserve"><value>Rename</value></data>
+  <data name="History.DeleteSelected" xml:space="preserve"><value>Delete selected session</value></data>
+  <data name="History.NotFinished" xml:space="preserve"><value>Not finished</value></data>
+  <data name="Analysis.Format.GS1" xml:space="preserve"><value>GS1 element string</value></data>
+  <data name="Analysis.Format.PlainText" xml:space="preserve"><value>Plain text</value></data>
+  <data name="Analysis.Format.HonestSign" xml:space="preserve"><value>Honest Sign</value></data>
+  <data name="Analysis.Generic.Evidence" xml:space="preserve"><value>Structure identified by a local analyzer.</value></data>
+  <data name="Analysis.Generic.Summary" xml:space="preserve"><value>Structural analysis result.</value></data>
+  <data name="Analysis.ValidationError" xml:space="preserve"><value>Validation error</value></data>
+  <data name="Analysis.ValidationWarning" xml:space="preserve"><value>Validation warning</value></data>
+  <data name="Analysis.EAN/UPC.Evidence" xml:space="preserve"><value>Numeric length matches the format and the check digit was evaluated.</value></data>
+  <data name="Analysis.EAN/UPC.Summary" xml:space="preserve"><value>EAN/UPC product code.</value></data>
+  <data name="Analysis.GS1.Evidence" xml:space="preserve"><value>A supported GS1 application identifier structure was detected.</value></data>
+  <data name="Analysis.GS1.Summary" xml:space="preserve"><value>Structured GS1 fields.</value></data>
+  <data name="Analysis.HonestSign.Evidence" xml:space="preserve"><value>GTIN (01) and serial (21) are present; no online check was performed.</value></data>
+  <data name="Analysis.HonestSign.Summary" xml:space="preserve"><value>Honest Sign marking code.</value></data>
+  <data name="Analysis.IATA BCBP.Evidence" xml:space="preserve"><value>Data matches the mandatory IATA BCBP boarding pass structure.</value></data>
+  <data name="Analysis.IATA BCBP.Summary" xml:space="preserve"><value>IATA BCBP boarding pass.</value></data>
+  <data name="Analysis.URL.Evidence" xml:space="preserve"><value>The payload is an absolute HTTP or HTTPS address.</value></data>
+  <data name="Analysis.URL.Summary" xml:space="preserve"><value>Web URL.</value></data>
+  <data name="Analysis.PlainText.Evidence" xml:space="preserve"><value>No structured format was recognized.</value></data>
+  <data name="Analysis.PlainText.Summary" xml:space="preserve"><value>Unstructured text.</value></data>
+  <data name="Analysis.Field.data" xml:space="preserve"><value>Data</value></data>
+  <data name="Analysis.Field.check-digit" xml:space="preserve"><value>Check digit</value></data>
+  <data name="Analysis.Field.Text" xml:space="preserve"><value>Text</value></data>
+  <data name="Analysis.Field.scheme" xml:space="preserve"><value>Scheme</value></data>
+  <data name="Analysis.Field.host" xml:space="preserve"><value>Host</value></data>
+  <data name="Analysis.Field.path" xml:space="preserve"><value>Path</value></data>
+  <data name="Analysis.Field.port" xml:space="preserve"><value>Port</value></data>
+  <data name="Analysis.Field.query" xml:space="preserve"><value>Query</value></data>
+  <data name="Analysis.Field.fragment" xml:space="preserve"><value>Fragment</value></data>
+  <data name="Analysis.Field.legs" xml:space="preserve"><value>Number of legs</value></data>
+  <data name="Analysis.Field.passenger-name" xml:space="preserve"><value>Passenger name</value></data>
+  <data name="Analysis.Field.electronic-ticket" xml:space="preserve"><value>Electronic ticket</value></data>
+  <data name="Analysis.Field.product-group" xml:space="preserve"><value>Product group</value></data>
+  <data name="Analysis.Field.product-group-candidate" xml:space="preserve"><value>Product group candidate</value></data>
+  <data name="Analysis.ProductGroup.Not_determined" xml:space="preserve"><value>Not determined</value></data>
+  <data name="Analysis.ProductGroup.Tobacco_unit_pack" xml:space="preserve"><value>Tobacco unit pack</value></data>
+  <data name="Analysis.ProductGroup.Footwear" xml:space="preserve"><value>Footwear</value></data>
+  <data name="Analysis.ProductGroup.Light_industry" xml:space="preserve"><value>Light industry</value></data>
+  <data name="Analysis.ProductGroup.Perfumery" xml:space="preserve"><value>Perfumery</value></data>
+  <data name="Analysis.ProductGroup.Pharmaceuticals" xml:space="preserve"><value>Pharmaceuticals</value></data>
+  <data name="Dialog.DeleteSession" xml:space="preserve"><value>Delete session “{0}” and all of its scans?</value></data>
+  <data name="Dialog.ErrorTitle" xml:space="preserve"><value>Scanio error</value></data>
+  <data name="Error.RefreshDevices" xml:space="preserve"><value>Could not refresh the COM port list.</value></data>
+  <data name="Error.SelectDevice" xml:space="preserve"><value>Select a COM port first.</value></data>
+  <data name="Error.Connect" xml:space="preserve"><value>Could not connect to the selected COM port.</value></data>
+  <data name="Error.OperationFailed" xml:space="preserve"><value>The operation could not be completed.</value></data>
+  <data name="Analysis.Field.pnr" xml:space="preserve"><value>Booking reference</value></data>
+  <data name="Analysis.Field.origin" xml:space="preserve"><value>Origin airport</value></data>
+  <data name="Analysis.Field.destination" xml:space="preserve"><value>Destination airport</value></data>
+  <data name="Analysis.Field.carrier" xml:space="preserve"><value>Carrier</value></data>
+  <data name="Analysis.Field.flight-number" xml:space="preserve"><value>Flight number</value></data>
+  <data name="Analysis.Field.flight-date" xml:space="preserve"><value>Flight date</value></data>
+  <data name="Analysis.Field.compartment" xml:space="preserve"><value>Travel class</value></data>
+  <data name="Analysis.Field.seat" xml:space="preserve"><value>Seat</value></data>
+  <data name="Analysis.Field.check-in-sequence" xml:space="preserve"><value>Check-in sequence</value></data>
+  <data name="Analysis.Field.passenger-status" xml:space="preserve"><value>Passenger status</value></data>
+  <data name="Analysis.Field.conditional-data" xml:space="preserve"><value>Conditional data</value></data>
+  <data name="Analysis.Field.trailing-data" xml:space="preserve"><value>Trailing data</value></data>
+  <data name="Analysis.Field.00" xml:space="preserve"><value>SSCC</value></data>
+  <data name="Analysis.Field.01" xml:space="preserve"><value>GTIN</value></data>
+  <data name="Analysis.Field.10" xml:space="preserve"><value>Batch or lot</value></data>
+  <data name="Analysis.Field.11" xml:space="preserve"><value>Production date</value></data>
+  <data name="Analysis.Field.17" xml:space="preserve"><value>Expiration date</value></data>
+  <data name="Analysis.Field.21" xml:space="preserve"><value>Serial number</value></data>
+  <data name="Analysis.Field.91" xml:space="preserve"><value>Verification key</value></data>
+  <data name="Analysis.Field.92" xml:space="preserve"><value>Cryptographic tail</value></data>
+  <data name="Analysis.Field.93" xml:space="preserve"><value>Verification code</value></data>
+  <data name="Analysis.Field.8005" xml:space="preserve"><value>Price per unit</value></data>
+  <data name="Analysis.Field.price" xml:space="preserve"><value>Price</value></data>
 </root>

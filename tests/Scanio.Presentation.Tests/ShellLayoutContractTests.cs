@@ -53,7 +53,7 @@ public sealed class ShellLayoutContractTests
             .Elements(Presentation + "Border")
             .Single(element => (string?)element.Attribute("Grid.Column") == "2");
         var connectButton = statusPanel.Descendants(Presentation + "Button")
-            .Single(element => (string?)element.Attribute("Content") == "Подключить");
+            .Single(element => ((string?)element.Attribute("Command"))?.Contains("ConnectCommand", StringComparison.Ordinal) == true);
         var styleKey = ExtractResourceKey(connectButton.Attribute("Style")!.Value);
         var primaryStyle = controls.Descendants(Presentation + "Style")
             .Single(element => (string?)element.Attribute(Xaml + "Key") == styleKey);

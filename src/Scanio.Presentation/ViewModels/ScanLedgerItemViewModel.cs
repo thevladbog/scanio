@@ -26,11 +26,12 @@ public sealed class ScanLedgerItemViewModel
         DuplicateCount = scanEvent.DuplicateCount;
         Analyses = scanEvent.Analyses.Select(result => new AnalysisItemViewModel(result, localizer)).ToArray();
         var primary = scanEvent.Analyses.FirstOrDefault(result => result.IsMatch);
-        Format = primary?.Format ?? localizer["Analysis.UnknownFormat"];
-        Evidence = primary?.Evidence ?? localizer["Analysis.NoMatch"];
-        Confidence = primary is null
+        var primaryPresentation = primary is null ? null : new AnalysisItemViewModel(primary, localizer);
+        Format = primaryPresentation?.Format ?? localizer["Analysis.UnknownFormat"];
+        Evidence = primaryPresentation?.Evidence ?? localizer["Analysis.NoMatch"];
+        Confidence = primaryPresentation is null
             ? localizer[UiTextKeys.ConfidenceUnknown]
-            : new AnalysisItemViewModel(primary, localizer).Confidence;
+            : primaryPresentation.Confidence;
         DecodingWarning = scanEvent.Decoded.DecodingWarning;
         HasWarning = scanEvent.Decoded.HasDecodingWarning || scanEvent.Analyses.Any(result => !result.ValidationErrors.IsEmpty || !result.ValidationWarnings.IsEmpty);
         var chunks = new List<ChunkItemViewModel>();

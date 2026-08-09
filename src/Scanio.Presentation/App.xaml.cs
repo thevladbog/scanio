@@ -44,9 +44,9 @@ public partial class App : System.Windows.Application
         var repository = new SqliteNotebookRepository(databasePath);
         repository.Initialize();
         var recorder = new NotebookRecorder(repository, monitor);
-        var interaction = new WindowsNotebookInteractionService();
-        var notebookViewModel = new NotebookViewModel(recorder, interaction);
-        var historyViewModel = new HistoryViewModel(repository, interaction, recorder);
+        var interaction = new WindowsNotebookInteractionService(localizer);
+        var notebookViewModel = new NotebookViewModel(recorder, interaction, localizer);
+        var historyViewModel = new HistoryViewModel(repository, interaction, recorder, localizer);
         var applicationVersion = typeof(App).Assembly
             .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
             .InformationalVersion.Split('+')[0] ?? "unknown";

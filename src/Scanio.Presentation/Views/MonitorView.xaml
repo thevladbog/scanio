@@ -1,6 +1,7 @@
 <UserControl x:Class="Scanio.Presentation.Views.MonitorView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:localization="clr-namespace:Scanio.Presentation.Localization">
     <UserControl.InputBindings>
         <KeyBinding Key="C" Modifiers="Control" Command="{Binding CopyCodeCommand}" />
     </UserControl.InputBindings>
@@ -20,11 +21,11 @@
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
-                <TextBlock Text="ЖИВАЯ ЛЕНТА" Style="{DynamicResource KickerText}" />
+                <TextBlock Text="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Monitor.Live]}" Style="{DynamicResource KickerText}" />
                 <Grid Grid.Row="1" Margin="0,8,0,12">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                    <TextBlock Text="Сканы" Style="{DynamicResource PanelTitle}" VerticalAlignment="Center" />
-                    <Button Grid.Column="1" Content="К последнему" Command="{Binding ReturnToLatestCommand}"
+                    <TextBlock Text="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Monitor.Scans]}" Style="{DynamicResource PanelTitle}" VerticalAlignment="Center" />
+                    <Button Grid.Column="1" Content="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Monitor.Latest]}" Command="{Binding ReturnToLatestCommand}"
                             Style="{DynamicResource QuietButton}"
                             Visibility="{Binding ShowReturnToLatest, Converter={StaticResource BooleanToVisibility}}" />
                 </Grid>
@@ -68,21 +69,21 @@
             <Grid>
                 <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                 <StackPanel>
-                    <TextBlock Text="{Binding SelectedEvent.Sequence, StringFormat=СКАН №{0}, TargetNullValue=МОНИТОР}"
+                    <TextBlock Text="{Binding SelectedEvent.Sequence, StringFormat=#{0}, TargetNullValue=—}"
                                Style="{DynamicResource KickerText}" />
-                    <TextBlock Text="Содержимое, байты и структура" Style="{DynamicResource PageTitle}" Margin="0,5,12,0" />
+                    <TextBlock Text="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Monitor.Title]}" Style="{DynamicResource PageTitle}" Margin="0,5,12,0" />
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Bottom">
                     <TextBlock Text="{Binding CopyFeedback}" Foreground="{DynamicResource Brush.Success}"
                                VerticalAlignment="Center" Margin="0,0,10,0" />
-                    <Button Content="Скопировать код" Command="{Binding CopyCodeCommand}"
+                    <Button Content="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Monitor.CopyCode]}" Command="{Binding CopyCodeCommand}"
                             Style="{DynamicResource PrimaryButton}" MinWidth="142" />
                     <Menu Margin="8,0,0,0" Background="Transparent" VerticalAlignment="Center">
                         <MenuItem Header="•••" FontWeight="Bold">
-                            <MenuItem Header="Скопировать RAW" Command="{Binding DataContext.CopyRawCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" />
-                            <MenuItem Header="Скопировать HEX" Command="{Binding DataContext.CopyHexCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" />
+                            <MenuItem Header="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Monitor.CopyRaw]}" Command="{Binding DataContext.CopyRawCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" />
+                            <MenuItem Header="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Monitor.CopyHex]}" Command="{Binding DataContext.CopyHexCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" />
                             <Separator />
-                            <MenuItem Header="Скопировать диагностический JSON" Command="{Binding DataContext.CopyDiagnosticJsonCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" />
+                            <MenuItem Header="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Monitor.CopyJson]}" Command="{Binding DataContext.CopyDiagnosticJsonCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" />
                         </MenuItem>
                     </Menu>
                 </StackPanel>
@@ -93,7 +94,7 @@
                     Padding="16" Margin="0,16,0,12">
                 <StackPanel>
                     <TextBlock Text="PAYLOAD" Style="{DynamicResource KickerText}" />
-                    <TextBlock Text="{Binding SelectedEvent.Payload, TargetNullValue=Ожидание первого скана…}"
+                    <TextBlock Text="{Binding SelectedEvent.Payload, TargetNullValue=—}"
                                FontFamily="{DynamicResource Font.Data}" FontSize="{DynamicResource Type.DataLarge}"
                                TextWrapping="Wrap" Margin="0,7,0,0" />
                 </StackPanel>
@@ -120,10 +121,10 @@
                 <Border BorderBrush="{DynamicResource Brush.BorderDefault}" BorderThickness="1" Padding="14">
                     <Grid>
                         <Grid.ColumnDefinitions><ColumnDefinition Width="88" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                        <TextBlock Text="ФАКТ" Style="{DynamicResource KickerText}" />
+                        <TextBlock Text="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Monitor.Fact]}" Style="{DynamicResource KickerText}" />
                         <StackPanel Grid.Column="1">
                             <TextBlock Text="{Binding SelectedEvent.Completion}" FontWeight="SemiBold" />
-                            <TextBlock Text="{Binding SelectedEvent.ByteCount, StringFormat={}{0} байт}"
+                            <TextBlock Text="{Binding SelectedEvent.ByteCount, StringFormat={}{0} B}"
                                        Foreground="{DynamicResource Brush.TextSecondary}" Margin="0,4,0,0" />
                         </StackPanel>
                     </Grid>
@@ -131,7 +132,7 @@
                 <Border Grid.Column="2" BorderBrush="{DynamicResource Brush.BorderDefault}" BorderThickness="1" Padding="14">
                     <Grid>
                         <Grid.ColumnDefinitions><ColumnDefinition Width="108" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                        <TextBlock Text="ИНТЕРПРЕТАЦИЯ" Style="{DynamicResource KickerText}" />
+                        <TextBlock Text="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Monitor.Interpretation]}" Style="{DynamicResource KickerText}" />
                         <StackPanel Grid.Column="1">
                             <TextBlock Text="{Binding SelectedEvent.Format}" FontWeight="SemiBold" TextWrapping="Wrap" />
                             <TextBlock Text="{Binding SelectedEvent.Confidence}" Foreground="{DynamicResource Brush.TextSecondary}" Margin="0,3,0,0" />
@@ -180,7 +181,7 @@
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
             </ScrollViewer>
-            <TextBlock Grid.Row="5" Text="RAW и HEX — первичные данные. Формат — интерпретация анализатора."
+            <TextBlock Grid.Row="5" Text="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Monitor.Footer]}"
                        Foreground="{DynamicResource Brush.TextSecondary}" Margin="0,8,0,0" />
         </Grid>
 
@@ -189,10 +190,10 @@
                 Padding="16">
             <Grid>
                 <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
-                <TextBlock Text="ИНСПЕКТОР" Style="{DynamicResource KickerText}" />
+                <TextBlock Text="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Monitor.Inspector]}" Style="{DynamicResource KickerText}" />
                 <Border x:Name="ConnectionInspector" Grid.Row="1" Style="{DynamicResource InspectorSection}" Margin="0,10,0,16">
                     <StackPanel>
-                        <TextBlock Text="Подключение" Style="{DynamicResource PanelTitle}" />
+                        <TextBlock Text="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Monitor.Connection]}" Style="{DynamicResource PanelTitle}" />
                         <TextBlock Text="{Binding ConnectionLabel}" FontWeight="SemiBold" Margin="0,8,0,0" />
                         <TextBlock Text="{Binding ConnectionFriendlyName}" TextWrapping="Wrap" Margin="0,5,0,0"
                                    Foreground="{DynamicResource Brush.TextSecondary}" />
@@ -204,18 +205,18 @@
                     <Grid>
                         <Grid.ColumnDefinitions><ColumnDefinition Width="88" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
                         <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
-                        <TextBlock Grid.ColumnSpan="2" Text="Измерение" Style="{DynamicResource PanelTitle}" Margin="0,0,0,8" />
-                        <TextBlock Grid.Row="1" Text="Начало" Style="{DynamicResource KeyValueLabel}" />
+                        <TextBlock Grid.ColumnSpan="2" Text="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Monitor.Measurement]}" Style="{DynamicResource PanelTitle}" Margin="0,0,0,8" />
+                        <TextBlock Grid.Row="1" Text="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Monitor.Started]}" Style="{DynamicResource KeyValueLabel}" />
                         <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding SelectedEvent.StartedAt}" Style="{DynamicResource KeyValueValue}" />
-                        <TextBlock Grid.Row="2" Text="Конец" Style="{DynamicResource KeyValueLabel}" Margin="0,5,0,0" />
+                        <TextBlock Grid.Row="2" Text="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Monitor.Ended]}" Style="{DynamicResource KeyValueLabel}" Margin="0,5,0,0" />
                         <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding SelectedEvent.EndedAt}" Style="{DynamicResource KeyValueValue}" Margin="0,5,0,0" />
-                        <TextBlock Grid.Row="3" Text="Длительность" Style="{DynamicResource KeyValueLabel}" Margin="0,5,0,0" />
+                        <TextBlock Grid.Row="3" Text="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Monitor.Duration]}" Style="{DynamicResource KeyValueLabel}" Margin="0,5,0,0" />
                         <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding SelectedEvent.Duration}" Style="{DynamicResource KeyValueValue}" Margin="0,5,0,0" />
                     </Grid>
                 </Border>
                 <Grid x:Name="ChunksInspector" Grid.Row="3">
                     <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
-                    <TextBlock Text="Чтения транспорта" Style="{DynamicResource PanelTitle}" Margin="0,0,0,8" />
+                    <TextBlock Text="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Monitor.Reads]}" Style="{DynamicResource PanelTitle}" Margin="0,0,0,8" />
                     <ListBox Grid.Row="1" ItemsSource="{Binding SelectedEvent.Chunks}" Style="{DynamicResource LedgerListBox}"
                              ItemContainerStyle="{DynamicResource AdaptiveRecordRow}"
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled">
@@ -224,11 +225,11 @@
                                 <Grid>
                                     <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                                    <TextBlock Text="{Binding Sequence, StringFormat=Чтение №{0}}" FontWeight="SemiBold" />
+                                    <TextBlock Text="{Binding Sequence, StringFormat=#{0}}" FontWeight="SemiBold" />
                                     <TextBlock Grid.Column="1" Text="{Binding Interval}" Foreground="{DynamicResource Brush.TextSecondary}" />
                                     <TextBlock Grid.Row="1" Text="{Binding HexPreview}" Style="{DynamicResource DataText}"
                                                TextTrimming="CharacterEllipsis" Margin="0,4,8,0" />
-                                    <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding ByteCount, StringFormat={}{0} Б}"
+                                    <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding ByteCount, StringFormat={}{0} B}"
                                                Foreground="{DynamicResource Brush.TextSecondary}" Margin="0,4,0,0" />
                                 </Grid>
                             </DataTemplate>

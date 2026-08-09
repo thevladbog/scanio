@@ -1,17 +1,23 @@
 using Scanio.Application.Notebook;
+using Scanio.Presentation.Localization;
 
 namespace Scanio.Presentation.ViewModels;
 
 public sealed class NotebookRecordItemViewModel
 {
-    public NotebookRecordItemViewModel(NotebookRecord record)
+    public NotebookRecordItemViewModel(NotebookRecord record, IUiLocalizer? localizer = null)
     {
         ArgumentNullException.ThrowIfNull(record);
         Record = record;
         Sequence = record.Sequence;
         Timestamp = record.RecordedAt.ToLocalTime().ToString("HH:mm:ss.fff");
         Payload = record.Decoded.EscapedDisplay;
-        Format = record.Analyses.FirstOrDefault(result => result.IsMatch)?.Format ?? "Unknown";
+        var primary = record.Analyses.FirstOrDefault(result => result.IsMatch);
+        Format = primary is null
+            ? localizer?["Analysis.UnknownFormat"] ?? "Unknown"
+            : localizer is null
+                ? primary.Format
+                : new AnalysisItemViewModel(primary, localizer).Format;
         Transport = record.Scan.Transport.DisplayName;
         ByteCount = record.Scan.RawBytes.Length;
         DuplicateCount = record.DuplicateCount;

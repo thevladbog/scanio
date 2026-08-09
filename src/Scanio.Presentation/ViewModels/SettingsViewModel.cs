@@ -47,7 +47,11 @@ public sealed class SettingsViewModel : ObservableObject
             return Task.CompletedTask;
         });
         _settings.Changed += OnSettingsChanged;
-        _localizer.PropertyChanged += (_, _) => OnPropertyChanged(string.Empty);
+        _localizer.PropertyChanged += (_, _) =>
+        {
+            OnPropertyChanged(string.Empty);
+            OnPropertyChanged(nameof(ModeLabel));
+        };
     }
 
     public bool IsPortable { get; }
@@ -57,6 +61,8 @@ public sealed class SettingsViewModel : ObservableObject
     public string DataFolder { get; }
 
     public string ApplicationVersion { get; }
+
+    public string ModeLabel => _localizer[IsPortable ? "Settings.Portable" : "Settings.Installed"];
 
     public bool IsRussian
     {

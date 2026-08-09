@@ -41,6 +41,15 @@
     <None Include="..\..\src\Scanio.Presentation\Views\HistoryView.xaml"
           Link="LayoutContracts\HistoryView.xaml"
           CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\src\Scanio.Presentation\Views\SettingsView.xaml"
+          Link="LayoutContracts\SettingsView.xaml"
+          CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\src\Scanio.Presentation\Resources\Strings.resx"
+          Link="LayoutContracts\Strings.resx"
+          CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\src\Scanio.Presentation\Resources\Strings.en.resx"
+          Link="LayoutContracts\Strings.en.resx"
+          CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

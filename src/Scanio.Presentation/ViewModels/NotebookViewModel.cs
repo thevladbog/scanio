@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.IO;
 using Scanio.Application.Notebook;
 using Scanio.Presentation.Services;
+using Scanio.Presentation.Localization;
 
 namespace Scanio.Presentation.ViewModels;
 
@@ -9,15 +10,21 @@ public sealed class NotebookViewModel : ObservableObject
 {
     private readonly NotebookRecorder _recorder;
     private readonly INotebookInteractionService _interaction;
+    private readonly IUiLocalizer? _localizer;
     private readonly SynchronizationContext? _synchronizationContext = SynchronizationContext.Current;
-    private string _sessionName = $"Сессия {DateTime.Now:yyyy-MM-dd HH-mm}";
+    private string _sessionName;
 
-    public NotebookViewModel(NotebookRecorder recorder, INotebookInteractionService interaction)
+    public NotebookViewModel(
+        NotebookRecorder recorder,
+        INotebookInteractionService interaction,
+        IUiLocalizer? localizer = null)
     {
         ArgumentNullException.ThrowIfNull(recorder);
         ArgumentNullException.ThrowIfNull(interaction);
         _recorder = recorder;
         _interaction = interaction;
+        _localizer = localizer;
+        _sessionName = $"{(_localizer?["Notebook.DefaultSession"] ?? "Сессия")} {DateTime.Now:yyyy-MM-dd HH-mm}";
         StartCommand = new AsyncCommand(_ => ExecuteSafelyAsync(StartAsync), () => CanStart);
         PauseCommand = new AsyncCommand(_ => ExecuteSafelyAsync(PauseAsync), () => CanPause);
         ResumeCommand = new AsyncCommand(_ => ExecuteSafelyAsync(ResumeAsync), () => CanResume);
@@ -30,6 +37,22 @@ public sealed class NotebookViewModel : ObservableObject
         ExportJsonCommand = ExportCommand(NotebookExportFormat.Json);
         _recorder.Changed += OnRecorderChanged;
         _recorder.RecordPersisted += OnRecordPersisted;
+        if (_localizer is not null)
+        {
+            _localizer.PropertyChanged += (_, _) => RunOnUi(() =>
+            {
+                var records = Records.Select(item => item.Record).ToArray();
+                Records.Clear();
+                foreach (var record in records)
+                {
+                    Records.Add(new NotebookRecordItemViewModel(record, _localizer));
+                }
+
+                OnPropertyChanged(nameof(StateLabel));
+                RaiseSummaryProperties();
+                RaiseRecordCommands();
+            });
+        }
     }
 
     public ObservableCollection<NotebookRecordItemViewModel> Records { get; } = [];
@@ -46,12 +69,14 @@ public sealed class NotebookViewModel : ObservableObject
         }
     }
 
-    public string StateLabel => _recorder.State switch
-    {
-        NotebookRecordingState.Recording => "Запись идёт",
-        NotebookRecordingState.Paused => "Пауза",
-        _ => "Запись выключена"
-    };
+    public string StateLabel => _localizer is null
+        ? _recorder.State switch
+        {
+            NotebookRecordingState.Recording => "Запись идёт",
+            NotebookRecordingState.Paused => "Пауза",
+            _ => "Запись выключена"
+        }
+        : _localizer[$"Notebook.State.{_recorder.State}"];
 
     public string? ErrorMessage => _recorder.LastError;
     public bool CanStart => _recorder.State == NotebookRecordingState.Off && !string.IsNullOrWhiteSpace(SessionName);
@@ -139,9 +164,9 @@ public sealed class NotebookViewModel : ObservableObject
         {
             await action();
         }
-        catch (Exception exception)
+        catch (Exception)
         {
-            _interaction.ShowError(exception.Message);
+            _interaction.ShowError(_localizer?["Error.OperationFailed"] ?? "Operation failed.");
         }
     }
 
@@ -164,7 +189,7 @@ public sealed class NotebookViewModel : ObservableObject
 
     private void OnRecordPersisted(object? sender, NotebookRecordPersistedEventArgs args) => RunOnUi(() =>
     {
-        Records.Add(new NotebookRecordItemViewModel(args.Record));
+        Records.Add(new NotebookRecordItemViewModel(args.Record, _localizer));
         RaiseSummaryProperties();
         RaiseRecordCommands();
     });

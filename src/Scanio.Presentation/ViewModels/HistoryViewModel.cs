@@ -1,6 +1,8 @@
 using System.Collections.ObjectModel;
 using Scanio.Application.Notebook;
 using Scanio.Presentation.Services;
+using Scanio.Presentation.Localization;
+using Scanio.Presentation.Settings;
 
 namespace Scanio.Presentation.ViewModels;
 
@@ -11,11 +13,11 @@ public sealed record NotebookSessionItemViewModel(
     string Duration,
     int RecordCount)
 {
-    public static NotebookSessionItemViewModel From(NotebookSession session)
+    public static NotebookSessionItemViewModel From(NotebookSession session, IUiLocalizer? localizer = null)
     {
         var duration = session.EndedAt is null
-            ? "Не завершена"
-            : FormatDuration(session.EndedAt.Value - session.StartedAt);
+            ? localizer?["History.NotFinished"] ?? "Не завершена"
+            : FormatDuration(session.EndedAt.Value - session.StartedAt, localizer);
         return new NotebookSessionItemViewModel(
             session,
             session.Name,
@@ -24,8 +26,14 @@ public sealed record NotebookSessionItemViewModel(
             session.RecordCount);
     }
 
-    private static string FormatDuration(TimeSpan value) =>
-        value.TotalHours >= 1 ? $"{(int)value.TotalHours} ч {value.Minutes} мин" : $"{Math.Max(0, value.Minutes)} мин";
+    private static string FormatDuration(TimeSpan value, IUiLocalizer? localizer) =>
+        localizer?.Language == UiLanguage.English
+            ? value.TotalHours >= 1
+                ? $"{(int)value.TotalHours} h {value.Minutes} min"
+                : $"{Math.Max(0, value.Minutes)} min"
+            : value.TotalHours >= 1
+                ? $"{(int)value.TotalHours} ч {value.Minutes} мин"
+                : $"{Math.Max(0, value.Minutes)} мин";
 }
 
 public sealed class HistoryViewModel : ObservableObject
@@ -33,6 +41,7 @@ public sealed class HistoryViewModel : ObservableObject
     private readonly INotebookRepository _repository;
     private readonly INotebookInteractionService _interaction;
     private readonly NotebookRecorder? _recorder;
+    private readonly IUiLocalizer? _localizer;
     private readonly SynchronizationContext? _synchronizationContext = SynchronizationContext.Current;
     private NotebookSessionItemViewModel? _selectedSession;
     private string _renameText = string.Empty;
@@ -40,13 +49,15 @@ public sealed class HistoryViewModel : ObservableObject
     public HistoryViewModel(
         INotebookRepository repository,
         INotebookInteractionService interaction,
-        NotebookRecorder? recorder = null)
+        NotebookRecorder? recorder = null,
+        IUiLocalizer? localizer = null)
     {
         ArgumentNullException.ThrowIfNull(repository);
         ArgumentNullException.ThrowIfNull(interaction);
         _repository = repository;
         _interaction = interaction;
         _recorder = recorder;
+        _localizer = localizer;
         RefreshCommand = new AsyncCommand(_ => ExecuteSafelyAsync(RefreshAsync));
         OpenCommand = new AsyncCommand(_ => ExecuteSafelyAsync(OpenAsync), () => SelectedSession is not null);
         RenameCommand = new AsyncCommand(_ => ExecuteSafelyAsync(RenameAsync), () =>
@@ -65,6 +76,10 @@ public sealed class HistoryViewModel : ObservableObject
                 RenameCommand.RaiseCanExecuteChanged();
                 DeleteCommand.RaiseCanExecuteChanged();
             });
+        }
+        if (_localizer is not null)
+        {
+            _localizer.PropertyChanged += (_, _) => RunOnUi(() => _ = ExecuteSafelyAsync(RefreshAsync));
         }
     }
 
@@ -120,7 +135,7 @@ public sealed class HistoryViewModel : ObservableObject
         Sessions.Clear();
         foreach (var session in sessions)
         {
-            Sessions.Add(NotebookSessionItemViewModel.From(session));
+            Sessions.Add(NotebookSessionItemViewModel.From(session, _localizer));
         }
 
         SelectedSession = Sessions.FirstOrDefault();
@@ -135,7 +150,7 @@ public sealed class HistoryViewModel : ObservableObject
         Records.Clear();
         foreach (var record in records)
         {
-            Records.Add(new NotebookRecordItemViewModel(record));
+            Records.Add(new NotebookRecordItemViewModel(record, _localizer));
         }
 
         RaiseRecordCommands();
@@ -202,9 +217,9 @@ public sealed class HistoryViewModel : ObservableObject
         {
             await action();
         }
-        catch (Exception exception)
+        catch (Exception)
         {
-            _interaction.ShowError(exception.Message);
+            _interaction.ShowError(_localizer?["Error.OperationFailed"] ?? "Operation failed.");
         }
     }
 

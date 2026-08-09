@@ -143,15 +143,15 @@ public sealed class ConnectionViewModel : ObservableObject
         {
             throw;
         }
-        catch (Exception exception)
+        catch (Exception)
         {
-            ErrorMessage = exception.Message;
+            ErrorMessage = _localizer["Error.RefreshDevices"];
         }
     }
 
     private async Task ConnectAsync(CancellationToken cancellationToken)
     {
-        var device = SelectedDevice ?? throw new InvalidOperationException("Select a serial device first.");
+        var device = SelectedDevice ?? throw new InvalidOperationException(_localizer["Error.SelectDevice"]);
         ErrorMessage = null;
         try
         {
@@ -170,9 +170,9 @@ public sealed class ConnectionViewModel : ObservableObject
         {
             throw;
         }
-        catch (Exception exception)
+        catch (Exception)
         {
-            ErrorMessage = exception.Message;
+            ErrorMessage = _localizer["Error.Connect"];
         }
     }
 

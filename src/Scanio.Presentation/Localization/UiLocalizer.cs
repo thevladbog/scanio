@@ -58,7 +58,9 @@ public sealed class UiLocalizer : IUiLocalizer
     private static void ApplyCulture(UiLanguage language)
     {
         var culture = CultureFor(language);
+        CultureInfo.CurrentCulture = culture;
         CultureInfo.CurrentUICulture = culture;
+        CultureInfo.DefaultThreadCurrentCulture = culture;
         CultureInfo.DefaultThreadCurrentUICulture = culture;
     }
 }

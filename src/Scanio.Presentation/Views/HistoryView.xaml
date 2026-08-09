@@ -1,6 +1,7 @@
 <UserControl x:Class="Scanio.Presentation.Views.HistoryView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:localization="clr-namespace:Scanio.Presentation.Localization">
     <Grid Background="{DynamicResource Brush.SurfacePrimary}" ClipToBounds="True">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="390*" />
@@ -15,10 +16,10 @@
                 <Grid>
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                     <StackPanel>
-                        <TextBlock Text="ИСТОРИЯ" Style="{DynamicResource KickerText}" />
-                        <TextBlock Text="Сохранённые сессии" Style="{DynamicResource PageTitle}" Margin="0,5,0,14" />
+                        <TextBlock Text="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[History.Kicker]}" Style="{DynamicResource KickerText}" />
+                        <TextBlock Text="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[History.Title]}" Style="{DynamicResource PageTitle}" Margin="0,5,0,14" />
                     </StackPanel>
-                    <Button Grid.Column="1" Content="Обновить" Command="{Binding RefreshCommand}"
+                    <Button Grid.Column="1" Content="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Common.Refresh]}" Command="{Binding RefreshCommand}"
                             Style="{DynamicResource QuietButton}" VerticalAlignment="Bottom" Margin="0,0,0,10" />
                 </Grid>
                 <ListBox Grid.Row="1" ItemsSource="{Binding Sessions}" SelectedItem="{Binding SelectedSession}"
@@ -30,7 +31,7 @@
                                 <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                                 <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip="{Binding Name}" />
-                                <TextBlock Grid.Column="1" Text="{Binding RecordCount, StringFormat={}{0} сканов}"
+                                <TextBlock Grid.Column="1" Text="{Binding RecordCount}"
                                            Foreground="{DynamicResource Brush.TextSecondary}" Margin="8,0,0,0" />
                                 <TextBlock Grid.Row="1" Text="{Binding StartedAt}" Foreground="{DynamicResource Brush.TextSecondary}" Margin="0,5,0,0" />
                                 <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding Duration}"
@@ -43,8 +44,8 @@
                     <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
                     <TextBox Text="{Binding RenameText, UpdateSourceTrigger=PropertyChanged}" />
                     <WrapPanel Grid.Row="1" Margin="0,8,0,0">
-                        <Button Content="Открыть" Command="{Binding OpenCommand}" Style="{DynamicResource PrimaryButton}" />
-                        <Button Content="Переименовать" Command="{Binding RenameCommand}" Style="{DynamicResource SecondaryButton}" Margin="8,0,0,0" />
+                        <Button Content="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[History.Open]}" Command="{Binding OpenCommand}" Style="{DynamicResource PrimaryButton}" />
+                        <Button Content="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[History.Rename]}" Command="{Binding RenameCommand}" Style="{DynamicResource SecondaryButton}" Margin="8,0,0,0" />
                     </WrapPanel>
                 </Grid>
             </Grid>
@@ -55,11 +56,11 @@
             <Grid>
                 <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                 <StackPanel>
-                    <TextBlock Text="ВЫБРАННАЯ СЕССИЯ" Style="{DynamicResource KickerText}" />
-                    <TextBlock Text="{Binding SelectedSession.Name, TargetNullValue=Выберите сессию}" Style="{DynamicResource PageTitle}"
+                    <TextBlock Text="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[History.Selected]}" Style="{DynamicResource KickerText}" />
+                    <TextBlock Text="{Binding SelectedSession.Name, TargetNullValue=—}" Style="{DynamicResource PageTitle}"
                                TextTrimming="CharacterEllipsis" Margin="0,5,12,14" />
                 </StackPanel>
-                <TextBlock Grid.Column="1" Text="{Binding RecordCount, StringFormat={}{0} записей}"
+                <TextBlock Grid.Column="1" Text="{Binding RecordCount}"
                            Foreground="{DynamicResource Brush.TextSecondary}" VerticalAlignment="Bottom" Margin="0,0,0,16" />
             </Grid>
             <ListBox Grid.Row="1" ItemsSource="{Binding Records}" Style="{DynamicResource LedgerListBox}"
@@ -92,19 +93,19 @@
                 BorderBrush="{DynamicResource Brush.BorderDefault}" BorderThickness="1,0,0,0" Padding="20">
             <Grid>
                 <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
-                <TextBlock Text="ДЕЙСТВИЯ" Style="{DynamicResource KickerText}" />
+                <TextBlock Text="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Notebook.Actions]}" Style="{DynamicResource KickerText}" />
                 <StackPanel Grid.Row="1">
-                    <TextBlock Text="Копировать" Style="{DynamicResource PanelTitle}" Margin="0,8,0,14" />
-                    <Button Content="Все значения" Command="{Binding CopyAllCommand}" Style="{DynamicResource SecondaryButton}" />
-                    <Button Content="Только уникальные" Command="{Binding CopyUniqueCommand}" Style="{DynamicResource SecondaryButton}" Margin="0,8,0,0" />
-                    <Button Content="С управляющими символами" Command="{Binding CopyEscapedCommand}" Style="{DynamicResource SecondaryButton}" Margin="0,8,0,0" />
+                    <TextBlock Text="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Notebook.Copy]}" Style="{DynamicResource PanelTitle}" Margin="0,8,0,14" />
+                    <Button Content="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Notebook.CopyAll]}" Command="{Binding CopyAllCommand}" Style="{DynamicResource SecondaryButton}" />
+                    <Button Content="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Notebook.CopyUnique]}" Command="{Binding CopyUniqueCommand}" Style="{DynamicResource SecondaryButton}" Margin="0,8,0,0" />
+                    <Button Content="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Notebook.CopyEscaped]}" Command="{Binding CopyEscapedCommand}" Style="{DynamicResource SecondaryButton}" Margin="0,8,0,0" />
                     <Border BorderBrush="{DynamicResource Brush.BorderDefault}" BorderThickness="0,1,0,0" Margin="0,24,0,20" />
-                    <TextBlock Text="Экспорт" Style="{DynamicResource PanelTitle}" Margin="0,0,0,14" />
-                    <Button Content="Экспорт TXT" Command="{Binding ExportTextCommand}" Style="{DynamicResource SecondaryButton}" />
-                    <Button Content="Экспорт CSV" Command="{Binding ExportCsvCommand}" Style="{DynamicResource SecondaryButton}" Margin="0,8,0,0" />
-                    <Button Content="Диагностический JSON" Command="{Binding ExportJsonCommand}" Style="{DynamicResource SecondaryButton}" Margin="0,8,0,0" />
+                    <TextBlock Text="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Notebook.Export]}" Style="{DynamicResource PanelTitle}" Margin="0,0,0,14" />
+                    <Button Content="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Notebook.ExportText]}" Command="{Binding ExportTextCommand}" Style="{DynamicResource SecondaryButton}" />
+                    <Button Content="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Notebook.ExportCsv]}" Command="{Binding ExportCsvCommand}" Style="{DynamicResource SecondaryButton}" Margin="0,8,0,0" />
+                    <Button Content="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Notebook.ExportJson]}" Command="{Binding ExportJsonCommand}" Style="{DynamicResource SecondaryButton}" Margin="0,8,0,0" />
                 </StackPanel>
-                <Button Grid.Row="3" Content="Удалить выбранную сессию" Command="{Binding DeleteCommand}"
+                <Button Grid.Row="3" Content="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[History.DeleteSelected]}" Command="{Binding DeleteCommand}"
                         Style="{DynamicResource DangerButton}" />
             </Grid>
         </Border>

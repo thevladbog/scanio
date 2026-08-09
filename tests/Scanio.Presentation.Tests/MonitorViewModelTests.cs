@@ -80,8 +80,8 @@ public sealed class MonitorViewModelTests
         var displayed = viewModel.SelectedEvent.Analyses.Single();
         Assert.AreEqual("Предположение по структуре", displayed.Confidence);
         Assert.AreEqual("04601234567893", displayed.Fields.Single().Value);
-        CollectionAssert.Contains(displayed.Errors.ToArray(), "Fixture error.");
-        CollectionAssert.Contains(displayed.Warnings.ToArray(), "Fixture warning.");
+        CollectionAssert.Contains(displayed.Errors.ToArray(), "Ошибка проверки 1");
+        CollectionAssert.Contains(displayed.Warnings.ToArray(), "Предупреждение проверки 1");
     }
 
     [TestMethod]
@@ -100,9 +100,39 @@ public sealed class MonitorViewModelTests
 
         var selected = viewModel.SelectedEvent!;
         CollectionAssert.AreEqual(
-            new[] { "Честный знак", "GS1 element string" },
+            new[] { "Честный знак", "Строка элементов GS1" },
             selected.Analyses.Select(item => item.Format).ToArray());
         Assert.AreEqual("Честный знак", selected.Format);
+    }
+
+    [TestMethod]
+    public void ChangingLanguage_RebuildsTheCompleteAnalyzerPresentationImmediately()
+    {
+        var analysis = AnalysisResult.Match(
+            "GS1",
+            "GS1 element string",
+            AnalysisConfidence.Exact,
+            "Application identifier structure.",
+            "GS1 payload.",
+            [new AnalysisField("10", "Batch or lot", "LOT-42")]);
+        var monitor = new LiveMonitor();
+        monitor.Append(Scan(1, "value"), Decoded("value"), [analysis]);
+        var settings = new TestSettingsService();
+        var localizer = new UiLocalizer(settings);
+        var viewModel = new MonitorViewModel(
+            monitor,
+            new FakeConnectionService(),
+            new FakeClipboardService(),
+            localizer);
+
+        Assert.AreEqual("Строка элементов GS1", viewModel.SelectedEvent!.Format);
+        Assert.AreEqual("Партия", viewModel.SelectedEvent.Analyses.Single().Fields.Single().Name);
+
+        localizer.SetLanguage(UiLanguage.English);
+
+        Assert.AreEqual("GS1 element string", viewModel.SelectedEvent!.Format);
+        Assert.AreEqual("Batch or lot", viewModel.SelectedEvent.Analyses.Single().Fields.Single().Name);
+        Assert.AreEqual("Application identifier structure.", viewModel.SelectedEvent.Analyses.Single().Evidence);
     }
 
     [TestMethod]

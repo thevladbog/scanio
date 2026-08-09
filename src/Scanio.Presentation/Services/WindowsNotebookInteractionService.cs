@@ -1,10 +1,19 @@
 using Microsoft.Win32;
 using Scanio.Application.Notebook;
+using Scanio.Presentation.Localization;
 
 namespace Scanio.Presentation.Services;
 
 public sealed class WindowsNotebookInteractionService : INotebookInteractionService
 {
+    private readonly IUiLocalizer _localizer;
+
+    public WindowsNotebookInteractionService(IUiLocalizer localizer)
+    {
+        ArgumentNullException.ThrowIfNull(localizer);
+        _localizer = localizer;
+    }
+
     public void SetClipboardText(string text) => System.Windows.Clipboard.SetText(text);
 
     public string? ChooseExportPath(NotebookExportFormat format, string suggestedName)
@@ -29,15 +38,15 @@ public sealed class WindowsNotebookInteractionService : INotebookInteractionServ
 
     public bool ConfirmDelete(string sessionName) =>
         System.Windows.MessageBox.Show(
-            $"Удалить сессию «{sessionName}» и все её сканы?",
-            "Сканио",
+            string.Format(_localizer["Dialog.DeleteSession"], sessionName),
+            _localizer["App.Title"],
             System.Windows.MessageBoxButton.YesNo,
             System.Windows.MessageBoxImage.Warning) == System.Windows.MessageBoxResult.Yes;
 
     public void ShowError(string message) =>
         System.Windows.MessageBox.Show(
             message,
-            "Сканио",
+            _localizer["Dialog.ErrorTitle"],
             System.Windows.MessageBoxButton.OK,
             System.Windows.MessageBoxImage.Error);
 }
