@@ -86,6 +86,16 @@
         <Setter Property="Foreground" Value="{DynamicResource Brush.SurfacePrimary}" />
         <Setter Property="BorderBrush" Value="{DynamicResource Brush.Signal}" />
     </Style>
+    <Style x:Key="SecondaryButton" TargetType="Button" BasedOn="{StaticResource CommandButton}" />
+    <Style x:Key="QuietButton" TargetType="Button" BasedOn="{StaticResource CommandButton}">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+        <Setter Property="FontWeight" Value="Normal" />
+    </Style>
+    <Style x:Key="DangerButton" TargetType="Button" BasedOn="{StaticResource CommandButton}">
+        <Setter Property="Foreground" Value="{DynamicResource Brush.Error}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Brush.Error}" />
+    </Style>
     <Style TargetType="TextBox">
         <Setter Property="MinHeight" Value="{DynamicResource Size.ControlHeight}" />
         <Setter Property="Padding" Value="{DynamicResource Inset.2}" />
@@ -110,5 +120,46 @@
                 <Setter Property="BorderThickness" Value="4,0,0,0" />
             </Trigger>
         </Style.Triggers>
+    </Style>
+    <Style x:Key="LedgerListBox" TargetType="ListBox">
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
+        <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto" />
+        <Setter Property="ScrollViewer.CanContentScroll" Value="True" />
+        <Setter Property="VirtualizingPanel.IsVirtualizing" Value="True" />
+        <Setter Property="VirtualizingPanel.VirtualizationMode" Value="Recycling" />
+    </Style>
+    <Style x:Key="LedgerRow" TargetType="ListBoxItem">
+        <Setter Property="MinHeight" Value="{DynamicResource Size.LedgerRowCompact}" />
+        <Setter Property="Padding" Value="12,8" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="4,0,0,0" />
+        <Style.Triggers>
+            <Trigger Property="IsSelected" Value="True">
+                <Setter Property="Background" Value="{DynamicResource Brush.SignalSurface}" />
+                <Setter Property="BorderBrush" Value="{DynamicResource Brush.Signal}" />
+            </Trigger>
+            <Trigger Property="IsKeyboardFocused" Value="True">
+                <Setter Property="BorderBrush" Value="{DynamicResource Brush.Signal}" />
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+    <Style x:Key="AdaptiveRecordRow" TargetType="ListBoxItem" BasedOn="{StaticResource LedgerRow}">
+        <Setter Property="MinHeight" Value="48" />
+    </Style>
+    <Style x:Key="InspectorSection" TargetType="Border">
+        <Setter Property="BorderBrush" Value="{DynamicResource Brush.BorderDefault}" />
+        <Setter Property="BorderThickness" Value="0,0,0,1" />
+        <Setter Property="Padding" Value="0,0,0,16" />
+        <Setter Property="Margin" Value="0,0,0,16" />
+    </Style>
+    <Style x:Key="KeyValueLabel" TargetType="TextBlock">
+        <Setter Property="Foreground" Value="{DynamicResource Brush.TextSecondary}" />
+        <Setter Property="FontSize" Value="{DynamicResource Type.Caption}" />
+    </Style>
+    <Style x:Key="KeyValueValue" TargetType="TextBlock">
+        <Setter Property="TextWrapping" Value="Wrap" />
     </Style>
 </ResourceDictionary>
