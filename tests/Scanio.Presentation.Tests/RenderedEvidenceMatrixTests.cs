@@ -36,19 +36,23 @@ public sealed class RenderedEvidenceMatrixTests
     public void DensityMatrix_CoversBothDensitiesOnEveryMainListSurface()
     {
         var actual = RenderedEvidenceMatrix.Density
-            .Select(variant => (variant.Destination, variant.ListDensity))
+            .Select(variant => (variant.Language, variant.Destination, variant.ListDensity))
             .ToArray();
         var expected = new[]
         {
-            (ShellDestination.Connection, ListDensity.Compact),
-            (ShellDestination.Connection, ListDensity.Comfortable),
-            (ShellDestination.Monitor, ListDensity.Compact),
-            (ShellDestination.Monitor, ListDensity.Comfortable),
-            (ShellDestination.Notebook, ListDensity.Compact),
-            (ShellDestination.Notebook, ListDensity.Comfortable),
-            (ShellDestination.History, ListDensity.Compact),
-            (ShellDestination.History, ListDensity.Comfortable)
-        };
+            UiLanguage.Russian,
+            UiLanguage.English
+        }.SelectMany(language => new[]
+        {
+            (language, ShellDestination.Connection, ListDensity.Compact),
+            (language, ShellDestination.Connection, ListDensity.Comfortable),
+            (language, ShellDestination.Monitor, ListDensity.Compact),
+            (language, ShellDestination.Monitor, ListDensity.Comfortable),
+            (language, ShellDestination.Notebook, ListDensity.Compact),
+            (language, ShellDestination.Notebook, ListDensity.Comfortable),
+            (language, ShellDestination.History, ListDensity.Compact),
+            (language, ShellDestination.History, ListDensity.Comfortable)
+        }).ToArray();
 
         CollectionAssert.AreEquivalent(expected, actual);
     }
@@ -57,11 +61,17 @@ public sealed class RenderedEvidenceMatrixTests
     public void MonitorMatrix_CoversHexAndChunksTogetherOffAndOn()
     {
         var actual = RenderedEvidenceMatrix.Monitor
-            .Select(variant => (variant.ShowHexPreview, variant.ShowChunkBoundaries))
+            .Select(variant => (variant.Language, variant.ShowHexPreview, variant.ShowChunkBoundaries))
             .ToArray();
 
         CollectionAssert.AreEquivalent(
-            new[] { (false, false), (true, true) },
+            new[]
+            {
+                (UiLanguage.Russian, false, false),
+                (UiLanguage.Russian, true, true),
+                (UiLanguage.English, false, false),
+                (UiLanguage.English, true, true)
+            },
             actual);
     }
 
@@ -69,14 +79,16 @@ public sealed class RenderedEvidenceMatrixTests
     public void SettingsMatrix_CoversCompactAndComfortableDensityEvidence()
     {
         var actual = RenderedEvidenceMatrix.Settings
-            .Select(variant => (variant.Destination, variant.ListDensity, variant.Width, variant.Height))
+            .Select(variant => (variant.Language, variant.Destination, variant.ListDensity, variant.Width, variant.Height))
             .ToArray();
 
         CollectionAssert.AreEquivalent(
             new[]
             {
-                (ShellDestination.Settings, ListDensity.Compact, 1440, 900),
-                (ShellDestination.Settings, ListDensity.Comfortable, 1440, 900)
+                (UiLanguage.Russian, ShellDestination.Settings, ListDensity.Compact, 1440, 900),
+                (UiLanguage.Russian, ShellDestination.Settings, ListDensity.Comfortable, 1440, 900),
+                (UiLanguage.English, ShellDestination.Settings, ListDensity.Compact, 1440, 900),
+                (UiLanguage.English, ShellDestination.Settings, ListDensity.Comfortable, 1440, 900)
             },
             actual);
     }
@@ -87,7 +99,7 @@ public sealed class RenderedEvidenceMatrixTests
         var variants = RenderedEvidenceMatrix.All.ToArray();
         var names = variants.Select(variant => variant.ScreenshotName).ToArray();
 
-        Assert.HasCount(20, variants);
+        Assert.HasCount(32, variants);
         Assert.AreEqual(names.Length, names.Distinct(StringComparer.Ordinal).Count());
         Assert.IsTrue(names.All(name => name.EndsWith(".png", StringComparison.Ordinal)));
         Assert.IsTrue(names.All(name => name.Contains('x', StringComparison.Ordinal)));

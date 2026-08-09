@@ -95,7 +95,7 @@ public sealed class NotebookViewModel : ObservableObject
     public int UniqueCount => NotebookExportService.CountUniquePayloads(
         _occurrences);
     public int DuplicateCount => Math.Max(0, TotalCount - UniqueCount);
-    public string DeviceLabel => Records.FirstOrDefault()?.Transport ?? "—";
+    public string DeviceLabel => Records.LastOrDefault()?.Transport ?? "—";
 
     public AsyncCommand StartCommand { get; }
     public AsyncCommand PauseCommand { get; }

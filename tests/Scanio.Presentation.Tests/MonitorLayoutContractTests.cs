@@ -98,6 +98,20 @@ public sealed class MonitorLayoutContractTests
         Assert.AreEqual(
             "{Binding Source={x:Static settings:DisplaySettingsSource.Current}, Path=ShowChunkBoundaries, Converter={StaticResource BooleanToVisibility}}",
             (string?)chunks.Attribute("Visibility"));
+
+        Assert.AreEqual("HexEvidence", (string?)hex.Attribute(Xaml + "Name"));
+        var rawColumns = rawEvidence.Descendants(Presentation + "Grid").First()
+            .Element(Presentation + "Grid.ColumnDefinitions")!
+            .Elements(Presentation + "ColumnDefinition")
+            .ToArray();
+        AssertFalseSettingCollapsesDefinition(rawColumns[1], "ShowHexPreview", "Width");
+        AssertFalseSettingCollapsesDefinition(rawColumns[2], "ShowHexPreview", "Width");
+
+        var inspectorRows = chunks.Parent!
+            .Element(Presentation + "Grid.RowDefinitions")!
+            .Elements(Presentation + "RowDefinition")
+            .ToArray();
+        AssertFalseSettingCollapsesDefinition(inspectorRows[3], "ShowChunkBoundaries", "Height");
     }
 
     [TestMethod]
@@ -139,4 +153,19 @@ public sealed class MonitorLayoutContractTests
 
     private static XDocument Load() => XDocument.Load(
         Path.Combine(AppContext.BaseDirectory, "LayoutContracts", "MonitorView.xaml"));
+
+    private static void AssertFalseSettingCollapsesDefinition(
+        XElement definition,
+        string settingName,
+        string propertyName)
+    {
+        var trigger = definition.Descendants(Presentation + "DataTrigger")
+            .Single(element =>
+                ((string?)element.Attribute("Binding"))?.Contains($"Path={settingName}", StringComparison.Ordinal) == true &&
+                (string?)element.Attribute("Value") == "False");
+        var setter = trigger.Elements(Presentation + "Setter")
+            .Single(element => (string?)element.Attribute("Property") == propertyName);
+
+        Assert.AreEqual("0", (string?)setter.Attribute("Value"));
+    }
 }

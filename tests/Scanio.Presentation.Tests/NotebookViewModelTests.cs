@@ -11,6 +11,7 @@ using Scanio.Presentation.ViewModels;
 namespace Scanio.Presentation.Tests;
 
 [TestClass]
+[DoNotParallelize]
 public sealed class NotebookViewModelTests
 {
     [TestMethod]
@@ -281,6 +282,28 @@ public sealed class NotebookViewModelTests
         Assert.AreEqual("Сканер-клавиатура", viewModel.Records.Single().Transport);
         Assert.AreEqual("Сканер-клавиатура", viewModel.DeviceLabel);
         Assert.AreEqual("Keyboard scanner", viewModel.Records.Single().Record.Scan.Transport.DisplayName);
+    }
+
+    [TestMethod]
+    public async Task DeviceLabel_FollowsTheLatestGroupedOccurrenceAcrossTransports()
+    {
+        var monitor = new LiveMonitor();
+        var repository = new FakeRepository();
+        await using var recorder = new NotebookRecorder(repository, monitor, () => DateTimeOffset.UnixEpoch);
+        var viewModel = new NotebookViewModel(
+            recorder,
+            new FakeInteraction(),
+            RussianLocalizer())
+        {
+            SessionName = "Mixed transports"
+        };
+
+        await viewModel.StartCommand.ExecuteAsync();
+        monitor.Append(CreateScan(1, "COM"), CreateDecoded("COM"), []);
+        monitor.Append(CreateScan(2, "Keyboard", KeyboardIdentity), CreateDecoded("Keyboard"), []);
+        await viewModel.StopCommand.ExecuteAsync();
+
+        Assert.AreEqual("Сканер-клавиатура", viewModel.DeviceLabel);
     }
 
     [TestMethod]

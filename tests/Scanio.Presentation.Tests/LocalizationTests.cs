@@ -5,6 +5,7 @@ using Scanio.Presentation.Settings;
 namespace Scanio.Presentation.Tests;
 
 [TestClass]
+[DoNotParallelize]
 public sealed class LocalizationTests
 {
     [TestMethod]

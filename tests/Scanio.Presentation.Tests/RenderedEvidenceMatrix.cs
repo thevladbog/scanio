@@ -16,6 +16,9 @@ internal readonly record struct RenderedEvidenceVariant(
 
 internal static class RenderedEvidenceMatrix
 {
+    private static readonly UiLanguage[] Languages =
+        [UiLanguage.Russian, UiLanguage.English];
+
     public static IReadOnlyList<RenderedEvidenceVariant> Connection { get; } =
     [
         ConnectionVariant(UiLanguage.Russian, ConnectionMode.Serial, 1024, 700, "connection-serial-ru-1024x700.png"),
@@ -29,28 +32,31 @@ internal static class RenderedEvidenceMatrix
     ];
 
     public static IReadOnlyList<RenderedEvidenceVariant> Density { get; } =
-    [
-        DensityVariant(ShellDestination.Connection, ListDensity.Compact, "density-connection-compact-en-1024x700.png"),
-        DensityVariant(ShellDestination.Connection, ListDensity.Comfortable, "density-connection-comfortable-en-1024x700.png"),
-        DensityVariant(ShellDestination.Monitor, ListDensity.Compact, "density-monitor-compact-en-1024x700.png"),
-        DensityVariant(ShellDestination.Monitor, ListDensity.Comfortable, "density-monitor-comfortable-en-1024x700.png"),
-        DensityVariant(ShellDestination.Notebook, ListDensity.Compact, "density-notebook-compact-en-1024x700.png"),
-        DensityVariant(ShellDestination.Notebook, ListDensity.Comfortable, "density-notebook-comfortable-en-1024x700.png"),
-        DensityVariant(ShellDestination.History, ListDensity.Compact, "density-history-compact-en-1024x700.png"),
-        DensityVariant(ShellDestination.History, ListDensity.Comfortable, "density-history-comfortable-en-1024x700.png")
-    ];
+        Languages.SelectMany(language => new[]
+        {
+            DensityVariant(language, ShellDestination.Connection, ListDensity.Compact, $"density-connection-compact-{LanguageCode(language)}-1024x700.png"),
+            DensityVariant(language, ShellDestination.Connection, ListDensity.Comfortable, $"density-connection-comfortable-{LanguageCode(language)}-1024x700.png"),
+            DensityVariant(language, ShellDestination.Monitor, ListDensity.Compact, $"density-monitor-compact-{LanguageCode(language)}-1024x700.png"),
+            DensityVariant(language, ShellDestination.Monitor, ListDensity.Comfortable, $"density-monitor-comfortable-{LanguageCode(language)}-1024x700.png"),
+            DensityVariant(language, ShellDestination.Notebook, ListDensity.Compact, $"density-notebook-compact-{LanguageCode(language)}-1024x700.png"),
+            DensityVariant(language, ShellDestination.Notebook, ListDensity.Comfortable, $"density-notebook-comfortable-{LanguageCode(language)}-1024x700.png"),
+            DensityVariant(language, ShellDestination.History, ListDensity.Compact, $"density-history-compact-{LanguageCode(language)}-1024x700.png"),
+            DensityVariant(language, ShellDestination.History, ListDensity.Comfortable, $"density-history-comfortable-{LanguageCode(language)}-1024x700.png")
+        }).ToArray();
 
     public static IReadOnlyList<RenderedEvidenceVariant> Monitor { get; } =
-    [
-        MonitorVariant(false, "monitor-evidence-off-en-1440x900.png"),
-        MonitorVariant(true, "monitor-evidence-on-en-1440x900.png")
-    ];
+        Languages.SelectMany(language => new[]
+        {
+            MonitorVariant(language, false, $"monitor-evidence-off-{LanguageCode(language)}-1440x900.png"),
+            MonitorVariant(language, true, $"monitor-evidence-on-{LanguageCode(language)}-1440x900.png")
+        }).ToArray();
 
     public static IReadOnlyList<RenderedEvidenceVariant> Settings { get; } =
-    [
-        SettingsVariant(ListDensity.Compact, "settings-density-compact-en-1440x900.png"),
-        SettingsVariant(ListDensity.Comfortable, "settings-density-comfortable-en-1440x900.png")
-    ];
+        Languages.SelectMany(language => new[]
+        {
+            SettingsVariant(language, ListDensity.Compact, $"settings-density-compact-{LanguageCode(language)}-1440x900.png"),
+            SettingsVariant(language, ListDensity.Comfortable, $"settings-density-comfortable-{LanguageCode(language)}-1440x900.png")
+        }).ToArray();
 
     public static IEnumerable<RenderedEvidenceVariant> All =>
         Connection.Concat(Density).Concat(Monitor).Concat(Settings);
@@ -73,12 +79,13 @@ internal static class RenderedEvidenceMatrix
             ShowChunkBoundaries: true);
 
     private static RenderedEvidenceVariant DensityVariant(
+        UiLanguage language,
         ShellDestination destination,
         ListDensity listDensity,
         string screenshotName) =>
         new(
             screenshotName,
-            UiLanguage.English,
+            language,
             destination,
             1024,
             700,
@@ -87,10 +94,13 @@ internal static class RenderedEvidenceMatrix
             ShowHexPreview: true,
             ShowChunkBoundaries: true);
 
-    private static RenderedEvidenceVariant MonitorVariant(bool evidenceVisible, string screenshotName) =>
+    private static RenderedEvidenceVariant MonitorVariant(
+        UiLanguage language,
+        bool evidenceVisible,
+        string screenshotName) =>
         new(
             screenshotName,
-            UiLanguage.English,
+            language,
             ShellDestination.Monitor,
             1440,
             900,
@@ -99,10 +109,13 @@ internal static class RenderedEvidenceMatrix
             ShowHexPreview: evidenceVisible,
             ShowChunkBoundaries: evidenceVisible);
 
-    private static RenderedEvidenceVariant SettingsVariant(ListDensity listDensity, string screenshotName) =>
+    private static RenderedEvidenceVariant SettingsVariant(
+        UiLanguage language,
+        ListDensity listDensity,
+        string screenshotName) =>
         new(
             screenshotName,
-            UiLanguage.English,
+            language,
             ShellDestination.Settings,
             1440,
             900,
@@ -110,4 +123,7 @@ internal static class RenderedEvidenceMatrix
             listDensity,
             ShowHexPreview: true,
             ShowChunkBoundaries: true);
+
+    private static string LanguageCode(UiLanguage language) =>
+        language == UiLanguage.Russian ? "ru" : "en";
 }

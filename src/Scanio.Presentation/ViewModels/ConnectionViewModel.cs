@@ -215,11 +215,11 @@ public sealed class ConnectionViewModel : ObservableObject
 
     public string KeyboardStatusTitle => IsKeyboardCaptureActive
         ? _localizer[IsKeyboardSurfaceFocused
-            ? "Connection.Keyboard.Status.Active"
-            : "Connection.Keyboard.Status.Paused"]
+            ? UiTextKeys.ConnectionKeyboardStatusActive
+            : UiTextKeys.ConnectionKeyboardStatusPaused]
         : _localizer[(State == ConnectionState.Connecting || StartKeyboardTestCommand.IsRunning) && IsKeyboardMode
-            ? "Connection.Keyboard.Status.Starting"
-            : "Connection.Keyboard.Status.Ready"];
+            ? UiTextKeys.ConnectionKeyboardStatusStarting
+            : UiTextKeys.ConnectionKeyboardStatusReady];
 
     public string? LastKeyboardScan
     {

@@ -12,6 +12,10 @@ public static class UiTextKeys
     public const string ConnectionDisconnect = "Connection.Disconnect";
     public const string ConnectionConnect = "Connection.Connect";
     public const string ConnectionRefresh = "Connection.Refresh";
+    public const string ConnectionKeyboardStatusActive = "Connection.Keyboard.Status.Active";
+    public const string ConnectionKeyboardStatusPaused = "Connection.Keyboard.Status.Paused";
+    public const string ConnectionKeyboardStatusStarting = "Connection.Keyboard.Status.Starting";
+    public const string ConnectionKeyboardStatusReady = "Connection.Keyboard.Status.Ready";
     public const string MonitorCopyCode = "Monitor.CopyCode";
     public const string MonitorCopyRaw = "Monitor.CopyRaw";
     public const string MonitorCopyHex = "Monitor.CopyHex";

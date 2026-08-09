@@ -88,7 +88,7 @@ public sealed class KeyboardCaptureTransportTests
     [Timeout(2_000, CooperativeCancellation = true)]
     public async Task CloseAsync_CompletesABlockedReader()
     {
-        var transport = CreateTransport();
+        await using var transport = CreateTransport();
         await transport.OpenAsync(CancellationToken.None);
         await using var reader = transport.ReadAllAsync(CancellationToken.None).GetAsyncEnumerator();
         var pendingRead = reader.MoveNextAsync().AsTask();
@@ -97,7 +97,6 @@ public sealed class KeyboardCaptureTransportTests
 
         Assert.IsFalse(await pendingRead.WaitAsync(TimeSpan.FromSeconds(1)));
         Assert.AreEqual(ConnectionState.Disconnected, transport.State);
-        await transport.DisposeAsync();
     }
 
     [TestMethod]

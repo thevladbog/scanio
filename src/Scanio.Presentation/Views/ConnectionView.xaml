@@ -119,12 +119,14 @@
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
-                    <TextBlock Text="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Connection.Keyboard.Capture]}"
+                    <TextBlock x:Name="KeyboardCaptureLabel"
+                               Text="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Connection.Keyboard.Capture]}"
                                Style="{DynamicResource KickerText}" />
                     <TextBlock Grid.Row="1" Text="{Binding KeyboardStatusTitle}"
                                Style="{DynamicResource PanelTitle}" Margin="0,8,0,16" TextWrapping="Wrap" />
                     <TextBox x:Name="KeyboardCaptureInput" Grid.Row="2"
                              MinHeight="72" Padding="16"
+                             AutomationProperties.LabeledBy="{Binding ElementName=KeyboardCaptureLabel}"
                              Text="{Binding LastKeyboardScan, Mode=OneWay}"
                              Background="{DynamicResource Brush.SignalSurface}"
                              BorderBrush="{DynamicResource Brush.Signal}" BorderThickness="2"

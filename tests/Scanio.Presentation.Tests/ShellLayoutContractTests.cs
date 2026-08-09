@@ -143,7 +143,7 @@ public sealed class ShellLayoutContractTests
                 element => element.Attribute("Value")!.Value,
                 StringComparer.Ordinal);
 
-        Assert.AreEqual("{DynamicResource Brush.SurfaceInk}", normalSetters["Background"]);
+        Assert.AreEqual("{DynamicResource Brush.ActionPrimary}", normalSetters["Background"]);
         Assert.AreEqual("{DynamicResource Brush.SurfacePrimary}", normalSetters["Foreground"]);
         Assert.AreEqual("{DynamicResource Brush.SurfacePrimary}", normalSetters["BorderBrush"]);
         Assert.IsFalse(normalSetters.Values.Contains("{DynamicResource Brush.Signal}", StringComparer.Ordinal),

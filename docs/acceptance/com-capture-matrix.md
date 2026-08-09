@@ -35,11 +35,12 @@ Record the scanner model, firmware, Windows version, keyboard layout, suffix con
 
 1. Select **Keyboard scanner**, start the test, and confirm that the dedicated Scanio input has focus. Normal typing elsewhere in Windows must not be presented as raw USB evidence.
 2. Scan a known payload with an Enter suffix. Confirm exactly one Monitor event with the expected reconstructed text, RAW labels, HEX, completion reason, and chunks.
-3. Configure the scanner without a suffix and scan again. Confirm exactly one event after the silence deadline, with no missing or merged characters.
-4. Repeat the scan while Notebook records. Navigate from Monitor to Notebook and back while capture remains active; confirm Monitor resumes the latest scan.
-5. Scan byte-identical values repeatedly. Confirm Notebook and History show one grouped visual row with the correct occurrence count, while copy and TXT, CSV, and JSON exports retain every occurrence in order.
-6. Change RAW control-label, HEX, chunk, and list-density settings. Confirm each change is visible immediately and persists after restart.
-7. Stop keyboard capture, return to COM mode, and run the applicable COM acceptance procedure with the available Datalogic or Zebra device.
+3. Configure a Tab suffix and scan the same payload. Confirm exactly one Monitor event completed by Tab, without a Tab character in the payload.
+4. Configure the scanner without a suffix and scan again. Confirm exactly one event after the silence deadline, with no missing or merged characters.
+5. Repeat the scan while Notebook records. Navigate from Monitor to Notebook and back while capture remains active; confirm Monitor resumes the latest scan.
+6. Scan byte-identical values repeatedly. Confirm Notebook and History show one grouped visual row with the correct occurrence count, while copy and TXT, CSV, and JSON exports retain every occurrence in order.
+7. Change RAW control-label, HEX, chunk, and list-density settings. Confirm each change is visible immediately and persists after restart.
+8. Stop keyboard capture, return to COM mode, and run the applicable COM acceptance procedure with the available Datalogic or Zebra device.
 
 ## Evidence record
 
@@ -47,10 +48,12 @@ Record the scanner model, firmware, Windows version, keyboard layout, suffix con
 | --- | --- |
 | Scanner model / firmware / mode | not run |
 | Windows version / DPI | not run |
+| Keyboard layout | not run |
+| Keyboard suffix configuration | not run |
 | Connection profile | not run |
 | 100 ordered scans | not run |
 | CR / LF / GS / AIM evidence | not run |
-| Keyboard Enter / silence completion | not run |
+| Keyboard Enter / Tab / silence completion | not run |
 | Monitor resume-latest navigation | not run |
 | RAW labels / HEX / chunks / density settings | not run |
 | Notebook pause / resume / restart persistence | not run |

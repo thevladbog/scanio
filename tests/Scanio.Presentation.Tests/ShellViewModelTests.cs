@@ -13,6 +13,7 @@ using Scanio.Transports.Serial;
 namespace Scanio.Presentation.Tests;
 
 [TestClass]
+[DoNotParallelize]
 public sealed class ShellViewModelTests
 {
     [TestMethod]
@@ -22,6 +23,7 @@ public sealed class ShellViewModelTests
         monitor.Append(Scan(1, "first"), Decoded("first"), []);
         monitor.Append(Scan(2, "second"), Decoded("second"), []);
         var settings = new TestSettingsService();
+        DisplaySettingsSource.Initialize(settings);
         var localizer = new UiLocalizer(settings);
         var connection = new FakeConnectionService();
         var monitorViewModel = new MonitorViewModel(monitor, connection, new FakeClipboardService(), localizer);

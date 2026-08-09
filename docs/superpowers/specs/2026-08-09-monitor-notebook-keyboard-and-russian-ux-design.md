@@ -178,7 +178,7 @@ The Russian resource audit covers every value visible in Connection, Monitor, No
 
 - Keyboard capture cannot start without an available capture surface and active focus request; the UI remains inactive and presents a localized recovery message.
 - Empty Enter or Tab input does not create a scan.
-- Losing focus does not silently capture into another control. The keyboard panel changes to **Click here to continue scanning**.
+- Losing focus does not silently capture into another control. The keyboard panel uses the localized `Connection.Keyboard.Status.Paused` status and `Connection.Keyboard.FocusHint` recovery instruction.
 - Disconnect and shutdown are bounded by the existing coordinator cleanup rules and must not freeze WPF.
 - Presentation grouping failures must not mutate or discard authoritative notebook records.
 - Unknown analyzer messages use a localized wrapper and preserve the original technical detail only after the localized explanation.

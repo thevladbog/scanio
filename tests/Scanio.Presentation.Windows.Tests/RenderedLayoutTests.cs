@@ -15,6 +15,17 @@ namespace Scanio.Presentation.Windows.Tests;
 [TestClass]
 public sealed class RenderedLayoutTests
 {
+    [TestMethod]
+    public void SettingsColumnGuard_RejectsFewerThanThreeColumns()
+    {
+        var grid = new Grid();
+        grid.ColumnDefinitions.Add(new ColumnDefinition());
+        grid.ColumnDefinitions.Add(new ColumnDefinition());
+
+        Assert.ThrowsExactly<AssertFailedException>(() =>
+            AssertReferenceColumnsRemainUsable(grid, ShellDestination.Settings, "Settings/two-columns"));
+    }
+
     private static readonly (double Width, double Height)[] Sizes = [(1440, 900), (1024, 700)];
 
     [TestMethod]
@@ -163,15 +174,35 @@ public sealed class RenderedLayoutTests
                 Prepare(fixture.Window, variant.Width, variant.Height);
                 AssertWorkspaceLayout(fixture.Window, ShellDestination.Monitor, label);
 
-                var hexLabel = Descendants<TextBlock>(fixture.Window)
-                    .Single(element => string.Equals(element.Text, "HEX", StringComparison.Ordinal));
-                var hexPanel = VisualTreeHelper.GetParent(hexLabel) as FrameworkElement;
+                var rawEvidence = Descendants<Border>(fixture.Window)
+                    .Single(element => element.Name == "RawEvidence");
+                var rawGrid = rawEvidence.Child as Grid;
+                var hexPanel = Descendants<FrameworkElement>(fixture.Window)
+                    .Single(element => element.Name == "HexEvidence");
                 var chunks = Descendants<FrameworkElement>(fixture.Window)
                     .Single(element => element.Name == "ChunksInspector");
+                var inspectorGrid = VisualTreeHelper.GetParent(chunks) as Grid;
 
+                Assert.IsNotNull(rawGrid, $"{label} has no RAW evidence grid.");
                 Assert.IsNotNull(hexPanel, $"{label} has no HEX evidence container.");
+                Assert.IsNotNull(inspectorGrid, $"{label} has no inspector grid.");
                 Assert.AreEqual(variant.ShowHexPreview, hexPanel.IsVisible, label);
                 Assert.AreEqual(variant.ShowChunkBoundaries, chunks.IsVisible, label);
+                if (variant.ShowHexPreview)
+                {
+                    Assert.IsGreaterThan(0, rawGrid.ColumnDefinitions[1].ActualWidth, label);
+                    Assert.IsGreaterThan(0, rawGrid.ColumnDefinitions[2].ActualWidth, label);
+                }
+                else
+                {
+                    Assert.AreEqual(0d, rawGrid.ColumnDefinitions[1].ActualWidth, 0.01d, label);
+                    Assert.AreEqual(0d, rawGrid.ColumnDefinitions[2].ActualWidth, 0.01d, label);
+                }
+
+                Assert.AreEqual(
+                    variant.ShowChunkBoundaries,
+                    inspectorGrid.RowDefinitions[3].ActualHeight > 0,
+                    label);
             }
         });
     }
@@ -380,14 +411,27 @@ public sealed class RenderedLayoutTests
     {
         var screen = Descendants<UserControl>(window).LastOrDefault();
         var rootGrid = screen?.Content as Grid;
-        if (rootGrid is null || rootGrid.ColumnDefinitions.Count < 3)
+        if (rootGrid is null)
         {
             return;
         }
 
+        AssertReferenceColumnsRemainUsable(rootGrid, destination, label);
+    }
+
+    private static void AssertReferenceColumnsRemainUsable(
+        Grid rootGrid,
+        ShellDestination destination,
+        string label)
+    {
         if (destination == ShellDestination.Settings)
         {
             AssertSettingsColumnsRemainUsable(rootGrid, label);
+            return;
+        }
+
+        if (rootGrid.ColumnDefinitions.Count < 3)
+        {
             return;
         }
 

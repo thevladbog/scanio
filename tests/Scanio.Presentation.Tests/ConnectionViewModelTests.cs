@@ -13,6 +13,7 @@ using Scanio.Transports.Keyboard;
 namespace Scanio.Presentation.Tests;
 
 [TestClass]
+[DoNotParallelize]
 public sealed class ConnectionViewModelTests
 {
     [TestMethod]

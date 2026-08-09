@@ -66,8 +66,16 @@ public sealed class LocalizationSurfaceTests
         Assert.HasCount(2, selectors);
         Assert.IsNotNull(document.Descendants().SingleOrDefault(element =>
             (string?)element.Attribute(Xaml + "Name") == "KeyboardCaptureSurface"));
-        Assert.IsNotNull(document.Descendants().SingleOrDefault(element =>
-            (string?)element.Attribute(Xaml + "Name") == "KeyboardCaptureInput"));
+        var captureLabel = document.Descendants().SingleOrDefault(element =>
+            (string?)element.Attribute(Xaml + "Name") == "KeyboardCaptureLabel");
+        var captureInput = document.Descendants().SingleOrDefault(element =>
+            (string?)element.Attribute(Xaml + "Name") == "KeyboardCaptureInput");
+        Assert.IsNotNull(captureLabel);
+        Assert.IsNotNull(captureInput);
+        Assert.AreEqual(
+            "{Binding ElementName=KeyboardCaptureLabel}",
+            (string?)captureInput.Attributes().Single(attribute =>
+                attribute.Name.LocalName == "AutomationProperties.LabeledBy"));
     }
 
     [TestMethod]
@@ -104,8 +112,9 @@ public sealed class LocalizationSurfaceTests
         };
 
         var leakedWords = russian
-            .SelectMany(pair => LatinWords(pair.Value).Select(word => $"{pair.Key}: {word}"))
-            .Where(entry => !RussianNeutralWords.Contains(entry[(entry.LastIndexOf(' ') + 1)..]))
+            .SelectMany(pair => LatinWords(pair.Value)
+                .Where(word => !RussianNeutralWords.Contains(word))
+                .Select(word => $"{pair.Key}: {word}"))
             .ToArray();
         var retiredValues = russian
             .SelectMany(pair => retiredCopy
