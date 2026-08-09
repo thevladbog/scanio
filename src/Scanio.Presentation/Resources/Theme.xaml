@@ -62,6 +62,6 @@
     <CornerRadius x:Key="Radius.Tile">8</CornerRadius>
     <sys:Double x:Key="Size.ControlHeight">38</sys:Double>
     <sys:Double x:Key="Size.PrimaryActionHeight">48</sys:Double>
-    <sys:Double x:Key="Size.HeaderHeight">78</sys:Double>
+    <GridLength x:Key="Size.HeaderHeight">78</GridLength>
     <BooleanToVisibilityConverter x:Key="BooleanToVisibility" />
 </ResourceDictionary>
