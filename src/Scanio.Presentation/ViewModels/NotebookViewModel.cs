@@ -92,7 +92,8 @@ public sealed class NotebookViewModel : ObservableObject
     public bool IsRecording => _recorder.State == NotebookRecordingState.Recording;
     public bool IsPaused => _recorder.State == NotebookRecordingState.Paused;
     public int TotalCount => Records.Count;
-    public int UniqueCount => Records.Select(item => item.Record.Decoded.Text).Distinct(StringComparer.Ordinal).Count();
+    public int UniqueCount => NotebookExportService.CountUniquePayloads(
+        Records.Select(item => item.Record));
     public int DuplicateCount => Math.Max(0, TotalCount - UniqueCount);
     public string DeviceLabel => Records.FirstOrDefault()?.Record.Scan.Transport.DisplayName ?? "—";
 

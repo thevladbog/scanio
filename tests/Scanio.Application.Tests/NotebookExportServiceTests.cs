@@ -17,13 +17,14 @@ public sealed class NotebookExportServiceTests
     {
         var records = new[]
         {
-            CreateRecord(1, $"01{GroupSeparator}21", "01<GS>21", [0x30, 0x31, 0x1D, 0x32, 0x31]),
-            CreateRecord(2, $"01{GroupSeparator}21", "01<GS>21", [0x30, 0x31, 0x1D, 0x32, 0x31]),
-            CreateRecord(3, "other", "other", [0x6F])
+            CreateRecord(1, "same", "same", [0x31]),
+            CreateRecord(2, "same", "same", [0x31]),
+            CreateRecord(3, "same", "same", [0x32]),
+            CreateRecord(4, "other", "other", [0x6F])
         };
 
         Assert.AreEqual(
-            $"01{GroupSeparator}21{Environment.NewLine}other",
+            $"same{Environment.NewLine}same{Environment.NewLine}other",
             NotebookExportService.BuildExactClipboardText(records, unique: true));
     }
 
@@ -110,13 +111,21 @@ public sealed class NotebookExportServiceTests
             NotebookExportService.Export(
                 path,
                 NotebookExportFormat.Json,
-                [CreateRecord(1, $"01{GroupSeparator}21", "01<GS>21", [0x00, 0x1D, 0xFF])]);
+                [CreateRecord(
+                    1,
+                    $"01{GroupSeparator}21",
+                    "01<GS>21",
+                    [0x30, 0x31, 0x1D, 0x32, 0x31],
+                    raw: [0x00, 0x1D, 0xFF])]);
 
             using var document = JsonDocument.Parse(File.ReadAllText(path));
             var record = document.RootElement.GetProperty("records")[0];
             Assert.AreEqual($"01{GroupSeparator}21", record.GetProperty("text").GetString());
             Assert.AreEqual("01<GS>21", record.GetProperty("escapedDisplay").GetString());
             Assert.AreEqual(Convert.ToBase64String([0x00, 0x1D, 0xFF]), record.GetProperty("rawBase64").GetString());
+            Assert.AreEqual(
+                Convert.ToBase64String([0x30, 0x31, 0x1D, 0x32, 0x31]),
+                record.GetProperty("payloadBase64").GetString());
             Assert.AreEqual("GS1", record.GetProperty("analyses")[0].GetProperty("format").GetString());
             Assert.AreEqual("GTIN", record.GetProperty("analyses")[0].GetProperty("fields")[0].GetProperty("name").GetString());
         }
@@ -149,12 +158,17 @@ public sealed class NotebookExportServiceTests
         }
     }
 
-    private static NotebookRecord CreateRecord(long sequence, string text, string escapedDisplay, byte[] payload)
+    private static NotebookRecord CreateRecord(
+        long sequence,
+        string text,
+        string escapedDisplay,
+        byte[] payload,
+        byte[]? raw = null)
     {
         var identity = new TransportIdentity(TransportKind.Serial, "COM7", "COM7");
         var scan = CompletedScan.Create(
             sequence,
-            payload,
+            raw ?? payload,
             payload,
             [],
             DateTimeOffset.UnixEpoch,

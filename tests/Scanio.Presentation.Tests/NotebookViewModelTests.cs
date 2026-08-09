@@ -83,18 +83,43 @@ public sealed class NotebookViewModelTests
     }
 
     [TestMethod]
+    public async Task Notebook_SummaryAndUniqueCopyUseByteExactPayloadIdentity()
+    {
+        var monitor = new LiveMonitor();
+        var repository = new FakeRepository();
+        var interaction = new FakeInteraction();
+        await using var recorder = new NotebookRecorder(repository, monitor, () => DateTimeOffset.UnixEpoch);
+        var viewModel = new NotebookViewModel(recorder, interaction) { SessionName = "Shift" };
+
+        await viewModel.StartCommand.ExecuteAsync();
+        monitor.Append(CreateScan(1, [0x31]), CreateDecoded("same"), []);
+        monitor.Append(CreateScan(2, [0x32]), CreateDecoded("same"), []);
+        await viewModel.StopCommand.ExecuteAsync();
+        await viewModel.CopyUniqueCommand.ExecuteAsync();
+
+        Assert.AreEqual(2, viewModel.UniqueCount);
+        Assert.AreEqual(0, viewModel.DuplicateCount);
+        Assert.AreEqual($"same{Environment.NewLine}same", interaction.ClipboardText);
+    }
+
+    [TestMethod]
     public async Task Notebook_NewRowsPulseAsUniqueOrDuplicateAndThenClear()
     {
         var monitor = new LiveMonitor();
         var repository = new FakeRepository();
         var interaction = new FakeInteraction();
         var releasePulse = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var requestedPulseDurations = new List<TimeSpan>();
         await using var recorder = new NotebookRecorder(repository, monitor, () => DateTimeOffset.UnixEpoch);
         var viewModel = new NotebookViewModel(
             recorder,
             interaction,
             localizer: null,
-            delay: _ => releasePulse.Task)
+            delay: duration =>
+            {
+                requestedPulseDurations.Add(duration);
+                return releasePulse.Task;
+            })
         {
             SessionName = "Shift"
         };
@@ -111,6 +136,9 @@ public sealed class NotebookViewModelTests
         Assert.IsTrue(viewModel.Records[1].IsArrivalPulseActive);
         Assert.IsTrue(viewModel.Records[1].IsDuplicate);
         Assert.IsTrue(viewModel.ExportReadableTextCommand.CanExecute(null));
+        CollectionAssert.AreEqual(
+            new[] { TimeSpan.FromMilliseconds(600), TimeSpan.FromMilliseconds(600) },
+            requestedPulseDurations);
 
         var clearedProperties = new List<string?>();
         foreach (var item in viewModel.Records)
@@ -207,12 +235,14 @@ public sealed class NotebookViewModelTests
     }
 
     private static CompletedScan CreateScan(long sequence, string value)
+        => CreateScan(sequence, System.Text.Encoding.UTF8.GetBytes(value));
+
+    private static CompletedScan CreateScan(long sequence, byte[] payload)
     {
-        var bytes = System.Text.Encoding.UTF8.GetBytes(value);
         return CompletedScan.Create(
             sequence,
-            bytes,
-            bytes,
+            payload,
+            payload,
             [],
             DateTimeOffset.UnixEpoch,
             DateTimeOffset.UnixEpoch,

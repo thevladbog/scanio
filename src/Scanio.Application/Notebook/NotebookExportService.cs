@@ -13,6 +13,9 @@ public enum NotebookExportFormat
 
 public static class NotebookExportService
 {
+    public static int CountUniquePayloads(IEnumerable<NotebookRecord> records) =>
+        SelectUniqueByPayload(Own(records)).Length;
+
     public static string BuildExactClipboardText(
         IEnumerable<NotebookRecord> records,
         bool unique)
@@ -68,7 +71,7 @@ public static class NotebookExportService
     {
         var keys = new HashSet<string>(StringComparer.Ordinal);
         return records.Where(record =>
-            keys.Add(Convert.ToBase64String(record.Scan.PayloadBytes.AsSpan()))).ToArray();
+            keys.Add(NotebookPayloadIdentity.Create(record.Scan.PayloadBytes.AsSpan()))).ToArray();
     }
 
     private static void WriteCsv(TextWriter writer, IReadOnlyList<NotebookRecord> records)
@@ -153,4 +156,10 @@ public static class NotebookExportService
 
         writer.Write(JsonSerializer.Serialize(document, new JsonSerializerOptions { WriteIndented = true }));
     }
+}
+
+internal static class NotebookPayloadIdentity
+{
+    public static string Create(ReadOnlySpan<byte> payloadBytes) =>
+        Convert.ToBase64String(payloadBytes);
 }

@@ -93,6 +93,85 @@ public sealed class NotebookRecorderTests
     }
 
     [TestMethod]
+    public async Task StopAsync_QueuesAcceptedAppendBeforeCompletionAndTheNextSession()
+    {
+        var monitor = new LiveMonitor();
+        var repository = new RecordingRepository();
+        NotebookRecorder? recorder = null;
+        NotebookSession? nextSession = null;
+        var stopFromAppend = false;
+        recorder = new NotebookRecorder(
+            repository,
+            monitor,
+            () => DateTimeOffset.UnixEpoch,
+            afterAppendAccepted: () =>
+            {
+                if (stopFromAppend)
+                {
+                    return;
+                }
+
+                stopFromAppend = true;
+                recorder!.StopAsync().GetAwaiter().GetResult();
+                nextSession = recorder.Start("Next");
+            });
+        await using var ownedRecorder = recorder;
+
+        var firstSession = recorder.Start("First");
+        monitor.Append(CreateScan(1, [0x31]), CreateDecoded("one"), []);
+        await recorder.StopAsync();
+
+        CollectionAssert.AreEqual(
+            new[]
+            {
+                $"create:{firstSession.Id}",
+                $"append:{firstSession.Id}:1",
+                $"complete:{firstSession.Id}",
+                $"create:{nextSession!.Id}",
+                $"complete:{nextSession.Id}"
+            },
+            repository.Operations.ToArray());
+    }
+
+    [TestMethod]
+    public async Task ConcurrentAcceptedAppends_PersistInAssignedSequenceAndCountOrder()
+    {
+        var monitor = new LiveMonitor();
+        var repository = new RecordingRepository();
+        NotebookRecorder? recorder = null;
+        var appendSecond = false;
+        recorder = new NotebookRecorder(
+            repository,
+            monitor,
+            () => DateTimeOffset.UnixEpoch,
+            afterAppendAccepted: () =>
+            {
+                if (appendSecond)
+                {
+                    return;
+                }
+
+                appendSecond = true;
+                monitor.Append(CreateScan(2, [0x31]), CreateDecoded("same"), []);
+            });
+        await using var ownedRecorder = recorder;
+        recorder.Start("Session");
+
+        monitor.Append(CreateScan(1, [0x31]), CreateDecoded("same"), []);
+        await recorder.StopAsync();
+
+        CollectionAssert.AreEqual(
+            new long[] { 1, 2 },
+            repository.Records.Select(record => record.Sequence).ToArray());
+        CollectionAssert.AreEqual(
+            new long[] { 1, 2 },
+            repository.Records.Select(record => record.Scan.Sequence).ToArray());
+        CollectionAssert.AreEqual(
+            new[] { 1, 2 },
+            repository.Records.Select(record => record.DuplicateCount).ToArray());
+    }
+
+    [TestMethod]
     public async Task PersistenceFailure_IsReportedAndNeverEscapesMonitorAppend()
     {
         var monitor = new LiveMonitor();
@@ -154,6 +233,7 @@ public sealed class NotebookRecorderTests
     private sealed class RecordingRepository : INotebookRepository
     {
         public List<NotebookRecord> Records { get; } = [];
+        public List<string> Operations { get; } = [];
         public Guid? CompletedSessionId { get; private set; }
         public bool BlockAppend { get; init; }
         public Exception? AppendException { get; init; }
@@ -163,8 +243,12 @@ public sealed class NotebookRecorderTests
         {
         }
 
-        public NotebookSession CreateSession(string name, DateTimeOffset startedAt) =>
-            NotebookSession.Create(Guid.NewGuid(), name, startedAt);
+        public NotebookSession CreateSession(string name, DateTimeOffset startedAt)
+        {
+            var session = NotebookSession.Create(Guid.NewGuid(), name, startedAt);
+            Operations.Add($"create:{session.Id}");
+            return session;
+        }
 
         public void Append(NotebookRecord record)
         {
@@ -179,9 +263,14 @@ public sealed class NotebookRecorderTests
             }
 
             Records.Add(record);
+            Operations.Add($"append:{record.SessionId}:{record.Sequence}");
         }
 
-        public void CompleteSession(Guid sessionId, DateTimeOffset endedAt) => CompletedSessionId = sessionId;
+        public void CompleteSession(Guid sessionId, DateTimeOffset endedAt)
+        {
+            CompletedSessionId = sessionId;
+            Operations.Add($"complete:{sessionId}");
+        }
         public IReadOnlyList<NotebookSession> GetSessions() => [];
         public IReadOnlyList<NotebookRecord> GetRecords(Guid sessionId) => [];
         public void RenameSession(Guid sessionId, string name)

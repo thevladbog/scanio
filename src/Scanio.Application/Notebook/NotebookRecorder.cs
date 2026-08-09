@@ -9,6 +9,7 @@ public sealed class NotebookRecorder : IAsyncDisposable
     private readonly INotebookRepository _repository;
     private readonly LiveMonitor _monitor;
     private readonly Func<DateTimeOffset> _clock;
+    private readonly Action? _afterAppendAccepted;
     private readonly Channel<WorkItem> _queue;
     private readonly Dictionary<string, int> _sessionOccurrences = new(StringComparer.Ordinal);
     private readonly Task _worker;
@@ -23,12 +24,22 @@ public sealed class NotebookRecorder : IAsyncDisposable
         INotebookRepository repository,
         LiveMonitor monitor,
         Func<DateTimeOffset>? clock = null)
+        : this(repository, monitor, clock, afterAppendAccepted: null)
+    {
+    }
+
+    internal NotebookRecorder(
+        INotebookRepository repository,
+        LiveMonitor monitor,
+        Func<DateTimeOffset>? clock,
+        Action? afterAppendAccepted)
     {
         ArgumentNullException.ThrowIfNull(repository);
         ArgumentNullException.ThrowIfNull(monitor);
         _repository = repository;
         _monitor = monitor;
         _clock = clock ?? (() => DateTimeOffset.Now);
+        _afterAppendAccepted = afterAppendAccepted;
         _queue = Channel.CreateUnbounded<WorkItem>(new UnboundedChannelOptions
         {
             SingleReader = true,
@@ -214,7 +225,7 @@ public sealed class NotebookRecorder : IAsyncDisposable
 
     private void OnEventAppended(object? sender, LiveScanEventAppendedEventArgs args)
     {
-        NotebookRecord? record = null;
+        bool appendAccepted;
         lock (_gate)
         {
             if (_disposed || _state != NotebookRecordingState.Recording || _session is null)
@@ -222,10 +233,10 @@ public sealed class NotebookRecorder : IAsyncDisposable
                 return;
             }
 
-            var key = Convert.ToBase64String(args.ScanEvent.Scan.PayloadBytes.AsSpan());
+            var key = NotebookPayloadIdentity.Create(args.ScanEvent.Scan.PayloadBytes.AsSpan());
             var count = _sessionOccurrences.TryGetValue(key, out var previous) ? previous + 1 : 1;
             _sessionOccurrences[key] = count;
-            record = NotebookRecord.Create(
+            var record = NotebookRecord.Create(
                 _nextSequence++,
                 _session.Id,
                 args.ScanEvent.Scan,
@@ -233,9 +244,14 @@ public sealed class NotebookRecorder : IAsyncDisposable
                 args.ScanEvent.Analyses,
                 count,
                 _clock());
+            appendAccepted = _queue.Writer.TryWrite(new AppendWorkItem(record));
         }
 
-        if (!_queue.Writer.TryWrite(new AppendWorkItem(record)))
+        if (appendAccepted)
+        {
+            _afterAppendAccepted?.Invoke();
+        }
+        else
         {
             ReportFailure(new ObjectDisposedException(nameof(NotebookRecorder)));
         }
