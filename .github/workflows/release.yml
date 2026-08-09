@@ -31,8 +31,7 @@ jobs:
       - name: Publish self-contained Windows application
         shell: pwsh
         run: |
-          $version = "${{ github.ref_name }}".TrimStart('v')
-          $folder = "artifacts/Scanio-$version-win-x64-portable"
+          $publish = Join-Path $PWD "artifacts/publish"
           dotnet publish src/Scanio.Presentation/Scanio.Presentation.csproj `
             -c Release `
             -f net10.0-windows10.0.19041.0 `
@@ -40,11 +39,8 @@ jobs:
             --self-contained true `
             --no-restore `
             -p:PublishSingleFile=false `
-            -o $folder
-          New-Item -ItemType Directory -Force -Path "$folder/Data" | Out-Null
-          [System.IO.File]::WriteAllText((Join-Path $PWD "$folder/portable.flag"), "", [System.Text.UTF8Encoding]::new($false))
-          Copy-Item README.md "$folder/README.md"
-          $process = Start-Process (Join-Path $folder "Scanio.exe") -PassThru
+            -o $publish
+          $process = Start-Process (Join-Path $publish "Scanio.exe") -PassThru
           try {
             Start-Sleep -Seconds 5
             if ($process.HasExited) {
@@ -63,24 +59,111 @@ jobs:
               Stop-Process -Id $process.Id -Force
             }
           }
-          Compress-Archive -Path "$folder/*" -DestinationPath "artifacts/Scanio-$version-win-x64-portable.zip"
-          $hash = (Get-FileHash "artifacts/Scanio-$version-win-x64-portable.zip" -Algorithm SHA256).Hash.ToLowerInvariant()
-          $checksum = "$hash  Scanio-$version-win-x64-portable.zip`n"
+      - name: Build portable package
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}".TrimStart('v')
+          $publish = Join-Path $PWD "artifacts/publish"
+          $portable = Join-Path $PWD "artifacts/Scanio-$version-win-x64-portable"
+          Copy-Item -LiteralPath $publish -Destination $portable -Recurse
+          New-Item -ItemType Directory -Force -Path (Join-Path $portable "Data") | Out-Null
+          [System.IO.File]::WriteAllText((Join-Path $portable "portable.flag"), "", [System.Text.UTF8Encoding]::new($false))
+          Copy-Item README.md (Join-Path $portable "README.md")
+          Compress-Archive -Path (Join-Path $portable "*") -DestinationPath "artifacts/Scanio-$version-win-x64-portable.zip"
+      - name: Compile per-user installer
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}".TrimStart('v')
+          $publish = Join-Path $PWD "artifacts/publish"
+          $isccCandidates = @(
+            "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
+            "$env:ProgramFiles\Inno Setup 6\ISCC.exe"
+          )
+          $iscc = $isccCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $iscc) { throw "Inno Setup 6 compiler ISCC.exe was not found on the Windows runner." }
+          & $iscc "/DAppVersion=$version" "/DSourceDir=$publish" "/DOutputDir=$(Join-Path $PWD 'artifacts')" "installer/Scanio.iss"
+          if ($LASTEXITCODE -ne 0) { throw "Inno Setup compilation failed with exit code $LASTEXITCODE." }
+      - name: Verify silent installer and retained local data
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}".TrimStart('v')
+          $installDir = Join-Path $env:RUNNER_TEMP "ScanioInstallerProbe"
+          $dataDirectory = Join-Path $env:LOCALAPPDATA "Scanio"
+          $marker = Join-Path $dataDirectory "installer-retention.marker"
+          $setup = Join-Path $PWD "artifacts/Scanio-$version-win-x64-setup.exe"
+
+          if (Test-Path $installDir) {
+            Remove-Item -LiteralPath $installDir -Recurse -Force
+          }
+          New-Item -ItemType Directory -Force -Path $dataDirectory | Out-Null
+          if (Test-Path $marker) {
+            Remove-Item -LiteralPath $marker -Force
+          }
+          [System.IO.File]::WriteAllText($marker, "retained", [System.Text.UTF8Encoding]::new($false))
+
+          try {
+            & $setup "/VERYSILENT" "/SUPPRESSMSGBOXES" "/NORESTART" "/SP-" "/DIR=$installDir"
+            if ($LASTEXITCODE -ne 0) { throw "Silent installer failed with exit code $LASTEXITCODE." }
+
+            $installedExe = Join-Path $installDir "Scanio.exe"
+            $uninstaller = Join-Path $installDir "unins000.exe"
+            if (-not (Test-Path $installedExe)) { throw "Installed Scanio.exe was not found." }
+            if (-not (Test-Path $uninstaller)) { throw "Installed unins000.exe was not found." }
+            if (Test-Path (Join-Path $installDir "portable.flag")) { throw "Installed package must not contain portable.flag." }
+
+            $process = Start-Process $installedExe -PassThru
+            try {
+              Start-Sleep -Seconds 5
+              if ($process.HasExited) { throw "Installed Scanio exited during startup with code $($process.ExitCode)." }
+            }
+            finally {
+              if (-not $process.HasExited) {
+                Stop-Process -Id $process.Id -Force
+              }
+            }
+
+            & $uninstaller "/VERYSILENT" "/SUPPRESSMSGBOXES" "/NORESTART"
+            if ($LASTEXITCODE -ne 0) { throw "Silent uninstaller failed with exit code $LASTEXITCODE." }
+            if (Test-Path $installedExe) { throw "Installed Scanio.exe remains after uninstall." }
+            if (-not (Test-Path $marker)) { throw "Local data marker was not retained after uninstall." }
+          }
+          finally {
+            if (Test-Path $marker) {
+              Remove-Item -LiteralPath $marker -Force
+            }
+            if (Test-Path $installDir) {
+              Remove-Item -LiteralPath $installDir -Recurse -Force
+            }
+          }
+      - name: Write package checksums
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}".TrimStart('v')
+          $packages = @(
+            (Join-Path $PWD "artifacts/Scanio-$version-win-x64-portable.zip"),
+            (Join-Path $PWD "artifacts/Scanio-$version-win-x64-setup.exe")
+          ) | Sort-Object
+          $checksums = foreach ($package in $packages) {
+            $hash = (Get-FileHash -LiteralPath $package -Algorithm SHA256).Hash.ToLowerInvariant()
+            "$hash  $(Split-Path -Leaf $package)"
+          }
           [System.IO.File]::WriteAllText(
             (Join-Path $PWD "artifacts/SHA256SUMS.txt"),
-            $checksum,
+            (($checksums -join "`n") + "`n"),
             [System.Text.UTF8Encoding]::new($false))
       - name: Create GitHub release
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          $version = "${{ github.ref_name }}".TrimStart('v')
           $notes = "docs/releases/${{ github.ref_name }}.md"
           if (-not (Test-Path $notes)) {
             throw "Release notes not found: $notes"
           }
           gh release create "${{ github.ref_name }}" `
-            artifacts/Scanio-*-win-x64-portable.zip `
+            "artifacts/Scanio-$version-win-x64-portable.zip" `
+            "artifacts/Scanio-$version-win-x64-setup.exe" `
             artifacts/SHA256SUMS.txt `
             --title "Scanio ${{ github.ref_name }}" `
             --notes-file $notes `
