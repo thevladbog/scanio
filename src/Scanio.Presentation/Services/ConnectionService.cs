@@ -16,7 +16,7 @@ public sealed class ConnectionService : IConnectionService
     private ConnectionState _state = ConnectionState.Detected;
     private ConnectionPresentationSnapshot? _currentSnapshot;
     private IKeyboardCaptureInput? _keyboardInput;
-    private PendingConnectionAttempt? _pendingAttempt;
+    private ConnectionAttempt? _connectionAttempt;
     private long _lastStatusSequence;
 
     public ConnectionService(
@@ -84,13 +84,13 @@ public sealed class ConnectionService : IConnectionService
                 device.HardwareId,
                 device.PortName);
             var transport = _transportFactory(identity, options);
-            var attempt = new PendingConnectionAttempt(
+            var attempt = new ConnectionAttempt(
                 new ConnectionPresentationSnapshot(identity, ConnectionState.Connecting, options),
-                KeyboardInput: null,
+                keyboardInput: null,
                 transport.Identity);
             lock (_presentationGate)
             {
-                _pendingAttempt = attempt;
+                _connectionAttempt = attempt;
             }
 
             try
@@ -99,14 +99,13 @@ public sealed class ConnectionService : IConnectionService
             }
             catch
             {
+                ConnectionStateChangedEventArgs? rollback;
                 lock (_presentationGate)
                 {
-                    if (ReferenceEquals(_pendingAttempt, attempt))
-                    {
-                        _pendingAttempt = null;
-                    }
+                    rollback = RollbackAttemptLocked(attempt);
                 }
 
+                NotifyRollback(rollback);
                 throw;
             }
         }
@@ -127,13 +126,13 @@ public sealed class ConnectionService : IConnectionService
                 "Keyboard scanner",
                 endpoint: "Keyboard");
             var transport = new KeyboardCaptureTransport(identity);
-            var attempt = new PendingConnectionAttempt(
+            var attempt = new ConnectionAttempt(
                 new ConnectionPresentationSnapshot(identity, ConnectionState.Connecting, Options: null),
                 transport,
                 transport.Identity);
             lock (_presentationGate)
             {
-                _pendingAttempt = attempt;
+                _connectionAttempt = attempt;
             }
 
             try
@@ -142,14 +141,13 @@ public sealed class ConnectionService : IConnectionService
             }
             catch
             {
+                ConnectionStateChangedEventArgs? rollback;
                 lock (_presentationGate)
                 {
-                    if (ReferenceEquals(_pendingAttempt, attempt))
-                    {
-                        _pendingAttempt = null;
-                    }
+                    rollback = RollbackAttemptLocked(attempt);
                 }
 
+                NotifyRollback(rollback);
                 throw;
             }
         }
@@ -195,19 +193,20 @@ public sealed class ConnectionService : IConnectionService
             }
 
             _lastStatusSequence = status.Sequence;
-            _state = status.State;
             if (status.State == ConnectionState.Connecting &&
-                _pendingAttempt is { } pending &&
-                pending.CoordinatorIdentity == status.Identity)
+                _connectionAttempt is { IsPromoted: false } attempt &&
+                attempt.CoordinatorIdentity == status.Identity)
             {
-                _currentSnapshot = pending.Snapshot with
+                attempt.Promote(_state, _currentSnapshot, _keyboardInput);
+                _currentSnapshot = attempt.Snapshot with
                 {
                     Identity = status.Identity,
                     State = status.State
                 };
-                _keyboardInput = pending.KeyboardInput;
-                _pendingAttempt = null;
+                _keyboardInput = attempt.KeyboardInput;
             }
+
+            _state = status.State;
 
             if (status.Identity.Kind == TransportKind.KeyboardCapture && IsTerminal(status.State))
             {
@@ -226,6 +225,13 @@ public sealed class ConnectionService : IConnectionService
                     State = status.State
                 };
             }
+
+            if (_connectionAttempt is { IsPromoted: true } resolvedAttempt &&
+                resolvedAttempt.CoordinatorIdentity == status.Identity &&
+                (status.State == ConnectionState.Connected || IsTerminal(status.State)))
+            {
+                _connectionAttempt = null;
+            }
         }
 
         StateChanged?.Invoke(this, new ConnectionStateChangedEventArgs(status.State, status.Identity));
@@ -234,8 +240,70 @@ public sealed class ConnectionService : IConnectionService
     private static bool IsTerminal(ConnectionState state) =>
         state is not (ConnectionState.Connecting or ConnectionState.Connected or ConnectionState.Disconnecting);
 
-    private sealed record PendingConnectionAttempt(
-        ConnectionPresentationSnapshot Snapshot,
-        IKeyboardCaptureInput? KeyboardInput,
-        TransportIdentity CoordinatorIdentity);
+    private ConnectionStateChangedEventArgs? RollbackAttemptLocked(ConnectionAttempt attempt)
+    {
+        if (!ReferenceEquals(_connectionAttempt, attempt))
+        {
+            return null;
+        }
+
+        _connectionAttempt = null;
+        if (!attempt.IsPromoted)
+        {
+            return null;
+        }
+
+        _state = attempt.PreviousState;
+        _currentSnapshot = attempt.PreviousSnapshot;
+        _keyboardInput = attempt.PreviousKeyboardInput;
+        return new ConnectionStateChangedEventArgs(attempt.PreviousState, attempt.PreviousSnapshot?.Identity);
+    }
+
+    private void NotifyRollback(ConnectionStateChangedEventArgs? rollback)
+    {
+        if (rollback is null)
+        {
+            return;
+        }
+
+        try
+        {
+            StateChanged?.Invoke(this, rollback);
+        }
+        catch
+        {
+            // A presentation observer cannot replace the transport cleanup failure.
+        }
+    }
+
+    private sealed class ConnectionAttempt(
+        ConnectionPresentationSnapshot snapshot,
+        IKeyboardCaptureInput? keyboardInput,
+        TransportIdentity coordinatorIdentity)
+    {
+        public ConnectionPresentationSnapshot Snapshot { get; } = snapshot;
+
+        public IKeyboardCaptureInput? KeyboardInput { get; } = keyboardInput;
+
+        public TransportIdentity CoordinatorIdentity { get; } = coordinatorIdentity;
+
+        public bool IsPromoted { get; private set; }
+
+        public ConnectionState PreviousState { get; private set; }
+
+        public ConnectionPresentationSnapshot? PreviousSnapshot { get; private set; }
+
+        public IKeyboardCaptureInput? PreviousKeyboardInput { get; private set; }
+
+        public void Promote(
+            ConnectionState previousState,
+            ConnectionPresentationSnapshot? previousSnapshot,
+            IKeyboardCaptureInput? previousKeyboardInput)
+        {
+            PreviousState = previousState;
+            PreviousSnapshot = previousSnapshot;
+            PreviousKeyboardInput = previousKeyboardInput;
+            IsPromoted = true;
+        }
+    }
 }

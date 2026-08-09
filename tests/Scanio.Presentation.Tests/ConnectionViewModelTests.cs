@@ -196,6 +196,32 @@ public sealed class ConnectionViewModelTests
     }
 
     [TestMethod]
+    public async Task ConnectionService_CleanupFailureBeforeTerminalRestoresPriorPresentation()
+    {
+        var coordinator = new ConnectionCoordinator(new BlockingPipeline());
+        var service = new ConnectionService(
+            coordinator,
+            (identity, _) => new CleanupFailingTransport(identity));
+        var observedStates = new List<ConnectionState>();
+        service.StateChanged += (_, args) => observedStates.Add(args.State);
+
+        var exception = await Assert.ThrowsExactlyAsync<InvalidOperationException>(async () =>
+            await service.ConnectAsync(
+                Device("COM7"),
+                SerialConnectionOptions.Default("COM7"),
+                CancellationToken.None));
+
+        Assert.AreEqual("Cleanup failed before terminal publication.", exception.Message);
+        Assert.AreEqual(ConnectionState.Detected, service.State);
+        Assert.IsNull(service.CurrentSnapshot);
+        Assert.IsNull(service.KeyboardInput);
+        Assert.IsNull(service.ActiveIdentity);
+        CollectionAssert.AreEqual(
+            new[] { ConnectionState.Connecting, ConnectionState.Detected },
+            observedStates);
+    }
+
+    [TestMethod]
     [Timeout(5_000, CooperativeCancellation = true)]
     public async Task ConnectionService_AutomaticOldKeyboardTerminalCannotClearQueuedNewGeneration()
     {
@@ -322,6 +348,31 @@ public sealed class ConnectionViewModelTests
                 : Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
 
         public void CompleteFirstGeneration() => _firstGenerationCompletion.TrySetResult();
+    }
+
+    private sealed class CleanupFailingTransport(TransportIdentity identity) : IScannerTransport
+    {
+        public TransportIdentity Identity { get; } = identity;
+
+        public ConnectionState State { get; private set; } = ConnectionState.Disconnected;
+
+        public ValueTask OpenAsync(CancellationToken cancellationToken)
+        {
+            State = ConnectionState.TransportError;
+            throw new IOException("Open failed.");
+        }
+
+        public async IAsyncEnumerable<Scanio.Domain.Capture.RawChunk> ReadAllAsync(
+            [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
+        {
+            await Task.CompletedTask;
+            yield break;
+        }
+
+        public ValueTask CloseAsync(CancellationToken cancellationToken) => ValueTask.CompletedTask;
+
+        public ValueTask DisposeAsync() =>
+            ValueTask.FromException(new InvalidOperationException("Cleanup failed before terminal publication."));
     }
 
     private sealed class FakeScannerTransport : IScannerTransport
