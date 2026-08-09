@@ -64,7 +64,30 @@ public sealed record DecodedPayload
     }
 }
 
-public sealed record AnalysisField(string Name, string Value);
+public sealed record AnalysisField
+{
+    public AnalysisField(string name, string value)
+        : this(string.Empty, name, value)
+    {
+    }
+
+    public AnalysisField(string code, string name, string value)
+    {
+        ArgumentNullException.ThrowIfNull(code);
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentNullException.ThrowIfNull(value);
+
+        Code = code;
+        Name = name;
+        Value = value;
+    }
+
+    public string Code { get; }
+
+    public string Name { get; }
+
+    public string Value { get; }
+}
 
 public sealed record AnalysisResult
 {
