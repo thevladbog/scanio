@@ -25,7 +25,7 @@ internal static class CPlusFixtureFactory
             TransportKind.Serial,
             "usb\\vid_05f9&pid_2216\\datalogic-powerscan-9600",
             "Datalogic PowerScan 9600 Industrial Barcode Scanner (COM18)",
-            "COM18");
+            endpoint: "COM18");
         var connection = new FixtureConnectionService(identity);
         var connectionViewModel = new ConnectionViewModel(
             new FixtureDeviceEnumerator(),
