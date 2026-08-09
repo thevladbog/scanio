@@ -4,6 +4,7 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Media;
+using Scanio.Domain.Transport;
 using Scanio.Presentation.Settings;
 using Scanio.Presentation.Tests.Infrastructure;
 using Scanio.Presentation.ViewModels;
@@ -26,8 +27,9 @@ public sealed class RenderedLayoutTests
             foreach (var size in Sizes)
             {
                 using var fixture = CPlusFixtureFactory.Create(language, destination);
-                Prepare(fixture.Window, size.Width, size.Height);
                 var label = $"{language}/{destination}/{size.Width}x{size.Height}";
+                AssertFixtureSemanticEvidence(fixture, language, label);
+                Prepare(fixture.Window, size.Width, size.Height);
                 AssertWorkspaceLayout(fixture.Window, destination, label);
             }
         });
@@ -42,8 +44,9 @@ public sealed class RenderedLayoutTests
             foreach (var destination in new[] { ShellDestination.Notebook, ShellDestination.History })
             {
                 using var fixture = CPlusFixtureFactory.Create(language, destination);
-                Prepare(fixture.Window, 1024, 700);
                 var label = $"{language}/{destination}/1024x700";
+                AssertFixtureSemanticEvidence(fixture, language, label);
+                Prepare(fixture.Window, 1024, 700);
                 var expectedLabels = language == UiLanguage.English
                     ? new[] { "Copy as readable text (<GS>)", "Export readable TXT (<GS>)" }
                     : new[] { "Копировать как текст (<GS>)", "Экспорт TXT как текст (<GS>)" };
@@ -71,8 +74,9 @@ public sealed class RenderedLayoutTests
             foreach (var variant in RenderedEvidenceMatrix.Connection)
             {
                 using var fixture = CPlusFixtureFactory.Create(variant);
-                Prepare(fixture.Window, variant.Width, variant.Height);
                 var label = $"{variant.Language}/{variant.ConnectionMode}/{variant.Width}x{variant.Height}";
+                AssertFixtureSemanticEvidence(fixture, variant.Language, label);
+                Prepare(fixture.Window, variant.Width, variant.Height);
                 AssertWorkspaceLayout(fixture.Window, ShellDestination.Connection, label);
 
                 var selectors = Descendants<RadioButton>(fixture.Window)
@@ -88,6 +92,18 @@ public sealed class RenderedLayoutTests
                 var captureInput = Descendants<FrameworkElement>(fixture.Window)
                     .Single(element => element.Name == "KeyboardCaptureInput");
                 var keyboardMode = variant.ConnectionMode == ConnectionMode.Keyboard;
+                if (keyboardMode)
+                {
+                    Assert.AreEqual(ConnectionState.Disconnected, fixture.Connection.State, label);
+                    Assert.IsNull(fixture.Connection.ConnectionSnapshot, label);
+                    Assert.IsTrue(fixture.Connection.StartKeyboardTestCommand.CanExecute(null), label);
+                }
+                else
+                {
+                    Assert.AreEqual(ConnectionState.Connected, fixture.Connection.State, label);
+                    Assert.IsNotNull(fixture.Connection.ConnectionSnapshot, label);
+                }
+
                 Assert.AreEqual(keyboardMode, captureSurface.IsVisible, label);
                 Assert.AreEqual(keyboardMode, captureInput.IsVisible, label);
                 if (keyboardMode)
@@ -108,8 +124,9 @@ public sealed class RenderedLayoutTests
             foreach (var variant in RenderedEvidenceMatrix.Density)
             {
                 using var fixture = CPlusFixtureFactory.Create(variant);
-                Prepare(fixture.Window, variant.Width, variant.Height);
                 var label = $"{variant.Destination}/{variant.ListDensity}/{variant.Width}x{variant.Height}";
+                AssertFixtureSemanticEvidence(fixture, variant.Language, label);
+                Prepare(fixture.Window, variant.Width, variant.Height);
                 AssertWorkspaceLayout(fixture.Window, variant.Destination, label);
 
                 var styleName = variant.Destination == ShellDestination.Connection
@@ -141,8 +158,9 @@ public sealed class RenderedLayoutTests
             foreach (var variant in RenderedEvidenceMatrix.Monitor)
             {
                 using var fixture = CPlusFixtureFactory.Create(variant);
-                Prepare(fixture.Window, variant.Width, variant.Height);
                 var label = $"Monitor/hex-{variant.ShowHexPreview}/chunks-{variant.ShowChunkBoundaries}";
+                AssertFixtureSemanticEvidence(fixture, variant.Language, label);
+                Prepare(fixture.Window, variant.Width, variant.Height);
                 AssertWorkspaceLayout(fixture.Window, ShellDestination.Monitor, label);
 
                 var hexLabel = Descendants<TextBlock>(fixture.Window)
@@ -166,8 +184,9 @@ public sealed class RenderedLayoutTests
             foreach (var variant in RenderedEvidenceMatrix.Settings)
             {
                 using var fixture = CPlusFixtureFactory.Create(variant);
-                Prepare(fixture.Window, variant.Width, variant.Height);
                 var label = $"Settings/{variant.ListDensity}/{variant.Width}x{variant.Height}";
+                AssertFixtureSemanticEvidence(fixture, variant.Language, label);
+                Prepare(fixture.Window, variant.Width, variant.Height);
                 AssertWorkspaceLayout(fixture.Window, ShellDestination.Settings, label);
 
                 var densityOptions = Descendants<RadioButton>(fixture.Window)
@@ -200,6 +219,45 @@ public sealed class RenderedLayoutTests
         window.WindowStartupLocation = WindowStartupLocation.Manual;
         window.Show();
         window.UpdateLayout();
+    }
+
+    internal static void AssertFixtureSemanticEvidence(
+        RenderedFixture fixture,
+        UiLanguage language,
+        string label)
+    {
+        var occurrences = fixture.AuthoritativeRecords;
+        Assert.HasCount(3, occurrences, $"{label} must preserve all A/B/A occurrences.");
+        Assert.IsTrue(
+            occurrences[0].Scan.PayloadBytes.AsSpan().SequenceEqual(occurrences[2].Scan.PayloadBytes.AsSpan()),
+            $"{label} first and latest occurrences must be byte-identical A values.");
+        Assert.IsFalse(
+            occurrences[0].Scan.PayloadBytes.AsSpan().SequenceEqual(occurrences[1].Scan.PayloadBytes.AsSpan()),
+            $"{label} middle occurrence must be byte-distinct B.");
+
+        AssertGroupedEvidence(fixture.Notebook.Records, language, label, "Notebook");
+        Assert.AreEqual(3, fixture.Notebook.TotalCount, $"{label} Notebook total must remain occurrence-based.");
+        Assert.AreEqual(2, fixture.Notebook.UniqueCount, $"{label} Notebook must expose two byte-exact groups.");
+        Assert.AreEqual(1, fixture.Notebook.DuplicateCount, $"{label} Notebook must expose one repeat.");
+
+        AssertGroupedEvidence(fixture.History.Records, language, label, "History");
+        Assert.AreEqual(3, fixture.History.RecordCount, $"{label} History total must remain occurrence-based.");
+    }
+
+    private static void AssertGroupedEvidence(
+        IReadOnlyList<NotebookRecordItemViewModel> records,
+        UiLanguage language,
+        string label,
+        string surface)
+    {
+        Assert.HasCount(2, records, $"{label} {surface} must render two A/B groups.");
+        Assert.AreEqual(2, records[0].Sequence, $"{label} {surface} must keep B before latest A.");
+        Assert.AreEqual(3, records[1].Sequence, $"{label} {surface} latest A must carry sequence 3.");
+        Assert.AreEqual(2, records[1].OccurrenceCount, $"{label} {surface} latest A must count both occurrences.");
+        Assert.AreEqual(
+            language == UiLanguage.Russian ? "2 раза" : "2 scans",
+            records[1].OccurrenceLabel,
+            $"{label} {surface} repeat count must be localized.");
     }
 
     internal static IEnumerable<T> Descendants<T>(DependencyObject root) where T : DependencyObject

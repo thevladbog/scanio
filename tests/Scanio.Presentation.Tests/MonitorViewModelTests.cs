@@ -296,6 +296,27 @@ public sealed class MonitorViewModelTests
         Assert.AreEqual(identity.DisplayName, viewModel.ConnectionFriendlyName);
     }
 
+    [TestMethod]
+    public void KeyboardConnection_UsesRussianPresentationLabelsInMonitor()
+    {
+        var identity = new TransportIdentity(
+            TransportKind.KeyboardCapture,
+            "keyboard-capture:focused-window",
+            "Keyboard scanner",
+            endpoint: "Keyboard");
+        var connection = new FakeConnectionService(ConnectionState.Connected, identity)
+        {
+            Snapshot = new ConnectionPresentationSnapshot(identity, ConnectionState.Connected, Options: null)
+        };
+
+        var viewModel = CreateViewModel(new LiveMonitor(), connection);
+
+        Assert.AreEqual("Клавиатура · Подключено", viewModel.ConnectionLabel);
+        Assert.AreEqual("Сканер-клавиатура", viewModel.ConnectionFriendlyName);
+        Assert.AreEqual("Клавиатура", viewModel.ConnectionSnapshot?.Endpoint);
+        Assert.AreEqual("Сканер-клавиатура", viewModel.ConnectionSnapshot?.FriendlyName);
+    }
+
     private static MonitorViewModel CreateViewModel(
         LiveMonitor monitor,
         IConnectionService connection,

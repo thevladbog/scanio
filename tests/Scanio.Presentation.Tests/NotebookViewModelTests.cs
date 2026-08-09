@@ -3,7 +3,9 @@ using Scanio.Application.Notebook;
 using Scanio.Domain.Analysis;
 using Scanio.Domain.Capture;
 using Scanio.Domain.Transport;
+using Scanio.Presentation.Localization;
 using Scanio.Presentation.Services;
+using Scanio.Presentation.Settings;
 using Scanio.Presentation.ViewModels;
 
 namespace Scanio.Presentation.Tests;
@@ -256,6 +258,50 @@ public sealed class NotebookViewModelTests
     }
 
     [TestMethod]
+    public async Task KeyboardRecord_UsesRussianPresentationLabelInNotebook()
+    {
+        var monitor = new LiveMonitor();
+        var repository = new FakeRepository();
+        await using var recorder = new NotebookRecorder(repository, monitor, () => DateTimeOffset.UnixEpoch);
+        var viewModel = new NotebookViewModel(
+            recorder,
+            new FakeInteraction(),
+            RussianLocalizer())
+        {
+            SessionName = "Keyboard"
+        };
+
+        await viewModel.StartCommand.ExecuteAsync();
+        monitor.Append(
+            CreateScan(1, "A", KeyboardIdentity),
+            CreateDecoded("A"),
+            []);
+        await viewModel.StopCommand.ExecuteAsync();
+
+        Assert.AreEqual("Сканер-клавиатура", viewModel.Records.Single().Transport);
+        Assert.AreEqual("Сканер-клавиатура", viewModel.DeviceLabel);
+        Assert.AreEqual("Keyboard scanner", viewModel.Records.Single().Record.Scan.Transport.DisplayName);
+    }
+
+    [TestMethod]
+    public async Task KeyboardRecord_UsesRussianPresentationLabelInHistory()
+    {
+        var repository = new FakeRepository();
+        var session = repository.CreateSession("Keyboard", DateTimeOffset.UnixEpoch);
+        repository.Append(CreateRecord(session.Id, 1, "A", KeyboardIdentity));
+        var viewModel = new HistoryViewModel(
+            repository,
+            new FakeInteraction(),
+            localizer: RussianLocalizer());
+
+        await viewModel.RefreshCommand.ExecuteAsync();
+        await viewModel.OpenCommand.ExecuteAsync();
+
+        Assert.AreEqual("Сканер-клавиатура", viewModel.Records.Single().Transport);
+        Assert.AreEqual("Keyboard scanner", viewModel.Records.Single().Record.Scan.Transport.DisplayName);
+    }
+
+    [TestMethod]
     [DataRow(1, Scanio.Presentation.Settings.UiLanguage.Russian, "")]
     [DataRow(2, Scanio.Presentation.Settings.UiLanguage.Russian, "2 раза")]
     [DataRow(3, Scanio.Presentation.Settings.UiLanguage.Russian, "3 раза")]
@@ -290,10 +336,22 @@ public sealed class NotebookViewModelTests
         Assert.IsTrue(viewModel.DeleteCommand.CanExecute(null));
     }
 
-    private static CompletedScan CreateScan(long sequence, string value)
-        => CreateScan(sequence, System.Text.Encoding.UTF8.GetBytes(value));
+    private static readonly TransportIdentity KeyboardIdentity = new(
+        TransportKind.KeyboardCapture,
+        "keyboard-capture:focused-window",
+        "Keyboard scanner",
+        endpoint: "Keyboard");
 
-    private static CompletedScan CreateScan(long sequence, byte[] payload)
+    private static CompletedScan CreateScan(
+        long sequence,
+        string value,
+        TransportIdentity? identity = null)
+        => CreateScan(sequence, System.Text.Encoding.UTF8.GetBytes(value), identity);
+
+    private static CompletedScan CreateScan(
+        long sequence,
+        byte[] payload,
+        TransportIdentity? identity = null)
     {
         return CompletedScan.Create(
             sequence,
@@ -306,7 +364,7 @@ public sealed class NotebookViewModelTests
             sequence,
             ScanCompletionReason.SilenceTimeout,
             ScanFramingSnapshot.Create([0x0D], TimeSpan.FromMilliseconds(100), 65_536),
-            new TransportIdentity(TransportKind.Serial, "COM7", "COM7"));
+            identity ?? new TransportIdentity(TransportKind.Serial, "COM7", "COM7"));
     }
 
     private static DecodedPayload CreateDecoded(string value, string? escapedDisplay = null) =>
@@ -316,15 +374,22 @@ public sealed class NotebookViewModelTests
             value,
             escapedDisplay ?? value);
 
-    private static NotebookRecord CreateRecord(Guid sessionId, long sequence, string value) =>
+    private static NotebookRecord CreateRecord(
+        Guid sessionId,
+        long sequence,
+        string value,
+        TransportIdentity? identity = null) =>
         NotebookRecord.Create(
             sequence,
             sessionId,
-            CreateScan(sequence, value),
+            CreateScan(sequence, value, identity),
             CreateDecoded(value),
             [],
             1,
             DateTimeOffset.UnixEpoch);
+
+    private static IUiLocalizer RussianLocalizer() =>
+        new UiLocalizer(new TestSettingsService());
 
     private static async Task WaitUntilAsync(Func<bool> condition)
     {
@@ -349,6 +414,18 @@ public sealed class NotebookViewModelTests
         }
         public bool ConfirmDelete(string sessionName) => ConfirmDeleteResult;
         public void ShowError(string message) => Errors.Add(message);
+    }
+
+    private sealed class TestSettingsService : IAppSettingsService
+    {
+        public AppSettings Current { get; private set; } = new();
+        public event EventHandler? Changed;
+
+        public void Update(Func<AppSettings, AppSettings> update)
+        {
+            Current = update(Current);
+            Changed?.Invoke(this, EventArgs.Empty);
+        }
     }
 
     private sealed class FakeRepository : INotebookRepository

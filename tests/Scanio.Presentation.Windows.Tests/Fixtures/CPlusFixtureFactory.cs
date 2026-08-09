@@ -97,100 +97,95 @@ internal static class CPlusFixtureFactory
         var localizer = new UiLocalizer(settings);
         InitializeGlobalSources(settings, localizer);
 
-        var identity = new TransportIdentity(
-            TransportKind.Serial,
-            "usb\\vid_05f9&pid_2216\\datalogic-powerscan-9600",
-            "Datalogic PowerScan 9600 Industrial Barcode Scanner (COM18)",
-            endpoint: "COM18");
-        var connection = new FixtureConnectionService(identity);
-        var connectionViewModel = new ConnectionViewModel(
-            new FixtureDeviceEnumerator(),
-            connection,
-            localizer);
-        foreach (var device in FixtureDeviceEnumerator.Devices)
+        var previousContext = SynchronizationContext.Current;
+        SynchronizationContext.SetSynchronizationContext(null);
+        var contextRestored = false;
+        try
         {
-            connectionViewModel.Devices.Add(device);
-        }
-        connectionViewModel.SelectedDevice = connectionViewModel.Devices[0];
-        connectionViewModel.SelectedMode = connectionMode;
-
-        var monitor = new LiveMonitor();
-        var scan = CreateScan(identity);
-        var decoded = DecodedPayload.Create(
-            scan.PayloadBytes.ToArray(),
-            PayloadTextEncoding.Utf8,
-            "010460123456789321SERIAL-000042\u001D91ABCD92LONG-CRYPTOGRAPHIC-TAIL",
-            "010460123456789321SERIAL-000042<GS>91ABCD92LONG-CRYPTOGRAPHIC-TAIL");
-        var analysis = AnalysisResult.Match(
-            "HonestSign",
-            "Честный знак",
-            AnalysisConfidence.Exact,
-            "GTIN (01) and serial (21) are present; no online check was performed.",
-            "Honest Sign marking code.",
-            [
-                new AnalysisField("01", "GTIN", "04601234567893"),
-                new AnalysisField("21", "Serial number", "SERIAL-000042"),
-                new AnalysisField("91", "Verification key", "ABCD"),
-                new AnalysisField("92", "Cryptographic tail", "LONG-CRYPTOGRAPHIC-TAIL")
-            ]);
-        monitor.Append(scan, decoded, [analysis]);
-        var monitorViewModel = new MonitorViewModel(
-            monitor,
-            connection,
-            new FixtureClipboardService(),
-            localizer);
-
-        var repository = new FixtureNotebookRepository(scan, decoded, analysis);
-        var recorder = new NotebookRecorder(repository, monitor, () => new DateTimeOffset(2026, 8, 9, 12, 30, 0, TimeSpan.Zero));
-        var interaction = new FixtureNotebookInteractionService();
-        var notebookViewModel = new NotebookViewModel(recorder, interaction, localizer)
-        {
-            SessionName = "Datalogic and Zebra acceptance — long production shift"
-        };
-        recorder.Start(notebookViewModel.SessionName);
-        for (var index = 1; index <= 8; index++)
-        {
-            notebookViewModel.Records.Add(new NotebookRecordItemViewModel(
-                repository.CreateRecord(recorder.CurrentSession!.Id, index),
-                localizer));
-        }
-
-        var historyViewModel = new HistoryViewModel(repository, interaction, recorder, localizer);
-        foreach (var session in repository.GetSessions())
-        {
-            historyViewModel.Sessions.Add(NotebookSessionItemViewModel.From(session, localizer));
-        }
-
-        historyViewModel.SelectedSession = historyViewModel.Sessions.FirstOrDefault(session => session.RecordCount > 0);
-        if (historyViewModel.SelectedSession is not null)
-        {
-            foreach (var record in repository.GetRecords(historyViewModel.SelectedSession.Session.Id))
+            var identity = new TransportIdentity(
+                TransportKind.Serial,
+                "usb\\vid_05f9&pid_2216\\datalogic-powerscan-9600",
+                "Datalogic PowerScan 9600 Industrial Barcode Scanner (COM18)",
+                endpoint: "COM18");
+            var connection = connectionMode == ConnectionMode.Keyboard
+                ? new FixtureConnectionService()
+                : new FixtureConnectionService(identity);
+            var connectionViewModel = new ConnectionViewModel(
+                new FixtureDeviceEnumerator(),
+                connection,
+                localizer);
+            foreach (var device in FixtureDeviceEnumerator.Devices)
             {
-                historyViewModel.Records.Add(new NotebookRecordItemViewModel(record, localizer));
+                connectionViewModel.Devices.Add(device);
+            }
+
+            connectionViewModel.SelectedDevice = connectionViewModel.Devices[0];
+            connectionViewModel.SelectedMode = connectionMode;
+
+            var monitor = new LiveMonitor();
+            var monitorViewModel = new MonitorViewModel(
+                monitor,
+                connection,
+                new FixtureClipboardService(),
+                localizer);
+            var repository = new FixtureNotebookRepository();
+            var recordedAt = new DateTimeOffset(2026, 8, 9, 12, 30, 0, TimeSpan.Zero);
+            var recorder = new NotebookRecorder(repository, monitor, () => recordedAt = recordedAt.AddSeconds(1));
+            var interaction = new FixtureNotebookInteractionService();
+            var notebookViewModel = new NotebookViewModel(recorder, interaction, localizer)
+            {
+                SessionName = "Datalogic and Zebra acceptance — A/B/A grouping"
+            };
+
+            notebookViewModel.StartCommand.ExecuteAsync().GetAwaiter().GetResult();
+            var evidenceSessionId = recorder.CurrentSession!.Id;
+            var analysis = CreateEvidenceAnalysis();
+            var firstA = CreateScan(identity, 42, EvidencePayloadA);
+            var middleB = CreateScan(identity, 43, EvidencePayloadB);
+            var latestA = CreateScan(identity, 44, EvidencePayloadA);
+            monitor.Append(firstA, CreateDecoded(firstA, EvidencePayloadA), [analysis]);
+            monitor.Append(middleB, CreateDecoded(middleB, EvidencePayloadB), []);
+            monitor.Append(latestA, CreateDecoded(latestA, EvidencePayloadA), [analysis]);
+            notebookViewModel.StopCommand.ExecuteAsync().GetAwaiter().GetResult();
+
+            var historyViewModel = new HistoryViewModel(repository, interaction, recorder, localizer);
+            var settingsViewModel = new SettingsViewModel(
+                settings,
+                localizer,
+                new FixturePlatformInteractionService(),
+                true,
+                @"C:\Users\Operator\AppData\Local\Scanio\Data\scanio-notebook.sqlite3",
+                "0.5.0-alpha.1",
+                new Uri("https://github.com/thevladbog/scanio/releases"));
+            var shell = new ShellViewModel(
+                connectionViewModel,
+                monitorViewModel,
+                notebookViewModel,
+                historyViewModel,
+                settingsViewModel,
+                recorder,
+                connection);
+
+            shell.ShowHistoryCommand.ExecuteAsync().GetAwaiter().GetResult();
+            historyViewModel.OpenCommand.ExecuteAsync().GetAwaiter().GetResult();
+            NavigateTo(shell, destination);
+
+            SynchronizationContext.SetSynchronizationContext(previousContext);
+            contextRestored = true;
+            return new RenderedFixture(
+                new Scanio.Presentation.MainWindow(shell),
+                shell,
+                recorder,
+                repository,
+                evidenceSessionId);
+        }
+        finally
+        {
+            if (!contextRestored)
+            {
+                SynchronizationContext.SetSynchronizationContext(previousContext);
             }
         }
-
-        var settingsViewModel = new SettingsViewModel(
-            settings,
-            localizer,
-            new FixturePlatformInteractionService(),
-            true,
-            @"C:\Users\Operator\AppData\Local\Scanio\Data\scanio-notebook.sqlite3",
-            "0.5.0-alpha.1",
-            new Uri("https://github.com/thevladbog/scanio/releases"));
-        var shell = new ShellViewModel(
-            connectionViewModel,
-            monitorViewModel,
-            notebookViewModel,
-            historyViewModel,
-            settingsViewModel,
-            recorder,
-            connection);
-        typeof(ShellViewModel)
-            .GetProperty(nameof(ShellViewModel.SelectedDestination))!
-            .SetValue(shell, destination);
-
-        return new RenderedFixture(new Scanio.Presentation.MainWindow(shell), recorder);
     }
 
     internal static void ResetGlobalSources()
@@ -206,20 +201,59 @@ internal static class CPlusFixtureFactory
         LocalizationSource.Initialize(localizer);
     }
 
-    private static CompletedScan CreateScan(TransportIdentity identity)
+    private const string EvidencePayloadA =
+        "010460123456789321SERIAL-000042\u001D91ABCD92LONG-CRYPTOGRAPHIC-TAIL";
+    private const string EvidencePayloadB = "BATCH-ALTERNATE-000043";
+
+    private static void NavigateTo(ShellViewModel shell, ShellDestination destination)
     {
-        const string payload = "010460123456789321SERIAL-000042\u001D91ABCD92LONG-CRYPTOGRAPHIC-TAIL";
+        var command = destination switch
+        {
+            ShellDestination.Connection => shell.ShowConnectionCommand,
+            ShellDestination.Monitor => shell.ShowMonitorCommand,
+            ShellDestination.Notebook => shell.ShowNotebookCommand,
+            ShellDestination.History => null,
+            ShellDestination.Settings => shell.ShowSettingsCommand,
+            _ => throw new ArgumentOutOfRangeException(nameof(destination), destination, null)
+        };
+        command?.ExecuteAsync().GetAwaiter().GetResult();
+    }
+
+    private static AnalysisResult CreateEvidenceAnalysis() => AnalysisResult.Match(
+        "HonestSign",
+        "Честный знак",
+        AnalysisConfidence.Exact,
+        "GTIN (01) and serial (21) are present; no online check was performed.",
+        "Honest Sign marking code.",
+        [
+            new AnalysisField("01", "GTIN", "04601234567893"),
+            new AnalysisField("21", "Serial number", "SERIAL-000042"),
+            new AnalysisField("91", "Verification key", "ABCD"),
+            new AnalysisField("92", "Cryptographic tail", "LONG-CRYPTOGRAPHIC-TAIL")
+        ]);
+
+    private static DecodedPayload CreateDecoded(CompletedScan scan, string payload) =>
+        DecodedPayload.Create(
+            scan.PayloadBytes.ToArray(),
+            PayloadTextEncoding.Utf8,
+            payload,
+            payload.Replace("\u001D", "<GS>", StringComparison.Ordinal));
+
+    private static CompletedScan CreateScan(
+        TransportIdentity identity,
+        long sequence,
+        string payload)
+    {
         var raw = Encoding.UTF8.GetBytes(payload + "\r");
         return CompletedScan.Create(
-            42,
+            sequence,
             raw,
             Encoding.UTF8.GetBytes(payload),
-            [RawChunk.Create(1, raw[..22], new DateTimeOffset(2026, 8, 9, 12, 34, 56, TimeSpan.Zero), 10_000, identity),
-             RawChunk.Create(2, raw[22..], new DateTimeOffset(2026, 8, 9, 12, 34, 56, 18, TimeSpan.Zero), 10_018, identity)],
+            [RawChunk.Create(sequence, raw, new DateTimeOffset(2026, 8, 9, 12, 34, 56, TimeSpan.Zero), 10_000 + sequence, identity)],
             new DateTimeOffset(2026, 8, 9, 12, 34, 56, TimeSpan.Zero),
             new DateTimeOffset(2026, 8, 9, 12, 34, 56, 18, TimeSpan.Zero),
-            10_000,
-            10_018,
+            10_000 + sequence,
+            10_018 + sequence,
             ScanCompletionReason.Terminator,
             ScanFramingSnapshot.Create([0x0D], TimeSpan.FromMilliseconds(100), 65_536),
             identity);
@@ -246,9 +280,19 @@ internal sealed class KeyboardCaptureFixture(
     }
 }
 
-internal sealed class RenderedFixture(Scanio.Presentation.MainWindow window, NotebookRecorder recorder) : IDisposable
+internal sealed class RenderedFixture(
+    Scanio.Presentation.MainWindow window,
+    ShellViewModel shell,
+    NotebookRecorder recorder,
+    FixtureNotebookRepository repository,
+    Guid evidenceSessionId) : IDisposable
 {
     public Scanio.Presentation.MainWindow Window { get; } = window;
+    public ConnectionViewModel Connection => shell.Connection;
+    public NotebookViewModel Notebook => shell.Notebook;
+    public HistoryViewModel History => shell.History;
+    public IReadOnlyList<NotebookRecord> AuthoritativeRecords =>
+        repository.GetRecords(evidenceSessionId);
 
     public void Dispose()
     {
@@ -287,13 +331,24 @@ internal sealed class FixtureDeviceEnumerator : ISerialDeviceEnumerator
         new(port, name, maker, 0x05F9, 0x2216, "SERIAL-0123456789", $"USB\\VID_05F9&PID_2216\\{port}", $"fixture:{port}");
 }
 
-internal sealed class FixtureConnectionService(TransportIdentity identity) : IConnectionService
+internal sealed class FixtureConnectionService : IConnectionService
 {
+    public FixtureConnectionService(TransportIdentity? identity = null)
+    {
+        State = identity is null ? ConnectionState.Disconnected : ConnectionState.Connected;
+        ActiveIdentity = identity;
+        CurrentSnapshot = identity is null
+            ? null
+            : new ConnectionPresentationSnapshot(
+                identity,
+                ConnectionState.Connected,
+                SerialConnectionOptions.Default(identity.Endpoint!));
+    }
+
     public event EventHandler<ConnectionStateChangedEventArgs>? StateChanged;
-    public ConnectionState State { get; private set; } = ConnectionState.Connected;
-    public TransportIdentity? ActiveIdentity { get; private set; } = identity;
-    public ConnectionPresentationSnapshot? CurrentSnapshot { get; private set; } =
-        new(identity, ConnectionState.Connected, SerialConnectionOptions.Default(identity.Endpoint!));
+    public ConnectionState State { get; private set; }
+    public TransportIdentity? ActiveIdentity { get; private set; }
+    public ConnectionPresentationSnapshot? CurrentSnapshot { get; private set; }
     public Scanio.Transports.Keyboard.IKeyboardCaptureInput? KeyboardInput => null;
 
     public Task ConnectAsync(SerialDeviceInfo device, SerialConnectionOptions options, CancellationToken cancellationToken) => Task.CompletedTask;
@@ -332,26 +387,16 @@ internal sealed class FixturePlatformInteractionService : IPlatformInteractionSe
 
 internal sealed class FixtureNotebookRepository : INotebookRepository
 {
-    private readonly CompletedScan _scan;
-    private readonly DecodedPayload _decoded;
-    private readonly AnalysisResult _analysis;
     private readonly List<NotebookSession> _sessions = [];
     private readonly List<NotebookRecord> _records = [];
 
-    public FixtureNotebookRepository(CompletedScan scan, DecodedPayload decoded, AnalysisResult analysis)
+    public FixtureNotebookRepository()
     {
-        _scan = scan;
-        _decoded = decoded;
-        _analysis = analysis;
         var first = NotebookSession.Create(Guid.Parse("11111111-1111-1111-1111-111111111111"), "Warehouse acceptance — Zebra DS3608", new DateTimeOffset(2026, 8, 8, 8, 0, 0, TimeSpan.Zero))
             .WithSummary("Warehouse acceptance — Zebra DS3608", new DateTimeOffset(2026, 8, 8, 10, 42, 0, TimeSpan.Zero), 128);
         var second = NotebookSession.Create(Guid.Parse("22222222-2222-2222-2222-222222222222"), "Datalogic PowerScan long-run COM test", new DateTimeOffset(2026, 8, 7, 11, 0, 0, TimeSpan.Zero))
             .WithSummary("Datalogic PowerScan long-run COM test", new DateTimeOffset(2026, 8, 7, 11, 37, 0, TimeSpan.Zero), 42);
         _sessions.AddRange([first, second]);
-        for (var index = 1; index <= 12; index++)
-        {
-            _records.Add(CreateRecord(first.Id, index));
-        }
     }
 
     public void Initialize() { }
@@ -363,18 +408,17 @@ internal sealed class FixtureNotebookRepository : INotebookRepository
         return session;
     }
 
-    public NotebookRecord CreateRecord(Guid sessionId, int index) => NotebookRecord.Create(
-        index,
-        sessionId,
-        _scan,
-        _decoded,
-        [_analysis],
-        index % 3 == 0 ? 2 : 1,
-        new DateTimeOffset(2026, 8, 9, 12, 30, index, TimeSpan.Zero));
-
     public void Append(NotebookRecord record) => _records.Add(record);
 
-    public void CompleteSession(Guid sessionId, DateTimeOffset endedAt) { }
+    public void CompleteSession(Guid sessionId, DateTimeOffset endedAt)
+    {
+        var index = _sessions.FindIndex(session => session.Id == sessionId);
+        var current = _sessions[index];
+        _sessions[index] = current.WithSummary(
+            current.Name,
+            endedAt,
+            _records.Count(record => record.SessionId == sessionId));
+    }
 
     public IReadOnlyList<NotebookSession> GetSessions() => _sessions.ToArray();
 

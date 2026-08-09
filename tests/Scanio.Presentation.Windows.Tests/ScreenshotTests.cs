@@ -20,6 +20,10 @@ public sealed class ScreenshotTests
             foreach (var size in new[] { (Width: 1440, Height: 900), (Width: 1024, Height: 700) })
             {
                 using var fixture = CPlusFixtureFactory.Create(language, destination);
+                RenderedLayoutTests.AssertFixtureSemanticEvidence(
+                    fixture,
+                    language,
+                    $"screenshot/{language}/{destination}");
                 RenderedLayoutTests.Prepare(fixture.Window, size.Width, size.Height);
                 Capture(
                     fixture.Window,
@@ -39,6 +43,10 @@ public sealed class ScreenshotTests
             foreach (var variant in RenderedEvidenceMatrix.All)
             {
                 using var fixture = CPlusFixtureFactory.Create(variant);
+                RenderedLayoutTests.AssertFixtureSemanticEvidence(
+                    fixture,
+                    variant.Language,
+                    $"screenshot/{variant.ScreenshotName}");
                 RenderedLayoutTests.Prepare(fixture.Window, variant.Width, variant.Height);
                 Capture(fixture.Window, Path.Combine("evidence", variant.ScreenshotName));
             }

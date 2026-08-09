@@ -438,30 +438,45 @@ public sealed class ConnectionViewModel : ObservableObject
         {
             await _delay(KeyboardSilenceTimeout, cancellationToken).ConfigureAwait(false);
 
-            string? completed;
-            lock (_keyboardDeadlineGate)
+            var ownsDeadline = false;
+            try
             {
-                if (generation != _keyboardDeadlineGeneration ||
-                    !ReferenceEquals(_keyboardDeadlineCancellation, cancellation) ||
-                    cancellationToken.IsCancellationRequested)
+                string? completed;
+                lock (_keyboardDeadlineGate)
                 {
-                    return;
+                    if (generation != _keyboardDeadlineGeneration ||
+                        !ReferenceEquals(_keyboardDeadlineCancellation, cancellation) ||
+                        cancellationToken.IsCancellationRequested)
+                    {
+                        return;
+                    }
+
+                    _keyboardDeadlineCancellation = null;
+                    _keyboardDeadlineGeneration++;
+                    ownsDeadline = true;
+                    completed = TryCompleteKeyboardInputLocked();
                 }
 
-                _keyboardDeadlineCancellation = null;
-                _keyboardDeadlineGeneration++;
-                completed = TryCompleteKeyboardInputLocked();
-                cancellation.Dispose();
+                if (completed is not null)
+                {
+                    PublishCompletedKeyboardInput(completed);
+                }
             }
-
-            if (completed is not null)
+            finally
             {
-                PublishCompletedKeyboardInput(completed);
+                if (ownsDeadline)
+                {
+                    cancellation.Dispose();
+                }
             }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             // A newer fragment or explicit completion superseded this deadline.
+        }
+        catch (Exception)
+        {
+            RunOnUi(() => ErrorMessage = _localizer["Error.OperationFailed"]);
         }
     }
 

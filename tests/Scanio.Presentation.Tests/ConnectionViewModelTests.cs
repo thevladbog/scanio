@@ -190,6 +190,32 @@ public sealed class ConnectionViewModelTests
     }
 
     [TestMethod]
+    public async Task NaturalKeyboardDeadline_ObservesCompletionFailureDisposesSourceAndPublishesLocalizedErrorWithoutReclaimingFocus()
+    {
+        var connection = FakeConnectionService.ConnectedKeyboard();
+        connection.KeyboardCaptureInput.CompletionException = new InvalidOperationException("Completion failed.");
+        var delays = new ControlledDelay();
+        var viewModel = CreateViewModel(new FakeDeviceEnumerator(), connection, delays.WaitAsync);
+        viewModel.SelectedMode = ConnectionMode.Keyboard;
+        viewModel.SetKeyboardSurfaceFocused(false);
+        var focusRequests = 0;
+        viewModel.KeyboardFocusRequested += (_, _) => focusRequests++;
+        viewModel.AcceptKeyboardText("ABC123");
+        var waitHandle = delays.Requests.Single().Token.WaitHandle;
+
+        delays.Release(0);
+        await Task.Yield();
+
+        var sourceWasDisposed = waitHandle.SafeWaitHandle.IsClosed;
+        waitHandle.Dispose();
+        Assert.IsTrue(sourceWasDisposed, "The winning silence deadline must dispose its CTS even when completion throws.");
+        Assert.AreEqual("Не удалось выполнить операцию.", viewModel.ErrorMessage);
+        Assert.IsNull(viewModel.LastKeyboardScan);
+        Assert.AreEqual(0, focusRequests);
+        Assert.IsFalse(viewModel.IsKeyboardSurfaceFocused);
+    }
+
+    [TestMethod]
     public async Task StopThenStaleSilenceCompletion_EmitsNoScanAndNoFocusRequest()
     {
         var connection = FakeConnectionService.ConnectedKeyboard();
@@ -342,6 +368,42 @@ public sealed class ConnectionViewModelTests
 
         var disconnected = CreateViewModel(new FakeDeviceEnumerator(), new FakeConnectionService());
         Assert.AreEqual("Нет подключения", disconnected.HeaderConnectionLabel);
+    }
+
+    [TestMethod]
+    public void ConnectionSnapshot_LocalizesKeyboardIdentityWithoutChangingTechnicalIdentity()
+    {
+        var identity = new TransportIdentity(
+            TransportKind.KeyboardCapture,
+            "keyboard-capture:focused-window",
+            "Keyboard scanner",
+            endpoint: "Keyboard");
+        var snapshot = ConnectionSnapshotViewModel.From(
+            new ConnectionPresentationSnapshot(identity, ConnectionState.Connected, Options: null),
+            new UiLocalizer(new TestSettingsService()));
+
+        Assert.AreEqual("Клавиатура", snapshot?.Endpoint);
+        Assert.AreEqual("Сканер-клавиатура", snapshot?.FriendlyName);
+        Assert.AreEqual("Реконструированный ввод Windows · UTF-8", snapshot?.ParametersLabel);
+        Assert.AreEqual("keyboard-capture:focused-window", identity.StableId);
+        Assert.AreEqual("Keyboard scanner", identity.DisplayName);
+        Assert.AreEqual("Keyboard", identity.Endpoint);
+    }
+
+    [TestMethod]
+    public void ConnectionSnapshot_DoesNotDescribeOtherOptionlessTransportsAsKeyboardInput()
+    {
+        var identity = new TransportIdentity(
+            TransportKind.HidPos,
+            "hid-pos:test",
+            "HID POS scanner",
+            endpoint: "HID POS");
+
+        var snapshot = ConnectionSnapshotViewModel.From(
+            new ConnectionPresentationSnapshot(identity, ConnectionState.Connected, Options: null),
+            new UiLocalizer(new TestSettingsService()));
+
+        Assert.AreEqual(string.Empty, snapshot?.ParametersLabel);
     }
 
     [TestMethod]
@@ -645,6 +707,7 @@ public sealed class ConnectionViewModelTests
         public List<string> AcceptedFragments { get; } = [];
         public int CompletedScans { get; private set; }
         public string? LastCompletedScan { get; private set; }
+        public Exception? CompletionException { get; set; }
         public bool IsConnected { get; set; }
         public bool HasPendingInput => IsConnected && _pending.Length > 0;
         public TaskCompletionSource CompletionObserved { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -663,6 +726,11 @@ public sealed class ConnectionViewModelTests
 
         public bool CompleteInput()
         {
+            if (CompletionException is not null)
+            {
+                throw CompletionException;
+            }
+
             if (!HasPendingInput)
             {
                 return false;

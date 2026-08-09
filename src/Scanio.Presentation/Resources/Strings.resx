@@ -57,6 +57,8 @@
   <data name="Serial.Handshake.RequestToSend" xml:space="preserve"><value>RTS</value></data>
   <data name="Serial.Handshake.RequestToSendXOnXOff" xml:space="preserve"><value>RTS + XON/XOFF</value></data>
   <data name="Keyboard.ReconstructedInput" xml:space="preserve"><value>Реконструированный ввод Windows · UTF-8</value></data>
+  <data name="Transport.Keyboard.DisplayName" xml:space="preserve"><value>Сканер-клавиатура</value></data>
+  <data name="Transport.Keyboard.Endpoint" xml:space="preserve"><value>Клавиатура</value></data>
   <data name="Settings.Title" xml:space="preserve"><value>Настройки</value></data>
   <data name="Settings.Subtitle" xml:space="preserve"><value>Язык, отображение и локальные данные</value></data>
   <data name="Settings.ShowEscapedControls" xml:space="preserve"><value>Показывать управляющие символы</value></data>
@@ -105,13 +107,13 @@
   <data name="Connection.Keyboard.Status.Starting" xml:space="preserve"><value>Запуск теста…</value></data>
   <data name="Connection.Keyboard.Status.Active" xml:space="preserve"><value>Ввод активен</value></data>
   <data name="Connection.Keyboard.Status.Paused" xml:space="preserve"><value>Ввод приостановлен — активируйте поле</value></data>
-  <data name="Monitor.Live" xml:space="preserve"><value>ЖИВАЯ ЛЕНТА</value></data>
-  <data name="Monitor.Scans" xml:space="preserve"><value>Сканы</value></data>
+  <data name="Monitor.Live" xml:space="preserve"><value>ПОСЛЕДНИЕ СКАНИРОВАНИЯ</value></data>
+  <data name="Monitor.Scans" xml:space="preserve"><value>Отсканированные коды</value></data>
   <data name="Monitor.Latest" xml:space="preserve"><value>К последнему</value></data>
   <data name="Monitor.Title" xml:space="preserve"><value>Содержимое, байты и структура</value></data>
   <data name="Monitor.Waiting" xml:space="preserve"><value>Ожидание первого скана…</value></data>
-  <data name="Monitor.Fact" xml:space="preserve"><value>ФАКТ</value></data>
-  <data name="Monitor.Interpretation" xml:space="preserve"><value>ИНТЕРПРЕТАЦИЯ</value></data>
+  <data name="Monitor.Fact" xml:space="preserve"><value>ПОЛУЧЕНО</value></data>
+  <data name="Monitor.Interpretation" xml:space="preserve"><value>РАСПОЗНАНО</value></data>
   <data name="Monitor.Footer" xml:space="preserve"><value>RAW и HEX — первичные данные. Формат — интерпретация анализатора.</value></data>
   <data name="Monitor.Inspector" xml:space="preserve"><value>ИНСПЕКТОР</value></data>
   <data name="Monitor.Connection" xml:space="preserve"><value>Подключение</value></data>
@@ -119,7 +121,7 @@
   <data name="Monitor.Started" xml:space="preserve"><value>Начало</value></data>
   <data name="Monitor.Ended" xml:space="preserve"><value>Конец</value></data>
   <data name="Monitor.Duration" xml:space="preserve"><value>Длительность</value></data>
-  <data name="Monitor.Reads" xml:space="preserve"><value>Чтения транспорта</value></data>
+  <data name="Monitor.Reads" xml:space="preserve"><value>Порции данных от сканера</value></data>
   <data name="Notebook.Active" xml:space="preserve"><value>БЛОКНОТ · АКТИВНАЯ СЕССИЯ</value></data>
   <data name="Notebook.Title" xml:space="preserve"><value>Коды текущей сессии</value></data>
   <data name="Notebook.Session" xml:space="preserve"><value>СЕССИЯ</value></data>

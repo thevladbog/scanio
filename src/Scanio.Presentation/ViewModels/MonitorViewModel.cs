@@ -80,12 +80,20 @@ public sealed class MonitorViewModel : ObservableObject
 
     public bool ShowReturnToLatest => !_monitor.IsFollowingLatest && Events.Count > 0;
 
-    public string ConnectionLabel => _connection.CurrentSnapshot is { } snapshot
-        ? $"{snapshot.Endpoint} · {ConnectionLabels.State(snapshot.State, _localizer)}"
+    public string ConnectionLabel => ConnectionSnapshot is { } snapshot
+        ? $"{snapshot.Endpoint} · {snapshot.StateLabel}"
         : _localizer[UiTextKeys.ConnectionNotConnected];
 
-    public string? ConnectionFriendlyName =>
-        _connection.CurrentSnapshot?.Identity.DisplayName ?? _connection.ActiveIdentity?.DisplayName;
+    public string? ConnectionFriendlyName
+    {
+        get
+        {
+            var identity = _connection.CurrentSnapshot?.Identity ?? _connection.ActiveIdentity;
+            return identity is null
+                ? null
+                : TransportPresentationLabels.DisplayName(identity, _localizer);
+        }
+    }
 
     public ConnectionSnapshotViewModel? ConnectionSnapshot =>
         ConnectionSnapshotViewModel.From(_connection.CurrentSnapshot, _localizer);

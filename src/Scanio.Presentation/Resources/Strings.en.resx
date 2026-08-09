@@ -57,6 +57,8 @@
   <data name="Serial.Handshake.RequestToSend" xml:space="preserve"><value>RTS</value></data>
   <data name="Serial.Handshake.RequestToSendXOnXOff" xml:space="preserve"><value>RTS + XON/XOFF</value></data>
   <data name="Keyboard.ReconstructedInput" xml:space="preserve"><value>Reconstructed Windows input · UTF-8</value></data>
+  <data name="Transport.Keyboard.DisplayName" xml:space="preserve"><value>Keyboard scanner</value></data>
+  <data name="Transport.Keyboard.Endpoint" xml:space="preserve"><value>Keyboard</value></data>
   <data name="Settings.Title" xml:space="preserve"><value>Settings</value></data>
   <data name="Settings.Subtitle" xml:space="preserve"><value>Language, display, and local data</value></data>
   <data name="Settings.ShowEscapedControls" xml:space="preserve"><value>Show escaped control characters</value></data>

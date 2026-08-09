@@ -25,7 +25,7 @@ public sealed class NotebookRecordItemViewModel : ObservableObject
             : localizer is null
                 ? primary.Format
                 : new AnalysisItemViewModel(primary, localizer).Format;
-        Transport = record.Scan.Transport.DisplayName;
+        Transport = TransportPresentationLabels.DisplayName(record.Scan.Transport, localizer);
         ByteCount = record.Scan.RawBytes.Length;
         DuplicateCount = record.DuplicateCount;
         OccurrenceCount = occurrenceCount;

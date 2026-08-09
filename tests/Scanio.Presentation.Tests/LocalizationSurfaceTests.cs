@@ -95,7 +95,12 @@ public sealed class LocalizationSurfaceTests
             "Пауза чтения",
             "Точный формат данных",
             "Предположение по структуре",
-            "Строка элементов GS1"
+            "Строка элементов GS1",
+            "ЖИВАЯ ЛЕНТА",
+            "Сканы",
+            "ФАКТ",
+            "ИНТЕРПРЕТАЦИЯ",
+            "Чтения транспорта"
         };
 
         var leakedWords = russian
@@ -103,8 +108,9 @@ public sealed class LocalizationSurfaceTests
             .Where(entry => !RussianNeutralWords.Contains(entry[(entry.LastIndexOf(' ') + 1)..]))
             .ToArray();
         var retiredValues = russian
-            .Where(pair => retiredCopy.Contains(pair.Value, StringComparer.Ordinal))
-            .Select(pair => $"{pair.Key}: {pair.Value}")
+            .SelectMany(pair => retiredCopy
+                .Where(retired => pair.Value.Contains(retired, StringComparison.Ordinal))
+                .Select(retired => $"{pair.Key}: '{retired}' in '{pair.Value}'"))
             .ToArray();
 
         Assert.IsEmpty(

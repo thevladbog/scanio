@@ -51,6 +51,11 @@ public sealed class LocalizationTests
         Assert.AreEqual("Распознано точно", localizer["Confidence.Exact"]);
         Assert.AreEqual("Похоже на этот формат", localizer["Confidence.Inferred"]);
         Assert.AreEqual("Данные GS1", localizer["Analysis.Format.GS1"]);
+        Assert.AreEqual("ПОСЛЕДНИЕ СКАНИРОВАНИЯ", localizer["Monitor.Live"]);
+        Assert.AreEqual("Отсканированные коды", localizer["Monitor.Scans"]);
+        Assert.AreEqual("ПОЛУЧЕНО", localizer["Monitor.Fact"]);
+        Assert.AreEqual("РАСПОЗНАНО", localizer["Monitor.Interpretation"]);
+        Assert.AreEqual("Порции данных от сканера", localizer["Monitor.Reads"]);
     }
 
     private sealed class InMemorySettingsService : IAppSettingsService
