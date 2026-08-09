@@ -101,12 +101,15 @@
                                                     </MultiDataTrigger.Conditions>
                                                     <Setter Property="Background" Value="{DynamicResource Brush.SignalSurface}" />
                                                     <MultiDataTrigger.EnterActions>
-                                                        <BeginStoryboard>
+                                                        <BeginStoryboard x:Name="UniqueArrivalPulse">
                                                             <Storyboard>
                                                                 <DoubleAnimation Storyboard.TargetProperty="Opacity" From="1" To="0" Duration="0:0:0.6" />
                                                             </Storyboard>
                                                         </BeginStoryboard>
                                                     </MultiDataTrigger.EnterActions>
+                                                    <MultiDataTrigger.ExitActions>
+                                                        <RemoveStoryboard BeginStoryboardName="UniqueArrivalPulse" />
+                                                    </MultiDataTrigger.ExitActions>
                                                 </MultiDataTrigger>
                                                 <MultiDataTrigger>
                                                     <MultiDataTrigger.Conditions>
@@ -115,12 +118,15 @@
                                                     </MultiDataTrigger.Conditions>
                                                     <Setter Property="Background" Value="{DynamicResource Brush.WarningSurface}" />
                                                     <MultiDataTrigger.EnterActions>
-                                                        <BeginStoryboard>
+                                                        <BeginStoryboard x:Name="DuplicateArrivalPulse">
                                                             <Storyboard>
                                                                 <DoubleAnimation Storyboard.TargetProperty="Opacity" From="1" To="0" Duration="0:0:0.6" />
                                                             </Storyboard>
                                                         </BeginStoryboard>
                                                     </MultiDataTrigger.EnterActions>
+                                                    <MultiDataTrigger.ExitActions>
+                                                        <RemoveStoryboard BeginStoryboardName="DuplicateArrivalPulse" />
+                                                    </MultiDataTrigger.ExitActions>
                                                 </MultiDataTrigger>
                                             </Style.Triggers>
                                         </Style>

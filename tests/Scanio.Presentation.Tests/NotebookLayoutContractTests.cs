@@ -6,6 +6,7 @@ namespace Scanio.Presentation.Tests;
 public sealed class NotebookLayoutContractTests
 {
     private static readonly XNamespace Presentation = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
+    private static readonly XNamespace Xaml = "http://schemas.microsoft.com/winfx/2006/xaml";
 
     [TestMethod]
     public void Notebook_UsesAdaptiveRowsAndExplicitActions()
@@ -55,6 +56,28 @@ public sealed class NotebookLayoutContractTests
                 .Attribute("Value")?.Value).ToArray());
         Assert.IsTrue(triggers.All(trigger => trigger.Descendants(Presentation + "DoubleAnimation")
             .Any(animation => (string?)animation.Attribute("Duration") == "0:0:0.6")));
+    }
+
+    [TestMethod]
+    public void Notebook_CancelsBothArrivalPulseStoryboardsWhenTheirTriggerExits()
+    {
+        var document = XDocument.Load(Path.Combine(AppContext.BaseDirectory, "LayoutContracts", "NotebookView.xaml"));
+        var pulse = document.Descendants(Presentation + "Border")
+            .Single(element => (string?)element.Attribute("IsHitTestVisible") == "False");
+
+        var triggers = pulse.Descendants(Presentation + "MultiDataTrigger").ToArray();
+        Assert.HasCount(2, triggers);
+        foreach (var trigger in triggers)
+        {
+            var begin = trigger.Descendants(Presentation + "BeginStoryboard").Single();
+            var storyboardName = (string?)begin.Attribute(Xaml + "Name");
+            Assert.IsFalse(string.IsNullOrWhiteSpace(storyboardName));
+
+            var exitActions = trigger.Element(Presentation + "MultiDataTrigger.ExitActions");
+            Assert.IsNotNull(exitActions);
+            var remove = exitActions.Elements(Presentation + "RemoveStoryboard").Single();
+            Assert.AreEqual(storyboardName, (string?)remove.Attribute("BeginStoryboardName"));
+        }
     }
 
     [TestMethod]
