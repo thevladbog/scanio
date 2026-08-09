@@ -10,6 +10,7 @@ public sealed class JsonAppSettingsStore : IAppSettingsStore
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         WriteIndented = true,
+        UnmappedMemberHandling = JsonUnmappedMemberHandling.Skip,
         Converters = { new JsonStringEnumConverter() }
     };
 

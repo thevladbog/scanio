@@ -49,6 +49,7 @@
                     <Button Grid.Column="1" Content="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Common.Refresh]}" Command="{Binding RefreshCommand}" Style="{DynamicResource CommandButton}" />
                 </Grid>
                 <ListView Grid.Row="2" ItemsSource="{Binding Devices}" SelectedItem="{Binding SelectedDevice}" IsEnabled="{Binding IsEditingEnabled}"
+                          ItemContainerStyle="{DynamicResource DensityAwareDeviceRow}"
                           ScrollViewer.CanContentScroll="True" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                           VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling">
                     <ListView.ItemTemplate>

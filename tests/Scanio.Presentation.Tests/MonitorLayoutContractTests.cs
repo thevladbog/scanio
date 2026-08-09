@@ -81,6 +81,62 @@ public sealed class MonitorLayoutContractTests
         CollectionAssert.Contains(names, "ChunksInspector");
     }
 
+    [TestMethod]
+    public void Monitor_DisplaySectionsBindVisibilityToTheSharedSettingsSource()
+    {
+        var monitor = Load();
+        var rawEvidence = monitor.Descendants(Presentation + "Border")
+            .Single(element => (string?)element.Attribute(Xaml + "Name") == "RawEvidence");
+        var hex = rawEvidence.Descendants(Presentation + "StackPanel")
+            .Single(element => (string?)element.Attribute("Grid.Column") == "2");
+        var chunks = monitor.Descendants(Presentation + "Grid")
+            .Single(element => (string?)element.Attribute(Xaml + "Name") == "ChunksInspector");
+
+        Assert.AreEqual(
+            "{Binding Source={x:Static settings:DisplaySettingsSource.Current}, Path=ShowHexPreview, Converter={StaticResource BooleanToVisibility}}",
+            (string?)hex.Attribute("Visibility"));
+        Assert.AreEqual(
+            "{Binding Source={x:Static settings:DisplaySettingsSource.Current}, Path=ShowChunkBoundaries, Converter={StaticResource BooleanToVisibility}}",
+            (string?)chunks.Attribute("Visibility"));
+    }
+
+    [TestMethod]
+    public void WorkspaceListsUseDensityAwareContainerStyles()
+    {
+        var layoutDirectory = Path.Combine(AppContext.BaseDirectory, "LayoutContracts");
+        AssertContainerStyle("MonitorView.xaml", "ListBox", "ItemsSource", "{Binding Events}", "{DynamicResource DensityAwareLedgerRow}");
+        AssertContainerStyle("NotebookView.xaml", "ListBox", "ItemsSource", "{Binding Records}", "{DynamicResource DensityAwareLedgerRow}");
+        AssertContainerStyle("HistoryView.xaml", "ListBox", "ItemsSource", "{Binding Sessions}", "{DynamicResource DensityAwareLedgerRow}");
+        AssertContainerStyle("HistoryView.xaml", "ListBox", "ItemsSource", "{Binding Records}", "{DynamicResource DensityAwareLedgerRow}");
+        AssertContainerStyle("ConnectionView.xaml", "ListView", "ItemsSource", "{Binding Devices}", "{DynamicResource DensityAwareDeviceRow}");
+
+        void AssertContainerStyle(string fileName, string elementName, string selectorAttribute, string selectorValue, string expectedStyle)
+        {
+            var document = XDocument.Load(Path.Combine(layoutDirectory, fileName));
+            var list = document.Descendants(Presentation + elementName)
+                .Single(element => (string?)element.Attribute(selectorAttribute) == selectorValue);
+            Assert.AreEqual(expectedStyle, (string?)list.Attribute("ItemContainerStyle"), fileName);
+        }
+    }
+
+    [TestMethod]
+    public void DensityAwareStylesBindExactRowHeightFromTheSharedSettingsSource()
+    {
+        var controls = XDocument.Load(Path.Combine(AppContext.BaseDirectory, "LayoutContracts", "Controls.xaml"));
+
+        foreach (var styleName in new[] { "DensityAwareLedgerRow", "DensityAwareDeviceRow" })
+        {
+            var style = controls.Descendants(Presentation + "Style")
+                .Single(element => (string?)element.Attribute(Xaml + "Key") == styleName);
+            var minHeight = style.Elements(Presentation + "Setter")
+                .Single(element => (string?)element.Attribute("Property") == "MinHeight");
+            Assert.AreEqual(
+                "{Binding Source={x:Static settings:DisplaySettingsSource.Current}, Path=LedgerRowHeight}",
+                (string?)minHeight.Attribute("Value"),
+                styleName);
+        }
+    }
+
     private static XDocument Load() => XDocument.Load(
         Path.Combine(AppContext.BaseDirectory, "LayoutContracts", "MonitorView.xaml"));
 }

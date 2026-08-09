@@ -7,7 +7,10 @@ namespace Scanio.Presentation.ViewModels;
 
 public sealed class ScanLedgerItemViewModel
 {
-    public ScanLedgerItemViewModel(LiveScanEvent scanEvent, IUiLocalizer localizer)
+    public ScanLedgerItemViewModel(
+        LiveScanEvent scanEvent,
+        IUiLocalizer localizer,
+        bool showEscapedControls = true)
     {
         ArgumentNullException.ThrowIfNull(scanEvent);
         ArgumentNullException.ThrowIfNull(localizer);
@@ -16,7 +19,9 @@ public sealed class ScanLedgerItemViewModel
         Sequence = scanEvent.Scan.Sequence;
         Timestamp = scanEvent.Scan.EndedAt.ToLocalTime().ToString("HH:mm:ss.fff");
         Payload = scanEvent.Decoded.Text;
-        Raw = ScanDiagnosticJsonSerializer.FormatRaw(scanEvent.Scan.RawBytes);
+        Raw = showEscapedControls
+            ? ScanDiagnosticJsonSerializer.FormatRaw(scanEvent.Scan.RawBytes)
+            : scanEvent.Decoded.Text;
         Hex = ScanDiagnosticJsonSerializer.FormatHex(scanEvent.Scan.RawBytes);
         ByteCount = scanEvent.Scan.RawBytes.Length;
         Completion = localizer[$"Completion.{scanEvent.Scan.CompletionReason}"];

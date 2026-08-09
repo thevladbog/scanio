@@ -26,6 +26,7 @@ public partial class App : System.Windows.Application
         var databasePath = NotebookDatabasePath.Resolve(portable, AppContext.BaseDirectory, localApplicationData);
         var settingsPath = JsonAppSettingsStore.ResolvePath(portable, AppContext.BaseDirectory, localApplicationData);
         var settingsService = new AppSettingsService(new JsonAppSettingsStore(settingsPath));
+        DisplaySettingsSource.Initialize(settingsService);
         var localizer = new UiLocalizer(settingsService);
         LocalizationSource.Initialize(localizer);
 

@@ -19,7 +19,6 @@ public sealed class SettingsTests
         Assert.IsTrue(settings.ShowEscapedControls);
         Assert.IsTrue(settings.ShowHexPreview);
         Assert.IsTrue(settings.ShowChunkBoundaries);
-        Assert.IsTrue(settings.FollowLatestByDefault);
     }
 
     [TestMethod]
@@ -33,8 +32,7 @@ public sealed class SettingsTests
             ShowEscapedControls: false,
             ShowHexPreview: false,
             ShowChunkBoundaries: false,
-            FollowLatestByDefault: false,
-            ListDensity.Compact);
+            ListDensity: ListDensity.Compact);
 
         store.Save(expected);
 
@@ -42,6 +40,32 @@ public sealed class SettingsTests
         Assert.IsFalse(File.Exists(path + ".tmp"));
         using var document = JsonDocument.Parse(File.ReadAllText(path));
         Assert.AreEqual("English", document.RootElement.GetProperty("language").GetString());
+        Assert.IsFalse(document.RootElement.TryGetProperty("followLatestByDefault", out _));
+    }
+
+    [TestMethod]
+    public void OldJson_WithFollowLatestProperty_LoadsTheRemainingSettings()
+    {
+        using var directory = new TemporaryDirectory();
+        var path = Path.Combine(directory.Path, "settings.json");
+        File.WriteAllText(path, """
+            {
+              "language": "English",
+              "showEscapedControls": false,
+              "showHexPreview": false,
+              "showChunkBoundaries": false,
+              "followLatestByDefault": false,
+              "listDensity": "Compact"
+            }
+            """);
+
+        var settings = new JsonAppSettingsStore(path).Load();
+
+        Assert.AreEqual(UiLanguage.English, settings.Language);
+        Assert.IsFalse(settings.ShowEscapedControls);
+        Assert.IsFalse(settings.ShowHexPreview);
+        Assert.IsFalse(settings.ShowChunkBoundaries);
+        Assert.AreEqual(ListDensity.Compact, settings.ListDensity);
     }
 
     [TestMethod]

@@ -62,7 +62,6 @@
   <data name="Settings.ShowEscapedControls" xml:space="preserve"><value>Показывать управляющие символы</value></data>
   <data name="Settings.ShowHexPreview" xml:space="preserve"><value>Показывать HEX</value></data>
   <data name="Settings.ShowChunkBoundaries" xml:space="preserve"><value>Показывать границы чтений</value></data>
-  <data name="Settings.FollowLatest" xml:space="preserve"><value>Следовать за последним сканом</value></data>
   <data name="Settings.Compact" xml:space="preserve"><value>Компактная</value></data>
   <data name="Settings.Comfortable" xml:space="preserve"><value>Комфортная</value></data>
   <data name="Settings.Mode" xml:space="preserve"><value>Режим</value></data>

@@ -10,6 +10,7 @@ using Scanio.Presentation.ViewModels;
 namespace Scanio.Presentation.Tests;
 
 [TestClass]
+[DoNotParallelize]
 public sealed class MonitorViewModelTests
 {
     [TestMethod]
@@ -73,6 +74,33 @@ public sealed class MonitorViewModelTests
         Assert.AreEqual("A", viewModel.SelectedEvent?.Payload);
         Assert.AreEqual("41 0D", viewModel.SelectedEvent?.Hex);
         Assert.AreEqual("A<CR>", viewModel.SelectedEvent?.Raw);
+    }
+
+    [TestMethod]
+    public void EscapedControlSetting_RebuildsPresentationWithoutChangingSelectionOrRawBytes()
+    {
+        var monitor = new LiveMonitor();
+        var first = Scan(1, "first\r");
+        var selected = Scan(2, "A\u001DB\r");
+        monitor.Append(first, Decoded("first"), []);
+        monitor.Append(selected, Decoded("A\u001DB"), []);
+        var settings = new TestSettingsService();
+        DisplaySettingsSource.Initialize(settings);
+        var viewModel = new MonitorViewModel(
+            monitor,
+            new FakeConnectionService(),
+            new FakeClipboardService(),
+            new UiLocalizer(settings));
+        var selectedId = viewModel.SelectedEvent!.Id;
+        var immutableBytes = viewModel.SelectedEvent.Source.Scan.RawBytes.ToArray();
+
+        Assert.AreEqual("A<GS>B<CR>", viewModel.SelectedEvent.Raw);
+
+        settings.Update(value => value with { ShowEscapedControls = false });
+
+        Assert.AreEqual(selectedId, viewModel.SelectedEvent!.Id);
+        Assert.AreEqual("A\u001DB", viewModel.SelectedEvent.Raw);
+        CollectionAssert.AreEqual(immutableBytes, viewModel.SelectedEvent.Source.Scan.RawBytes.ToArray());
     }
 
     [TestMethod]
@@ -270,6 +298,7 @@ public sealed class MonitorViewModelTests
         IClipboardService? clipboard = null)
     {
         var settings = new TestSettingsService();
+        DisplaySettingsSource.Initialize(settings);
         return new MonitorViewModel(
             monitor,
             connection,

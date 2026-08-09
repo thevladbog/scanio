@@ -62,7 +62,6 @@
   <data name="Settings.ShowEscapedControls" xml:space="preserve"><value>Show escaped control characters</value></data>
   <data name="Settings.ShowHexPreview" xml:space="preserve"><value>Show HEX preview</value></data>
   <data name="Settings.ShowChunkBoundaries" xml:space="preserve"><value>Show read boundaries</value></data>
-  <data name="Settings.FollowLatest" xml:space="preserve"><value>Follow the latest scan</value></data>
   <data name="Settings.Compact" xml:space="preserve"><value>Compact</value></data>
   <data name="Settings.Comfortable" xml:space="preserve"><value>Comfortable</value></data>
   <data name="Settings.Mode" xml:space="preserve"><value>Mode</value></data>

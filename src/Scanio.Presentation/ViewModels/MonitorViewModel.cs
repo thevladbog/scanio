@@ -3,6 +3,8 @@ using Scanio.Application.Monitor;
 using Scanio.Domain.Transport;
 using Scanio.Presentation.Services;
 using Scanio.Presentation.Localization;
+using Scanio.Presentation.Settings;
+using System.ComponentModel;
 
 namespace Scanio.Presentation.ViewModels;
 
@@ -12,6 +14,7 @@ public sealed class MonitorViewModel : ObservableObject
     private readonly IConnectionService _connection;
     private readonly IClipboardService _clipboard;
     private readonly IUiLocalizer _localizer;
+    private readonly DisplaySettingsSource _displaySettings = DisplaySettingsSource.Current;
     private readonly SynchronizationContext? _synchronizationContext = SynchronizationContext.Current;
     private ScanLedgerItemViewModel? _selectedEvent;
     private string? _copyFeedback;
@@ -46,6 +49,7 @@ public sealed class MonitorViewModel : ObservableObject
         CopyDiagnosticJsonCommand = CopyCommand(item => ScanDiagnosticJsonSerializer.Serialize(item.Source));
         _monitor.Changed += OnMonitorChanged;
         _connection.StateChanged += (_, _) => RaiseConnectionProperties();
+        _displaySettings.PropertyChanged += OnDisplaySettingsChanged;
         _localizer.PropertyChanged += (_, _) => RunOnUi(() =>
         {
             Rebuild();
@@ -108,13 +112,21 @@ public sealed class MonitorViewModel : ObservableObject
 
     private void OnMonitorChanged(object? sender, EventArgs args) => RunOnUi(Rebuild);
 
+    private void OnDisplaySettingsChanged(object? sender, PropertyChangedEventArgs args)
+    {
+        if (args.PropertyName == nameof(DisplaySettingsSource.ShowEscapedControls))
+        {
+            RunOnUi(Rebuild);
+        }
+    }
+
     private void Rebuild()
     {
         var selectedId = _monitor.SelectedEvent?.Id;
         Events.Clear();
         foreach (var scanEvent in _monitor.Events)
         {
-            Events.Add(new ScanLedgerItemViewModel(scanEvent, _localizer));
+            Events.Add(new ScanLedgerItemViewModel(scanEvent, _localizer, _displaySettings.ShowEscapedControls));
         }
 
         SetProperty(ref _selectedEvent, Events.FirstOrDefault(item => item.Id == selectedId), nameof(SelectedEvent));

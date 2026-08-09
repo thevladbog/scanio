@@ -1,5 +1,6 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:settings="clr-namespace:Scanio.Presentation.Settings">
     <Style TargetType="Window">
         <Setter Property="Background" Value="{DynamicResource Brush.SurfacePrimary}" />
         <Setter Property="Foreground" Value="{DynamicResource Brush.TextPrimary}" />
@@ -145,6 +146,14 @@
                 <Setter Property="BorderBrush" Value="{DynamicResource Brush.Signal}" />
             </Trigger>
         </Style.Triggers>
+    </Style>
+    <Style x:Key="DensityAwareLedgerRow" TargetType="ListBoxItem" BasedOn="{StaticResource LedgerRow}">
+        <Setter Property="MinHeight"
+                Value="{Binding Source={x:Static settings:DisplaySettingsSource.Current}, Path=LedgerRowHeight}" />
+    </Style>
+    <Style x:Key="DensityAwareDeviceRow" TargetType="ListViewItem" BasedOn="{StaticResource {x:Type ListViewItem}}">
+        <Setter Property="MinHeight"
+                Value="{Binding Source={x:Static settings:DisplaySettingsSource.Current}, Path=LedgerRowHeight}" />
     </Style>
     <Style x:Key="AdaptiveRecordRow" TargetType="ListBoxItem" BasedOn="{StaticResource LedgerRow}">
         <Setter Property="MinHeight" Value="48" />

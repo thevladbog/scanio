@@ -37,8 +37,6 @@
                           IsChecked="{Binding ShowHexPreview}" Margin="0,12,0,0" />
                 <CheckBox Content="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Settings.ShowChunkBoundaries]}"
                           IsChecked="{Binding ShowChunkBoundaries}" Margin="0,12,0,0" />
-                <CheckBox Content="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Settings.FollowLatest]}"
-                          IsChecked="{Binding FollowLatestByDefault}" Margin="0,12,0,0" />
                 <TextBlock Text="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Settings.Density]}"
                            Style="{DynamicResource PanelTitle}" Margin="0,28,0,0" />
                 <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
