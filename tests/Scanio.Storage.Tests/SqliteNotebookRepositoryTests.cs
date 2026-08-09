@@ -100,6 +100,20 @@ public sealed class SqliteNotebookRepositoryTests
         Assert.IsEmpty(repository.GetRecords(session.Id));
     }
 
+    [TestMethod]
+    public void Repository_ReleasesTheDatabaseFileAfterOperations()
+    {
+        var repository = new SqliteNotebookRepository(_databasePath);
+        repository.Initialize();
+        repository.GetSessions();
+        var movedPath = Path.Combine(_directory, "moved.db");
+
+        File.Move(_databasePath, movedPath);
+
+        Assert.IsTrue(File.Exists(movedPath));
+        Assert.IsFalse(File.Exists(_databasePath));
+    }
+
     private static NotebookRecord CreateRecord(Guid sessionId, long sequence, byte[] payload)
     {
         var transport = new TransportIdentity(TransportKind.Serial, "COM7", "Zebra COM7", "USB\\VID_05E0");

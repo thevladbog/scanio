@@ -22,7 +22,8 @@ public sealed class SqliteNotebookRepository : INotebookRepository
         {
             DataSource = _databasePath,
             Mode = SqliteOpenMode.ReadWriteCreate,
-            ForeignKeys = true
+            ForeignKeys = true,
+            Pooling = false
         }.ToString();
     }
 
