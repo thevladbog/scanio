@@ -273,6 +273,24 @@ public sealed class ShellLayoutContractTests
             "Danger buttons must keep readable labels against their inherited background.");
     }
 
+    [TestMethod]
+    public void TextBlocks_DoNotOverrideTheForegroundInheritedFromButtons()
+    {
+        var layoutDirectory = Path.Combine(AppContext.BaseDirectory, "LayoutContracts");
+        var controls = XDocument.Load(Path.Combine(layoutDirectory, "Controls.xaml"));
+        var implicitTextBlockStyle = controls.Descendants(Presentation + "Style")
+            .SingleOrDefault(element =>
+                (string?)element.Attribute("TargetType") == "TextBlock" &&
+                element.Attribute(Xaml + "Key") is null);
+        var overridesForeground = implicitTextBlockStyle?
+            .Elements(Presentation + "Setter")
+            .Any(element => (string?)element.Attribute("Property") == "Foreground") == true;
+
+        Assert.IsFalse(
+            overridesForeground,
+            "Implicit TextBlock styling must not replace the foreground supplied by a containing Button.");
+    }
+
     private static XElement FindStyle(XDocument document, string targetType, string? key = null) =>
         document.Descendants(Presentation + "Style")
             .Single(element =>

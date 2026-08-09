@@ -7,9 +7,6 @@
         <Setter Property="FontFamily" Value="{DynamicResource Font.Text}" />
         <Setter Property="FontSize" Value="{DynamicResource Type.Body}" />
     </Style>
-    <Style TargetType="TextBlock">
-        <Setter Property="Foreground" Value="{DynamicResource Brush.TextPrimary}" />
-    </Style>
     <Style x:Key="PageTitle" TargetType="TextBlock">
         <Setter Property="FontFamily" Value="{DynamicResource Font.Display}" />
         <Setter Property="FontSize" Value="{DynamicResource Type.Display}" />
