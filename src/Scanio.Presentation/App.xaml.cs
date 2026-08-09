@@ -36,7 +36,7 @@ public partial class App : System.Windows.Application
         var recorder = new NotebookRecorder(repository, monitor);
         var interaction = new WindowsNotebookInteractionService();
         var notebookViewModel = new NotebookViewModel(recorder, interaction);
-        var historyViewModel = new HistoryViewModel(repository, interaction);
+        var historyViewModel = new HistoryViewModel(repository, interaction, recorder);
         var shell = new ShellViewModel(
             connectionViewModel,
             monitorViewModel,

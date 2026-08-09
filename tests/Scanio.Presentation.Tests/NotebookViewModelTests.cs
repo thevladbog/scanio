@@ -50,6 +50,24 @@ public sealed class NotebookViewModelTests
         Assert.IsEmpty(viewModel.Sessions);
     }
 
+    [TestMethod]
+    public async Task History_CannotRenameOrDeleteTheActiveRecordingSession()
+    {
+        var monitor = new LiveMonitor();
+        var repository = new FakeRepository();
+        await using var recorder = new NotebookRecorder(repository, monitor, () => DateTimeOffset.UnixEpoch);
+        recorder.Start("Active");
+        var viewModel = new HistoryViewModel(repository, new FakeInteraction { ConfirmDeleteResult = true }, recorder);
+
+        await viewModel.RefreshCommand.ExecuteAsync();
+
+        Assert.IsFalse(viewModel.RenameCommand.CanExecute(null));
+        Assert.IsFalse(viewModel.DeleteCommand.CanExecute(null));
+        await recorder.StopAsync();
+        Assert.IsTrue(viewModel.RenameCommand.CanExecute(null));
+        Assert.IsTrue(viewModel.DeleteCommand.CanExecute(null));
+    }
+
     private static CompletedScan CreateScan(long sequence, string value)
     {
         var bytes = System.Text.Encoding.UTF8.GetBytes(value);

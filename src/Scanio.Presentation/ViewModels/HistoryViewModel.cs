@@ -32,23 +32,37 @@ public sealed class HistoryViewModel : ObservableObject
 {
     private readonly INotebookRepository _repository;
     private readonly INotebookInteractionService _interaction;
+    private readonly NotebookRecorder? _recorder;
+    private readonly SynchronizationContext? _synchronizationContext = SynchronizationContext.Current;
     private NotebookSessionItemViewModel? _selectedSession;
     private string _renameText = string.Empty;
     private NotebookExportFormat _selectedExportFormat = NotebookExportFormat.Csv;
 
-    public HistoryViewModel(INotebookRepository repository, INotebookInteractionService interaction)
+    public HistoryViewModel(
+        INotebookRepository repository,
+        INotebookInteractionService interaction,
+        NotebookRecorder? recorder = null)
     {
         ArgumentNullException.ThrowIfNull(repository);
         ArgumentNullException.ThrowIfNull(interaction);
         _repository = repository;
         _interaction = interaction;
+        _recorder = recorder;
         RefreshCommand = new AsyncCommand(_ => ExecuteSafelyAsync(RefreshAsync));
         OpenCommand = new AsyncCommand(_ => ExecuteSafelyAsync(OpenAsync), () => SelectedSession is not null);
         RenameCommand = new AsyncCommand(_ => ExecuteSafelyAsync(RenameAsync), () =>
-            SelectedSession is not null && !string.IsNullOrWhiteSpace(RenameText));
-        DeleteCommand = new AsyncCommand(_ => ExecuteSafelyAsync(DeleteAsync), () => SelectedSession is not null);
+            CanMutateSelectedSession && !string.IsNullOrWhiteSpace(RenameText));
+        DeleteCommand = new AsyncCommand(_ => ExecuteSafelyAsync(DeleteAsync), () => CanMutateSelectedSession);
         CopyCommand = new AsyncCommand(_ => ExecuteSafelyAsync(CopyAsync), () => Records.Count > 0);
         ExportCommand = new AsyncCommand(_ => ExecuteSafelyAsync(ExportAsync), () => Records.Count > 0);
+        if (_recorder is not null)
+        {
+            _recorder.Changed += (_, _) => RunOnUi(() =>
+            {
+                RenameCommand.RaiseCanExecuteChanged();
+                DeleteCommand.RaiseCanExecuteChanged();
+            });
+        }
     }
 
     public ObservableCollection<NotebookSessionItemViewModel> Sessions { get; } = [];
@@ -96,6 +110,9 @@ public sealed class HistoryViewModel : ObservableObject
     public AsyncCommand CopyCommand { get; }
     public AsyncCommand ExportCommand { get; }
 
+    private bool CanMutateSelectedSession =>
+        SelectedSession is not null && _recorder?.CurrentSession?.Id != SelectedSession.Session.Id;
+
     private async Task RefreshAsync()
     {
         _repository.Initialize();
@@ -127,6 +144,7 @@ public sealed class HistoryViewModel : ObservableObject
     private async Task RenameAsync()
     {
         var selected = SelectedSession ?? throw new InvalidOperationException("Select a notebook session first.");
+        EnsureSessionIsNotActive(selected);
         await Task.Run(() => _repository.RenameSession(selected.Session.Id, RenameText));
         await RefreshAsync();
     }
@@ -134,6 +152,7 @@ public sealed class HistoryViewModel : ObservableObject
     private async Task DeleteAsync()
     {
         var selected = SelectedSession ?? throw new InvalidOperationException("Select a notebook session first.");
+        EnsureSessionIsNotActive(selected);
         if (!_interaction.ConfirmDelete(selected.Name))
         {
             return;
@@ -177,5 +196,25 @@ public sealed class HistoryViewModel : ObservableObject
     {
         CopyCommand.RaiseCanExecuteChanged();
         ExportCommand.RaiseCanExecuteChanged();
+    }
+
+    private void EnsureSessionIsNotActive(NotebookSessionItemViewModel selected)
+    {
+        if (_recorder?.CurrentSession?.Id == selected.Session.Id)
+        {
+            throw new InvalidOperationException("Stop the active recording before renaming or deleting its session.");
+        }
+    }
+
+    private void RunOnUi(Action action)
+    {
+        if (_synchronizationContext is null || ReferenceEquals(SynchronizationContext.Current, _synchronizationContext))
+        {
+            action();
+        }
+        else
+        {
+            _synchronizationContext.Post(_ => action(), null);
+        }
     }
 }
