@@ -36,7 +36,11 @@ jobs:
           Copy-Item README.md "$folder/README.md"
           Compress-Archive -Path "$folder/*" -DestinationPath "artifacts/Scanio-$version-win-x64-portable.zip"
           $hash = (Get-FileHash "artifacts/Scanio-$version-win-x64-portable.zip" -Algorithm SHA256).Hash.ToLowerInvariant()
-          "$hash  Scanio-$version-win-x64-portable.zip" | Set-Content "artifacts/SHA256SUMS.txt" -Encoding ascii
+          $checksum = "$hash  Scanio-$version-win-x64-portable.zip`n"
+          [System.IO.File]::WriteAllText(
+            (Join-Path $PWD "artifacts/SHA256SUMS.txt"),
+            $checksum,
+            [System.Text.UTF8Encoding]::new($false))
       - name: Create GitHub release
         shell: pwsh
         env:
