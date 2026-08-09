@@ -49,6 +49,41 @@ jobs:
         run: dotnet test Scanio.slnx -c Release --no-restore --logger "trx;LogFileName=windows.trx"
       - name: Build WPF application
         run: dotnet build src/Scanio.Presentation/Scanio.Presentation.csproj -c Release -f net10.0-windows10.0.19041.0 --no-restore
+      - name: Smoke launch published WPF application
+        shell: pwsh
+        run: |
+          $publish = Join-Path $env:RUNNER_TEMP "scanio-startup-smoke"
+          dotnet publish src/Scanio.Presentation/Scanio.Presentation.csproj `
+            -c Release `
+            -f net10.0-windows10.0.19041.0 `
+            -r win-x64 `
+            --self-contained true `
+            --no-restore `
+            -p:PublishSingleFile=false `
+            -o $publish
+          [System.IO.File]::WriteAllText(
+            (Join-Path $publish "portable.flag"),
+            "",
+            [System.Text.UTF8Encoding]::new($false))
+          $process = Start-Process (Join-Path $publish "Scanio.exe") -PassThru
+          try {
+            Start-Sleep -Seconds 5
+            if ($process.HasExited) {
+              Get-WinEvent -FilterHashtable @{
+                LogName = "Application"
+                StartTime = (Get-Date).AddMinutes(-2)
+              } -ErrorAction SilentlyContinue |
+                Where-Object Message -Match "Scanio|Scanio.exe" |
+                Select-Object -First 5 TimeCreated, ProviderName, Id, Message |
+                Format-List
+              throw "Scanio exited during the startup smoke test with code $($process.ExitCode)."
+            }
+          }
+          finally {
+            if (-not $process.HasExited) {
+              Stop-Process -Id $process.Id -Force
+            }
+          }
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
