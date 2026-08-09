@@ -7,6 +7,8 @@ using Scanio.Transports.Serial;
 
 namespace Scanio.Presentation.ViewModels;
 
+public sealed record LocalizedOption<T>(T Value, string Label) where T : struct, Enum;
+
 public sealed class ConnectionViewModel : ObservableObject
 {
     private readonly ISerialDeviceEnumerator _deviceEnumerator;
@@ -57,21 +59,34 @@ public sealed class ConnectionViewModel : ObservableObject
     public ConnectionSnapshotViewModel? ConnectionSnapshot =>
         ConnectionSnapshotViewModel.From(_connection.CurrentSnapshot, _localizer);
 
+    public string HeaderConnectionLabel => ConnectionSnapshot is { } snapshot
+        ? $"{snapshot.Endpoint} · {snapshot.StateLabel}"
+        : _localizer[UiTextKeys.ConnectionNotConnected];
+
     public int BaudRate { get; set; } = 9_600;
 
     public int DataBits { get; set; } = 8;
 
     public SerialParity Parity { get; set; } = SerialParity.None;
 
-    public IReadOnlyList<SerialParity> ParityOptions { get; } = Enum.GetValues<SerialParity>();
+    public IReadOnlyList<LocalizedOption<SerialParity>> ParityOptions =>
+        Enum.GetValues<SerialParity>()
+            .Select(value => new LocalizedOption<SerialParity>(value, ConnectionLabels.Parity(value, _localizer)))
+            .ToArray();
 
     public SerialStopBits StopBits { get; set; } = SerialStopBits.One;
 
-    public IReadOnlyList<SerialStopBits> StopBitOptions { get; } = Enum.GetValues<SerialStopBits>();
+    public IReadOnlyList<LocalizedOption<SerialStopBits>> StopBitOptions =>
+        Enum.GetValues<SerialStopBits>()
+            .Select(value => new LocalizedOption<SerialStopBits>(value, ConnectionLabels.StopBits(value, _localizer)))
+            .ToArray();
 
     public SerialHandshake Handshake { get; set; } = SerialHandshake.None;
 
-    public IReadOnlyList<SerialHandshake> HandshakeOptions { get; } = Enum.GetValues<SerialHandshake>();
+    public IReadOnlyList<LocalizedOption<SerialHandshake>> HandshakeOptions =>
+        Enum.GetValues<SerialHandshake>()
+            .Select(value => new LocalizedOption<SerialHandshake>(value, ConnectionLabels.Handshake(value, _localizer)))
+            .ToArray();
 
     public bool DtrEnable { get; set; }
 
@@ -166,12 +181,17 @@ public sealed class ConnectionViewModel : ObservableObject
         {
             State = args.State;
             OnPropertyChanged(nameof(ConnectionSnapshot));
+            OnPropertyChanged(nameof(HeaderConnectionLabel));
         });
 
     private void RaiseLocalizedProperties()
     {
         OnPropertyChanged(nameof(StateTitle));
         OnPropertyChanged(nameof(ConnectionSnapshot));
+        OnPropertyChanged(nameof(HeaderConnectionLabel));
+        OnPropertyChanged(nameof(ParityOptions));
+        OnPropertyChanged(nameof(StopBitOptions));
+        OnPropertyChanged(nameof(HandshakeOptions));
     }
 
     private void OnCommandStateChanged()

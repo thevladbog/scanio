@@ -33,11 +33,11 @@
                 Padding="{DynamicResource Inset.Header}" Background="{DynamicResource Brush.SurfacePrimary}">
             <Grid>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="180" />
+                    <ColumnDefinition Width="210" />
                     <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="220" />
+                    <ColumnDefinition Width="230" />
                 </Grid.ColumnDefinitions>
-                <Image Source="Assets/scanio-logo-ru.png" Width="160" HorizontalAlignment="Left" Stretch="Uniform" />
+                <Image Source="Assets/scanio-logo-ru.png" Width="180" HorizontalAlignment="Left" Stretch="Uniform" />
                 <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center">
                     <RadioButton GroupName="PrimaryNavigation" IsChecked="True"
                                  Content="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Nav.Connection]}"
@@ -56,7 +56,9 @@
                                  Command="{Binding ShowSettingsCommand}" Style="{DynamicResource NavigationButton}" Margin="4,0" />
                 </StackPanel>
                 <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                    <TextBlock Text="{Binding Monitor.ConnectionLabel}" VerticalAlignment="Center" Margin="0,0,12,0" />
+                    <TextBlock Text="{Binding Connection.HeaderConnectionLabel}" VerticalAlignment="Center" Margin="0,0,12,0"
+                               MaxWidth="128" TextTrimming="CharacterEllipsis"
+                               ToolTip="{Binding Connection.ConnectionSnapshot.FriendlyName}" />
                     <Button Content="{Binding Source={x:Static localization:LocalizationSource.Current}, Path=[Connection.Disconnect]}"
                             Command="{Binding Monitor.DisconnectCommand}" Style="{DynamicResource CommandButton}" />
                 </StackPanel>

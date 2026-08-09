@@ -12,15 +12,17 @@
             <Grid>
                 <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
                 <TextBlock Text="УСТРОЙСТВА" Style="{DynamicResource KickerText}" />
-                <DockPanel Grid.Row="1" Margin="0,8,0,16">
+                <Grid Grid.Row="1" Margin="0,8,0,16">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                     <TextBlock Text="COM-порты" Style="{DynamicResource PanelTitle}" VerticalAlignment="Center" />
-                    <Button Content="Обновить" Command="{Binding RefreshCommand}" Style="{DynamicResource CommandButton}" DockPanel.Dock="Right" HorizontalAlignment="Right" />
-                </DockPanel>
+                    <Button Grid.Column="1" Content="Обновить" Command="{Binding RefreshCommand}" Style="{DynamicResource CommandButton}" />
+                </Grid>
                 <ListView Grid.Row="2" ItemsSource="{Binding Devices}" SelectedItem="{Binding SelectedDevice}" IsEnabled="{Binding IsEditingEnabled}"
-                          ScrollViewer.CanContentScroll="True" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling">
+                          ScrollViewer.CanContentScroll="True" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                          VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling">
                     <ListView.ItemTemplate>
                         <DataTemplate>
-                            <Grid ToolTip="{Binding HardwareId}">
+                            <Grid ToolTip="{Binding HardwareId}" MinHeight="48">
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="64" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
                                 <TextBlock Text="{Binding PortName}" Style="{DynamicResource DataText}" FontWeight="SemiBold" />
                                 <StackPanel Grid.Column="1">
@@ -45,9 +47,9 @@
                 </Grid.RowDefinitions>
                 <StackPanel Margin="0,0,12,16"><TextBlock Text="СКОРОСТЬ" Style="{DynamicResource KickerText}" /><TextBox Text="{Binding BaudRate}" /></StackPanel>
                 <StackPanel Grid.Column="1" Margin="12,0,0,16"><TextBlock Text="БИТЫ ДАННЫХ" Style="{DynamicResource KickerText}" /><TextBox Text="{Binding DataBits}" /></StackPanel>
-                <StackPanel Grid.Row="1" Margin="0,0,12,16"><TextBlock Text="ЧЁТНОСТЬ" Style="{DynamicResource KickerText}" /><ComboBox ItemsSource="{Binding ParityOptions}" SelectedItem="{Binding Parity}" /></StackPanel>
-                <StackPanel Grid.Row="1" Grid.Column="1" Margin="12,0,0,16"><TextBlock Text="СТОП-БИТЫ" Style="{DynamicResource KickerText}" /><ComboBox ItemsSource="{Binding StopBitOptions}" SelectedItem="{Binding StopBits}" /></StackPanel>
-                <StackPanel Grid.Row="2" Grid.ColumnSpan="2" Margin="0,0,0,16"><TextBlock Text="УПРАВЛЕНИЕ ПОТОКОМ" Style="{DynamicResource KickerText}" /><ComboBox ItemsSource="{Binding HandshakeOptions}" SelectedItem="{Binding Handshake}" /></StackPanel>
+                <StackPanel Grid.Row="1" Margin="0,0,12,16"><TextBlock Text="ЧЁТНОСТЬ" Style="{DynamicResource KickerText}" /><ComboBox ItemsSource="{Binding ParityOptions}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding Parity}" /></StackPanel>
+                <StackPanel Grid.Row="1" Grid.Column="1" Margin="12,0,0,16"><TextBlock Text="СТОП-БИТЫ" Style="{DynamicResource KickerText}" /><ComboBox ItemsSource="{Binding StopBitOptions}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding StopBits}" /></StackPanel>
+                <StackPanel Grid.Row="2" Grid.ColumnSpan="2" Margin="0,0,0,16"><TextBlock Text="УПРАВЛЕНИЕ ПОТОКОМ" Style="{DynamicResource KickerText}" /><ComboBox ItemsSource="{Binding HandshakeOptions}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding Handshake}" /></StackPanel>
                 <StackPanel Grid.Row="3" Grid.ColumnSpan="2" Orientation="Horizontal">
                     <CheckBox Content="DTR" IsChecked="{Binding DtrEnable}" Margin="0,0,24,0" />
                     <CheckBox Content="RTS" IsChecked="{Binding RtsEnable}" />
@@ -63,6 +65,7 @@
                 <StackPanel Grid.Row="2">
                     <TextBlock Text="{Binding SelectedDevice.PortName, TargetNullValue=Порт не выбран}" Foreground="{DynamicResource Brush.SurfacePrimary}" Style="{DynamicResource DataText}" FontSize="{DynamicResource Type.DataLarge}" />
                     <TextBlock Text="{Binding SelectedDevice.FriendlyName}" Foreground="{DynamicResource Brush.BorderDefault}" TextWrapping="Wrap" Margin="0,8,0,0" />
+                    <TextBlock Text="{Binding ConnectionSnapshot.ParametersLabel}" Foreground="{DynamicResource Brush.BorderDefault}" TextWrapping="Wrap" Margin="0,12,0,0" />
                     <Border Background="{DynamicResource Brush.ErrorSurface}" Margin="0,24,0,0" Padding="{DynamicResource Inset.3}">
                         <Border.Style>
                             <Style TargetType="Border">

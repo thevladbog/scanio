@@ -79,6 +79,11 @@ public sealed class ConnectionViewModelTests
         Assert.AreEqual(identity.DisplayName, viewModel.ConnectionSnapshot?.FriendlyName);
         Assert.AreEqual("Подключено", viewModel.ConnectionSnapshot?.StateLabel);
         Assert.AreEqual("9600 · 8 · Нет · 1", viewModel.ConnectionSnapshot?.ParametersLabel);
+        Assert.AreEqual("COM18 · Подключено", viewModel.HeaderConnectionLabel);
+        Assert.AreEqual("Нет", viewModel.ParityOptions.Single(option => option.Value == SerialParity.None).Label);
+
+        var disconnected = CreateViewModel(new FakeDeviceEnumerator(), new FakeConnectionService());
+        Assert.AreEqual("Нет подключения", disconnected.HeaderConnectionLabel);
     }
 
     private static ConnectionViewModel CreateViewModel(
