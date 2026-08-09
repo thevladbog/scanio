@@ -158,7 +158,7 @@
       "scanio.platform.windows": {
         "type": "Project",
         "dependencies": {
-          "Scanio.Domain": "[1.0.0, )"
+          "Scanio.Domain": "[0.1.0-alpha.1, )"
         }
       }
     }

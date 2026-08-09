@@ -8,9 +8,11 @@
     <ProjectReference Include="..\Scanio.Transports\Scanio.Transports.csproj" />
   </ItemGroup>
   <PropertyGroup>
+    <AssemblyName>Scanio</AssemblyName>
     <TargetFrameworks>net10.0;net10.0-windows10.0.19041.0</TargetFrameworks>
     <UseWPF Condition="'$(TargetFramework)' == 'net10.0-windows10.0.19041.0'">true</UseWPF>
     <OutputType Condition="'$(TargetFramework)' == 'net10.0-windows10.0.19041.0'">WinExe</OutputType>
+    <RuntimeIdentifiers Condition="'$(TargetFramework)' == 'net10.0-windows10.0.19041.0'">win-x64</RuntimeIdentifiers>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
   </PropertyGroup>
   <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">

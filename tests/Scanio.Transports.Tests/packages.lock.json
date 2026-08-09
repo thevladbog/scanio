@@ -269,7 +269,7 @@
       "scanio.transports": {
         "type": "Project",
         "dependencies": {
-          "Scanio.Domain": "[1.0.0, )",
+          "Scanio.Domain": "[0.1.0-alpha.1, )",
           "System.IO.Ports": "[10.0.0, )"
         }
       }

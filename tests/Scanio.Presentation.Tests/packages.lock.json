@@ -263,25 +263,36 @@
           "runtime.native.System.IO.Ports": "10.0.0"
         }
       },
+      "Scanio": {
+        "type": "Project",
+        "dependencies": {
+          "Scanio.Analysis": "[0.1.0-alpha.1, )",
+          "Scanio.Application": "[0.1.0-alpha.1, )",
+          "Scanio.Capture": "[0.1.0-alpha.1, )",
+          "Scanio.Domain": "[0.1.0-alpha.1, )",
+          "Scanio.Platform.Windows": "[0.1.0-alpha.1, )",
+          "Scanio.Transports": "[0.1.0-alpha.1, )"
+        }
+      },
       "scanio.analysis": {
         "type": "Project",
         "dependencies": {
-          "Scanio.Domain": "[1.0.0, )"
+          "Scanio.Domain": "[0.1.0-alpha.1, )"
         }
       },
       "scanio.application": {
         "type": "Project",
         "dependencies": {
-          "Scanio.Analysis": "[1.0.0, )",
-          "Scanio.Capture": "[1.0.0, )",
-          "Scanio.Domain": "[1.0.0, )",
-          "Scanio.Transports": "[1.0.0, )"
+          "Scanio.Analysis": "[0.1.0-alpha.1, )",
+          "Scanio.Capture": "[0.1.0-alpha.1, )",
+          "Scanio.Domain": "[0.1.0-alpha.1, )",
+          "Scanio.Transports": "[0.1.0-alpha.1, )"
         }
       },
       "scanio.capture": {
         "type": "Project",
         "dependencies": {
-          "Scanio.Domain": "[1.0.0, )"
+          "Scanio.Domain": "[0.1.0-alpha.1, )"
         }
       },
       "scanio.domain": {
@@ -290,24 +301,13 @@
       "scanio.platform.windows": {
         "type": "Project",
         "dependencies": {
-          "Scanio.Domain": "[1.0.0, )"
-        }
-      },
-      "scanio.presentation": {
-        "type": "Project",
-        "dependencies": {
-          "Scanio.Analysis": "[1.0.0, )",
-          "Scanio.Application": "[1.0.0, )",
-          "Scanio.Capture": "[1.0.0, )",
-          "Scanio.Domain": "[1.0.0, )",
-          "Scanio.Platform.Windows": "[1.0.0, )",
-          "Scanio.Transports": "[1.0.0, )"
+          "Scanio.Domain": "[0.1.0-alpha.1, )"
         }
       },
       "scanio.transports": {
         "type": "Project",
         "dependencies": {
-          "Scanio.Domain": "[1.0.0, )",
+          "Scanio.Domain": "[0.1.0-alpha.1, )",
           "System.IO.Ports": "[10.0.0, )"
         }
       }
