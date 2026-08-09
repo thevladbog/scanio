@@ -3,12 +3,22 @@
     <ProjectReference Include="..\Scanio.Domain\Scanio.Domain.csproj" />
     <ProjectReference Include="..\Scanio.Application\Scanio.Application.csproj" />
     <ProjectReference Include="..\Scanio.Platform.Windows\Scanio.Platform.Windows.csproj" />
+    <ProjectReference Include="..\Scanio.Analysis\Scanio.Analysis.csproj" />
+    <ProjectReference Include="..\Scanio.Capture\Scanio.Capture.csproj" />
+    <ProjectReference Include="..\Scanio.Transports\Scanio.Transports.csproj" />
   </ItemGroup>
   <PropertyGroup>
-    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
-    <UseWPF>true</UseWPF>
-    <OutputType>WinExe</OutputType>
-    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <TargetFrameworks>net10.0;net10.0-windows10.0.19041.0</TargetFrameworks>
+    <UseWPF Condition="'$(TargetFramework)' == 'net10.0-windows10.0.19041.0'">true</UseWPF>
+    <OutputType Condition="'$(TargetFramework)' == 'net10.0-windows10.0.19041.0'">WinExe</OutputType>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
   </PropertyGroup>
+  <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
+    <Compile Remove="App.xaml.cs;MainWindow.xaml.cs;Views\**\*.xaml.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="Assets\scanio.ico" />
+    <Resource Include="Assets\scanio-logo-ru.png" />
+    <Resource Include="Assets\scanio-app-icon-64.png" />
+  </ItemGroup>
 </Project>

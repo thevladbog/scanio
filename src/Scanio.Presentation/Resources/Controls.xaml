@@ -1,0 +1,66 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Style TargetType="Window">
+        <Setter Property="Background" Value="{DynamicResource Brush.SurfacePrimary}" />
+        <Setter Property="Foreground" Value="{DynamicResource Brush.TextPrimary}" />
+        <Setter Property="FontFamily" Value="{DynamicResource Font.Text}" />
+        <Setter Property="FontSize" Value="{DynamicResource Type.Body}" />
+    </Style>
+    <Style TargetType="TextBlock">
+        <Setter Property="Foreground" Value="{DynamicResource Brush.TextPrimary}" />
+    </Style>
+    <Style x:Key="PageTitle" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{DynamicResource Font.Display}" />
+        <Setter Property="FontSize" Value="{DynamicResource Type.Display}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style x:Key="PanelTitle" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="{DynamicResource Type.HeadingMedium}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style x:Key="KickerText" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="{DynamicResource Type.Kicker}" />
+        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="Foreground" Value="{DynamicResource Brush.TextSecondary}" />
+    </Style>
+    <Style x:Key="DataText" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{DynamicResource Font.Data}" />
+        <Setter Property="FontSize" Value="{DynamicResource Type.Data}" />
+    </Style>
+    <Style x:Key="CommandButton" TargetType="Button">
+        <Setter Property="MinHeight" Value="{DynamicResource Size.ControlHeight}" />
+        <Setter Property="Padding" Value="{DynamicResource Inset.3}" />
+        <Setter Property="Background" Value="{DynamicResource Brush.SurfacePrimary}" />
+        <Setter Property="Foreground" Value="{DynamicResource Brush.TextPrimary}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Brush.BorderDefault}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource CommandButton}">
+        <Setter Property="MinHeight" Value="{DynamicResource Size.PrimaryActionHeight}" />
+        <Setter Property="Background" Value="{DynamicResource Brush.SurfaceInk}" />
+        <Setter Property="Foreground" Value="{DynamicResource Brush.SurfacePrimary}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Brush.SurfaceInk}" />
+    </Style>
+    <Style TargetType="TextBox">
+        <Setter Property="MinHeight" Value="{DynamicResource Size.ControlHeight}" />
+        <Setter Property="Padding" Value="{DynamicResource Inset.2}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Brush.BorderDefault}" />
+        <Setter Property="Background" Value="{DynamicResource Brush.SurfacePrimary}" />
+    </Style>
+    <Style TargetType="ComboBox">
+        <Setter Property="MinHeight" Value="{DynamicResource Size.ControlHeight}" />
+        <Setter Property="Padding" Value="{DynamicResource Inset.2}" />
+    </Style>
+    <Style TargetType="ListViewItem">
+        <Setter Property="Padding" Value="{DynamicResource Inset.3}" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Style.Triggers>
+            <Trigger Property="IsSelected" Value="True">
+                <Setter Property="Background" Value="{DynamicResource Brush.SignalSurface}" />
+                <Setter Property="BorderBrush" Value="{DynamicResource Brush.Signal}" />
+                <Setter Property="BorderThickness" Value="4,0,0,0" />
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+</ResourceDictionary>
