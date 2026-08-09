@@ -40,12 +40,43 @@ public sealed class ShellLayoutContractTests
             $"The shell header exposes only {availableHeight}px for {minimumControlHeight}px command buttons, so their labels are clipped.");
     }
 
+    [TestMethod]
+    public void ConnectionPrimaryAction_ContrastsWithTheDarkStatusPanel()
+    {
+        var layoutDirectory = Path.Combine(AppContext.BaseDirectory, "LayoutContracts");
+        var connection = XDocument.Load(Path.Combine(layoutDirectory, "ConnectionView.xaml"));
+        var theme = LoadResources(Path.Combine(layoutDirectory, "Theme.xaml"));
+        var controls = XDocument.Load(Path.Combine(layoutDirectory, "Controls.xaml"));
+
+        var statusPanel = connection.Root!.Elements(Presentation + "Grid")
+            .Single()
+            .Elements(Presentation + "Border")
+            .Single(element => (string?)element.Attribute("Grid.Column") == "2");
+        var connectButton = statusPanel.Descendants(Presentation + "Button")
+            .Single(element => (string?)element.Attribute("Content") == "Подключить");
+        var styleKey = ExtractResourceKey(connectButton.Attribute("Style")!.Value);
+        var primaryStyle = controls.Descendants(Presentation + "Style")
+            .Single(element => (string?)element.Attribute(Xaml + "Key") == styleKey);
+        var actionBackground = primaryStyle.Elements(Presentation + "Setter")
+            .Single(element => (string?)element.Attribute("Property") == "Background")
+            .Attribute("Value")!.Value;
+
+        var panelColor = ResolveColor(statusPanel.Attribute("Background")!.Value, theme);
+        var actionColor = ResolveColor(actionBackground, theme);
+        var contrastRatio = ContrastRatio(panelColor, actionColor);
+
+        Assert.IsGreaterThanOrEqualTo(
+            3d,
+            contrastRatio,
+            $"The Connect action has only {contrastRatio:F2}:1 contrast against its status panel, so it is not visibly discoverable.");
+    }
+
     private static Dictionary<string, string> LoadResources(string path) =>
         XDocument.Load(path).Root!.Elements()
             .Where(element => element.Attribute(Xaml + "Key") is not null)
             .ToDictionary(
                 element => element.Attribute(Xaml + "Key")!.Value,
-                element => element.Value,
+                element => (string?)element.Attribute("Color") ?? element.Value,
                 StringComparer.Ordinal);
 
     private static double ResolveNumber(string value, IReadOnlyDictionary<string, string> resources) =>
@@ -79,5 +110,53 @@ public sealed class ShellLayoutContractTests
         return resources[key];
     }
 
+    private static string ExtractResourceKey(string value)
+    {
+        const string dynamicResourcePrefix = "{DynamicResource ";
+        if (!value.StartsWith(dynamicResourcePrefix, StringComparison.Ordinal) || !value.EndsWith('}'))
+        {
+            throw new InvalidDataException($"Expected a DynamicResource reference, got: {value}");
+        }
+
+        return value[dynamicResourcePrefix.Length..^1];
+    }
+
+    private static RgbColor ResolveColor(string value, IReadOnlyDictionary<string, string> resources)
+    {
+        while (value.StartsWith("{DynamicResource ", StringComparison.Ordinal))
+        {
+            value = resources[ExtractResourceKey(value)];
+        }
+
+        if (value.Length != 7 || value[0] != '#')
+        {
+            throw new InvalidDataException($"Unsupported color value: {value}");
+        }
+
+        return new RgbColor(
+            byte.Parse(value.AsSpan(1, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture),
+            byte.Parse(value.AsSpan(3, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture),
+            byte.Parse(value.AsSpan(5, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture));
+    }
+
+    private static double ContrastRatio(RgbColor first, RgbColor second)
+    {
+        var lighter = Math.Max(first.RelativeLuminance, second.RelativeLuminance);
+        var darker = Math.Min(first.RelativeLuminance, second.RelativeLuminance);
+        return (lighter + 0.05) / (darker + 0.05);
+    }
+
     private readonly record struct ThicknessValues(double Left, double Top, double Right, double Bottom);
+
+    private readonly record struct RgbColor(byte Red, byte Green, byte Blue)
+    {
+        public double RelativeLuminance =>
+            0.2126 * Linearize(Red) + 0.7152 * Linearize(Green) + 0.0722 * Linearize(Blue);
+
+        private static double Linearize(byte channel)
+        {
+            var value = channel / 255d;
+            return value <= 0.04045 ? value / 12.92 : Math.Pow((value + 0.055) / 1.055, 2.4);
+        }
+    }
 }

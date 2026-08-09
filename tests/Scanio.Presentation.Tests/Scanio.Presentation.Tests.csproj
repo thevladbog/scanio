@@ -29,6 +29,9 @@
     <None Include="..\..\src\Scanio.Presentation\Resources\Controls.xaml"
           Link="LayoutContracts\Controls.xaml"
           CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\src\Scanio.Presentation\Views\ConnectionView.xaml"
+          Link="LayoutContracts\ConnectionView.xaml"
+          CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

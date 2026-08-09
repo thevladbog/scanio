@@ -38,9 +38,9 @@
     </Style>
     <Style x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource CommandButton}">
         <Setter Property="MinHeight" Value="{DynamicResource Size.PrimaryActionHeight}" />
-        <Setter Property="Background" Value="{DynamicResource Brush.SurfaceInk}" />
+        <Setter Property="Background" Value="{DynamicResource Brush.Signal}" />
         <Setter Property="Foreground" Value="{DynamicResource Brush.SurfacePrimary}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource Brush.SurfaceInk}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Brush.Signal}" />
     </Style>
     <Style TargetType="TextBox">
         <Setter Property="MinHeight" Value="{DynamicResource Size.ControlHeight}" />
