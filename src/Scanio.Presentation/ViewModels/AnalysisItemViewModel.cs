@@ -1,21 +1,23 @@
 using Scanio.Domain.Analysis;
+using Scanio.Presentation.Localization;
 
 namespace Scanio.Presentation.ViewModels;
 
 public sealed class AnalysisItemViewModel
 {
-    public AnalysisItemViewModel(AnalysisResult result)
+    public AnalysisItemViewModel(AnalysisResult result, IUiLocalizer localizer)
     {
         ArgumentNullException.ThrowIfNull(result);
+        ArgumentNullException.ThrowIfNull(localizer);
 
         AnalyzerName = result.AnalyzerName;
         Format = result.Format;
-        Confidence = result.Confidence switch
+        Confidence = localizer[result.Confidence switch
         {
-            AnalysisConfidence.Exact => "Точный формат данных",
-            AnalysisConfidence.Inferred => "Предположение по структуре",
-            _ => "Не определено"
-        };
+            AnalysisConfidence.Exact => UiTextKeys.ConfidenceExact,
+            AnalysisConfidence.Inferred => UiTextKeys.ConfidenceInferred,
+            _ => UiTextKeys.ConfidenceUnknown
+        }];
         Evidence = result.Evidence;
         Summary = result.Summary;
         Fields = result.Fields

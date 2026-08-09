@@ -36,7 +36,11 @@ public partial class App : System.Windows.Application
         var coordinator = new ConnectionCoordinator(pipeline);
         var connection = new ConnectionService(coordinator);
         var connectionViewModel = new ConnectionViewModel(new WindowsSerialDeviceEnumerator(), connection, localizer);
-        var monitorViewModel = new MonitorViewModel(monitor, connection);
+        var monitorViewModel = new MonitorViewModel(
+            monitor,
+            connection,
+            new WindowsClipboardService(),
+            localizer);
         var repository = new SqliteNotebookRepository(databasePath);
         repository.Initialize();
         var recorder = new NotebookRecorder(repository, monitor);

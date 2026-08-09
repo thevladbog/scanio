@@ -2,7 +2,9 @@ using Scanio.Application.Monitor;
 using Scanio.Domain.Analysis;
 using Scanio.Domain.Capture;
 using Scanio.Domain.Transport;
+using Scanio.Presentation.Localization;
 using Scanio.Presentation.Services;
+using Scanio.Presentation.Settings;
 using Scanio.Presentation.ViewModels;
 
 namespace Scanio.Presentation.Tests;
@@ -14,7 +16,7 @@ public sealed class MonitorViewModelTests
     public void DisconnectCommand_IsEnabledOnlyWhileAConnectionIsActive()
     {
         var connection = new FakeConnectionService(ConnectionState.Detected, activeIdentity: null);
-        var viewModel = new MonitorViewModel(new LiveMonitor(), connection);
+        var viewModel = CreateViewModel(new LiveMonitor(), connection);
 
         Assert.IsFalse(viewModel.DisconnectCommand.CanExecute(null));
 
@@ -31,7 +33,7 @@ public sealed class MonitorViewModelTests
         var monitor = new LiveMonitor();
         monitor.Append(Scan(1, "first"), Decoded("first"), []);
         monitor.Append(Scan(2, "second"), Decoded("second"), []);
-        var viewModel = new MonitorViewModel(monitor, new FakeConnectionService());
+        var viewModel = CreateViewModel(monitor, new FakeConnectionService());
 
         viewModel.SelectedEvent = viewModel.Events[0];
         monitor.Append(Scan(3, "third"), Decoded("third"), []);
@@ -50,7 +52,7 @@ public sealed class MonitorViewModelTests
     {
         var monitor = new LiveMonitor();
         monitor.Append(Scan(1, "A\r"), Decoded("A"), []);
-        var viewModel = new MonitorViewModel(monitor, new FakeConnectionService());
+        var viewModel = CreateViewModel(monitor, new FakeConnectionService());
 
         Assert.AreEqual("A", viewModel.SelectedEvent?.Payload);
         Assert.AreEqual("41 0D", viewModel.SelectedEvent?.Hex);
@@ -72,7 +74,7 @@ public sealed class MonitorViewModelTests
         var monitor = new LiveMonitor();
         monitor.Append(Scan(1, "value"), Decoded("value"), [analysis]);
 
-        var viewModel = new MonitorViewModel(monitor, new FakeConnectionService());
+        var viewModel = CreateViewModel(monitor, new FakeConnectionService());
 
         Assert.HasCount(1, viewModel.SelectedEvent!.Analyses);
         var displayed = viewModel.SelectedEvent.Analyses.Single();
@@ -94,13 +96,84 @@ public sealed class MonitorViewModelTests
         var monitor = new LiveMonitor();
         monitor.Append(Scan(1, "value"), Decoded("value"), [first, second]);
 
-        var viewModel = new MonitorViewModel(monitor, new FakeConnectionService());
+        var viewModel = CreateViewModel(monitor, new FakeConnectionService());
 
         var selected = viewModel.SelectedEvent!;
         CollectionAssert.AreEqual(
             new[] { "Честный знак", "GS1 element string" },
             selected.Analyses.Select(item => item.Format).ToArray());
         Assert.AreEqual("Честный знак", selected.Format);
+    }
+
+    [TestMethod]
+    public async Task CopyActions_PreservePayloadSeparatorsAndExposeRawHexAndJson()
+    {
+        var monitor = new LiveMonitor();
+        var payload = "A\u001DB";
+        monitor.Append(Scan(1, payload + "\r"), Decoded(payload), []);
+        var clipboard = new FakeClipboardService();
+        var viewModel = CreateViewModel(monitor, new FakeConnectionService(), clipboard);
+
+        await viewModel.CopyCodeCommand.ExecuteAsync();
+        Assert.AreEqual(payload, clipboard.Text);
+
+        await viewModel.CopyRawCommand.ExecuteAsync();
+        Assert.AreEqual("A<GS>B<CR>", clipboard.Text);
+
+        await viewModel.CopyHexCommand.ExecuteAsync();
+        Assert.AreEqual("41 1D 42 0D", clipboard.Text);
+
+        await viewModel.CopyDiagnosticJsonCommand.ExecuteAsync();
+        StringAssert.Contains(clipboard.Text!, "\"payload\": \"A\\u001DB\"");
+        StringAssert.Contains(clipboard.Text!, "\"completionReason\": \"Terminator\"");
+        StringAssert.Contains(clipboard.Text!, "\"transport\"");
+        Assert.AreEqual("Скопировано", viewModel.CopyFeedback);
+    }
+
+    [TestMethod]
+    public void CopyActions_AreDisabledWithoutASelectedScan()
+    {
+        var viewModel = CreateViewModel(new LiveMonitor(), new FakeConnectionService());
+
+        Assert.IsFalse(viewModel.CopyCodeCommand.CanExecute(null));
+        Assert.IsFalse(viewModel.CopyRawCommand.CanExecute(null));
+        Assert.IsFalse(viewModel.CopyHexCommand.CanExecute(null));
+        Assert.IsFalse(viewModel.CopyDiagnosticJsonCommand.CanExecute(null));
+    }
+
+    [TestMethod]
+    public void HeaderConnectionLabel_IsCompactButSnapshotRetainsFullName()
+    {
+        var identity = new TransportIdentity(
+            TransportKind.Serial,
+            "serial:test",
+            "Datalogic Barcode Scanner (COM18) with a deliberately long name",
+            endpoint: "COM18");
+        var connection = new FakeConnectionService(ConnectionState.Connected, identity)
+        {
+            Snapshot = new ConnectionPresentationSnapshot(
+                identity,
+                ConnectionState.Connected,
+                Scanio.Transports.Serial.SerialConnectionOptions.Default("COM18"))
+        };
+
+        var viewModel = CreateViewModel(new LiveMonitor(), connection);
+
+        Assert.AreEqual("COM18 · Подключено", viewModel.ConnectionLabel);
+        Assert.AreEqual(identity.DisplayName, viewModel.ConnectionFriendlyName);
+    }
+
+    private static MonitorViewModel CreateViewModel(
+        LiveMonitor monitor,
+        IConnectionService connection,
+        IClipboardService? clipboard = null)
+    {
+        var settings = new TestSettingsService();
+        return new MonitorViewModel(
+            monitor,
+            connection,
+            clipboard ?? new FakeClipboardService(),
+            new UiLocalizer(settings));
     }
 
     private static readonly TransportIdentity Identity = new(TransportKind.Serial, "serial:test", "COM7");
@@ -132,7 +205,8 @@ public sealed class MonitorViewModelTests
         public event EventHandler<ConnectionStateChangedEventArgs>? StateChanged;
         public ConnectionState State => _state;
         public TransportIdentity? ActiveIdentity => _activeIdentity;
-        public ConnectionPresentationSnapshot? CurrentSnapshot => null;
+        public ConnectionPresentationSnapshot? Snapshot { get; init; }
+        public ConnectionPresentationSnapshot? CurrentSnapshot => Snapshot;
         public Task ConnectAsync(Scanio.Platform.Windows.Devices.SerialDeviceInfo device, Scanio.Transports.Serial.SerialConnectionOptions options, CancellationToken cancellationToken) => Task.CompletedTask;
         public Task DisconnectAsync(CancellationToken cancellationToken) => Task.CompletedTask;
         public Task ShutdownAsync(CancellationToken cancellationToken) => Task.CompletedTask;
@@ -142,6 +216,25 @@ public sealed class MonitorViewModelTests
             _state = state;
             _activeIdentity = activeIdentity;
             StateChanged?.Invoke(this, new ConnectionStateChangedEventArgs(state, activeIdentity));
+        }
+    }
+
+    private sealed class FakeClipboardService : IClipboardService
+    {
+        public string? Text { get; private set; }
+
+        public void SetText(string text) => Text = text;
+    }
+
+    private sealed class TestSettingsService : IAppSettingsService
+    {
+        public AppSettings Current { get; private set; } = new();
+        public event EventHandler? Changed;
+
+        public void Update(Func<AppSettings, AppSettings> update)
+        {
+            Current = update(Current);
+            Changed?.Invoke(this, EventArgs.Empty);
         }
     }
 }

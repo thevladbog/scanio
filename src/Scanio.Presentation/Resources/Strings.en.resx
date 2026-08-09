@@ -70,4 +70,9 @@
   <data name="Settings.Version" xml:space="preserve"><value>Version</value></data>
   <data name="Settings.OpenFolder" xml:space="preserve"><value>Open data folder</value></data>
   <data name="Settings.OpenReleases" xml:space="preserve"><value>Open GitHub Releases</value></data>
+  <data name="Analysis.UnknownFormat" xml:space="preserve"><value>Unknown</value></data>
+  <data name="Analysis.NoMatch" xml:space="preserve"><value>No analyzer recognized the structure.</value></data>
+  <data name="Completion.Terminator" xml:space="preserve"><value>Terminator</value></data>
+  <data name="Completion.SilenceTimeout" xml:space="preserve"><value>Read silence</value></data>
+  <data name="Completion.BufferOverflow" xml:space="preserve"><value>Buffer overflow</value></data>
 </root>

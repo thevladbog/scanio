@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using Scanio.Application.Monitor;
 using Scanio.Domain.Transport;
 using Scanio.Presentation.Services;
+using Scanio.Presentation.Localization;
 
 namespace Scanio.Presentation.ViewModels;
 
@@ -9,15 +10,27 @@ public sealed class MonitorViewModel : ObservableObject
 {
     private readonly LiveMonitor _monitor;
     private readonly IConnectionService _connection;
+    private readonly IClipboardService _clipboard;
+    private readonly IUiLocalizer _localizer;
     private readonly SynchronizationContext? _synchronizationContext = SynchronizationContext.Current;
     private ScanLedgerItemViewModel? _selectedEvent;
+    private string? _copyFeedback;
+    private CancellationTokenSource? _copyFeedbackCancellation;
 
-    public MonitorViewModel(LiveMonitor monitor, IConnectionService connection)
+    public MonitorViewModel(
+        LiveMonitor monitor,
+        IConnectionService connection,
+        IClipboardService clipboard,
+        IUiLocalizer localizer)
     {
         ArgumentNullException.ThrowIfNull(monitor);
         ArgumentNullException.ThrowIfNull(connection);
+        ArgumentNullException.ThrowIfNull(clipboard);
+        ArgumentNullException.ThrowIfNull(localizer);
         _monitor = monitor;
         _connection = connection;
+        _clipboard = clipboard;
+        _localizer = localizer;
         ReturnToLatestCommand = new AsyncCommand(_ =>
         {
             _monitor.ReturnToLatest();
@@ -27,8 +40,17 @@ public sealed class MonitorViewModel : ObservableObject
             connection.DisconnectAsync,
             () => _connection.ActiveIdentity is not null &&
                   _connection.State is (ConnectionState.Connected or ConnectionState.DeviceRemoved));
+        CopyCodeCommand = CopyCommand(item => item.Payload);
+        CopyRawCommand = CopyCommand(item => item.Raw);
+        CopyHexCommand = CopyCommand(item => item.Hex);
+        CopyDiagnosticJsonCommand = CopyCommand(item => ScanDiagnosticJsonSerializer.Serialize(item.Source));
         _monitor.Changed += OnMonitorChanged;
         _connection.StateChanged += (_, _) => RaiseConnectionProperties();
+        _localizer.PropertyChanged += (_, _) => RunOnUi(() =>
+        {
+            Rebuild();
+            RaiseConnectionProperties();
+        });
         Rebuild();
     }
 
@@ -45,19 +67,42 @@ public sealed class MonitorViewModel : ObservableObject
                 return;
             }
 
-            SetProperty(ref _selectedEvent, value);
+            if (SetProperty(ref _selectedEvent, value))
+            {
+                RaiseCopyCommands();
+            }
         }
     }
 
     public bool ShowReturnToLatest => !_monitor.IsFollowingLatest && Events.Count > 0;
 
-    public string ConnectionLabel => _connection.ActiveIdentity is null
-        ? "Нет подключения"
-        : $"{_connection.ActiveIdentity.DisplayName} · {_connection.State}";
+    public string ConnectionLabel => _connection.CurrentSnapshot is { } snapshot
+        ? $"{snapshot.Endpoint} · {ConnectionLabels.State(snapshot.State, _localizer)}"
+        : _localizer[UiTextKeys.ConnectionNotConnected];
+
+    public string? ConnectionFriendlyName =>
+        _connection.CurrentSnapshot?.Identity.DisplayName ?? _connection.ActiveIdentity?.DisplayName;
+
+    public ConnectionSnapshotViewModel? ConnectionSnapshot =>
+        ConnectionSnapshotViewModel.From(_connection.CurrentSnapshot, _localizer);
+
+    public string? CopyFeedback
+    {
+        get => _copyFeedback;
+        private set => SetProperty(ref _copyFeedback, value);
+    }
 
     public AsyncCommand ReturnToLatestCommand { get; }
 
     public AsyncCommand DisconnectCommand { get; }
+
+    public AsyncCommand CopyCodeCommand { get; }
+
+    public AsyncCommand CopyRawCommand { get; }
+
+    public AsyncCommand CopyHexCommand { get; }
+
+    public AsyncCommand CopyDiagnosticJsonCommand { get; }
 
     private void OnMonitorChanged(object? sender, EventArgs args) => RunOnUi(Rebuild);
 
@@ -67,19 +112,68 @@ public sealed class MonitorViewModel : ObservableObject
         Events.Clear();
         foreach (var scanEvent in _monitor.Events)
         {
-            Events.Add(new ScanLedgerItemViewModel(scanEvent));
+            Events.Add(new ScanLedgerItemViewModel(scanEvent, _localizer));
         }
 
         SetProperty(ref _selectedEvent, Events.FirstOrDefault(item => item.Id == selectedId), nameof(SelectedEvent));
         OnPropertyChanged(nameof(ShowReturnToLatest));
         ReturnToLatestCommand.RaiseCanExecuteChanged();
+        RaiseCopyCommands();
     }
 
     private void RaiseConnectionProperties() => RunOnUi(() =>
     {
         OnPropertyChanged(nameof(ConnectionLabel));
+        OnPropertyChanged(nameof(ConnectionFriendlyName));
+        OnPropertyChanged(nameof(ConnectionSnapshot));
         DisconnectCommand.RaiseCanExecuteChanged();
     });
+
+    private AsyncCommand CopyCommand(Func<ScanLedgerItemViewModel, string> selectText) => new(_ =>
+    {
+        var selected = SelectedEvent ?? throw new InvalidOperationException("Select a scan before copying.");
+        _clipboard.SetText(selectText(selected));
+        ShowCopyFeedback();
+        return Task.CompletedTask;
+    }, () => SelectedEvent is not null);
+
+    private void RaiseCopyCommands()
+    {
+        CopyCodeCommand.RaiseCanExecuteChanged();
+        CopyRawCommand.RaiseCanExecuteChanged();
+        CopyHexCommand.RaiseCanExecuteChanged();
+        CopyDiagnosticJsonCommand.RaiseCanExecuteChanged();
+    }
+
+    private void ShowCopyFeedback()
+    {
+        _copyFeedbackCancellation?.Cancel();
+        var cancellation = new CancellationTokenSource();
+        _copyFeedbackCancellation = cancellation;
+        CopyFeedback = _localizer[UiTextKeys.MonitorCopied];
+        _ = ClearCopyFeedbackAsync(cancellation);
+    }
+
+    private async Task ClearCopyFeedbackAsync(CancellationTokenSource cancellation)
+    {
+        try
+        {
+            await Task.Delay(TimeSpan.FromSeconds(2), cancellation.Token);
+            RunOnUi(() => CopyFeedback = null);
+        }
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+        {
+        }
+        finally
+        {
+            if (ReferenceEquals(_copyFeedbackCancellation, cancellation))
+            {
+                _copyFeedbackCancellation = null;
+            }
+
+            cancellation.Dispose();
+        }
+    }
 
     private void RunOnUi(Action action)
     {

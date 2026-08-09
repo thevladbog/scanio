@@ -1,40 +1,59 @@
 using Scanio.Application.Monitor;
+using System.Diagnostics;
+using Scanio.Presentation.Localization;
+using Scanio.Presentation.Services;
 
 namespace Scanio.Presentation.ViewModels;
 
 public sealed class ScanLedgerItemViewModel
 {
-    public ScanLedgerItemViewModel(LiveScanEvent scanEvent)
+    public ScanLedgerItemViewModel(LiveScanEvent scanEvent, IUiLocalizer localizer)
     {
         ArgumentNullException.ThrowIfNull(scanEvent);
+        ArgumentNullException.ThrowIfNull(localizer);
+        Source = scanEvent;
         Id = scanEvent.Id;
         Sequence = scanEvent.Scan.Sequence;
         Timestamp = scanEvent.Scan.EndedAt.ToLocalTime().ToString("HH:mm:ss.fff");
         Payload = scanEvent.Decoded.Text;
-        Raw = FormatRaw(scanEvent.Scan.RawBytes);
-        Hex = string.Join(' ', scanEvent.Scan.RawBytes.Select(value => value.ToString("X2")));
+        Raw = ScanDiagnosticJsonSerializer.FormatRaw(scanEvent.Scan.RawBytes);
+        Hex = ScanDiagnosticJsonSerializer.FormatHex(scanEvent.Scan.RawBytes);
         ByteCount = scanEvent.Scan.RawBytes.Length;
-        Completion = scanEvent.Scan.CompletionReason.ToString();
+        Completion = localizer[$"Completion.{scanEvent.Scan.CompletionReason}"];
+        StartedAt = scanEvent.Scan.StartedAt.ToLocalTime().ToString("HH:mm:ss.fff");
+        EndedAt = scanEvent.Scan.EndedAt.ToLocalTime().ToString("HH:mm:ss.fff");
+        Duration = FormatDuration(scanEvent.Scan.EndedAt - scanEvent.Scan.StartedAt);
         DuplicateCount = scanEvent.DuplicateCount;
-        Analyses = scanEvent.Analyses.Select(result => new AnalysisItemViewModel(result)).ToArray();
+        Analyses = scanEvent.Analyses.Select(result => new AnalysisItemViewModel(result, localizer)).ToArray();
         var primary = scanEvent.Analyses.FirstOrDefault(result => result.IsMatch);
-        Format = primary?.Format ?? "Unknown";
-        Evidence = primary?.Evidence ?? "No analyzer matched.";
+        Format = primary?.Format ?? localizer["Analysis.UnknownFormat"];
+        Evidence = primary?.Evidence ?? localizer["Analysis.NoMatch"];
         Confidence = primary is null
-            ? "Не определено"
-            : new AnalysisItemViewModel(primary).Confidence;
+            ? localizer[UiTextKeys.ConfidenceUnknown]
+            : new AnalysisItemViewModel(primary, localizer).Confidence;
         DecodingWarning = scanEvent.Decoded.DecodingWarning;
         HasWarning = scanEvent.Decoded.HasDecodingWarning || scanEvent.Analyses.Any(result => !result.ValidationErrors.IsEmpty || !result.ValidationWarnings.IsEmpty);
-        Chunks = scanEvent.Scan.ContributingChunks
-            .Select(chunk => new ChunkItemViewModel(
+        var chunks = new List<ChunkItemViewModel>();
+        long? previousTimestamp = null;
+        foreach (var chunk in scanEvent.Scan.ContributingChunks)
+        {
+            var interval = previousTimestamp is null
+                ? "—"
+                : FormatDuration(Stopwatch.GetElapsedTime(previousTimestamp.Value, chunk.MonotonicTimestamp));
+            chunks.Add(new ChunkItemViewModel(
                 chunk.SequenceNumber,
                 chunk.Bytes.Length,
-                string.Join(' ', chunk.Bytes.Take(16).Select(value => value.ToString("X2"))),
-                chunk.ReceivedAt.ToLocalTime().ToString("HH:mm:ss.fff")))
-            .ToArray();
+                ScanDiagnosticJsonSerializer.FormatHex(chunk.Bytes.Take(16)),
+                chunk.ReceivedAt.ToLocalTime().ToString("HH:mm:ss.fff"),
+                interval));
+            previousTimestamp = chunk.MonotonicTimestamp;
+        }
+
+        Chunks = chunks;
     }
 
     public long Id { get; }
+    public LiveScanEvent Source { get; }
     public long Sequence { get; }
     public string Timestamp { get; }
     public string Payload { get; }
@@ -42,6 +61,9 @@ public sealed class ScanLedgerItemViewModel
     public string Hex { get; }
     public int ByteCount { get; }
     public string Completion { get; }
+    public string StartedAt { get; }
+    public string EndedAt { get; }
+    public string Duration { get; }
     public int DuplicateCount { get; }
     public string Format { get; }
     public string Evidence { get; }
@@ -51,17 +73,15 @@ public sealed class ScanLedgerItemViewModel
     public IReadOnlyList<AnalysisItemViewModel> Analyses { get; }
     public IReadOnlyList<ChunkItemViewModel> Chunks { get; }
 
-    private static string FormatRaw(IEnumerable<byte> bytes) => string.Concat(bytes.Select(value => value switch
-    {
-        0x0D => "<CR>",
-        0x0A => "<LF>",
-        0x1D => "<GS>",
-        0x1E => "<RS>",
-        0x04 => "<EOT>",
-        0x1B => "<ESC>",
-        >= 0x20 and <= 0x7E => ((char)value).ToString(),
-        _ => $"\\x{value:X2}"
-    }));
+    private static string FormatDuration(TimeSpan duration) =>
+        duration.TotalMilliseconds < 1
+            ? $"{duration.TotalMilliseconds:0.###} ms"
+            : $"{duration.TotalMilliseconds:0.##} ms";
 }
 
-public sealed record ChunkItemViewModel(long Sequence, int ByteCount, string HexPreview, string ReceivedAt);
+public sealed record ChunkItemViewModel(
+    long Sequence,
+    int ByteCount,
+    string HexPreview,
+    string ReceivedAt,
+    string Interval);

@@ -30,8 +30,8 @@
   <data name="Settings.Monitor" xml:space="preserve"><value>Отображение монитора</value></data>
   <data name="Settings.Density" xml:space="preserve"><value>Плотность списков</value></data>
   <data name="Settings.LocalData" xml:space="preserve"><value>Локальные данные</value></data>
-  <data name="Confidence.Exact" xml:space="preserve"><value>Точное совпадение</value></data>
-  <data name="Confidence.Inferred" xml:space="preserve"><value>Предположение</value></data>
+  <data name="Confidence.Exact" xml:space="preserve"><value>Точный формат данных</value></data>
+  <data name="Confidence.Inferred" xml:space="preserve"><value>Предположение по структуре</value></data>
   <data name="Confidence.Unknown" xml:space="preserve"><value>Не определено</value></data>
   <data name="Standard.HEX" xml:space="preserve"><value>HEX</value></data>
   <data name="Connection.State.Detected" xml:space="preserve"><value>Обнаружено</value></data>
@@ -70,4 +70,9 @@
   <data name="Settings.Version" xml:space="preserve"><value>Версия</value></data>
   <data name="Settings.OpenFolder" xml:space="preserve"><value>Открыть папку данных</value></data>
   <data name="Settings.OpenReleases" xml:space="preserve"><value>Открыть GitHub Releases</value></data>
+  <data name="Analysis.UnknownFormat" xml:space="preserve"><value>Не определено</value></data>
+  <data name="Analysis.NoMatch" xml:space="preserve"><value>Ни один анализатор не распознал структуру.</value></data>
+  <data name="Completion.Terminator" xml:space="preserve"><value>Терминатор</value></data>
+  <data name="Completion.SilenceTimeout" xml:space="preserve"><value>Пауза чтения</value></data>
+  <data name="Completion.BufferOverflow" xml:space="preserve"><value>Переполнение буфера</value></data>
 </root>
