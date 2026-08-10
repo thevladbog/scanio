@@ -11,13 +11,13 @@ public sealed class BetaReleasePackagingContractTests
         var root = RepositoryRoot();
         var props = XDocument.Load(Path.Combine(root, "Directory.Build.props"));
 
-        Assert.AreEqual("0.5.0-beta.4", props.Descendants("Version").Single().Value);
+        Assert.AreEqual("0.5.0-beta.5", props.Descendants("Version").Single().Value);
 
         var readme = File.ReadAllText(Path.Combine(root, "README.md"));
-        StringAssert.Contains(readme, "v0.5.0-beta.4");
-        StringAssert.Contains(readme, "Scanio-0.5.0-beta.4-win-x64-setup.exe");
-        StringAssert.Contains(readme, "Scanio-0.5.0-beta.4-win-x64-portable.zip");
-        Assert.IsTrue(File.Exists(Path.Combine(root, "docs", "releases", "v0.5.0-beta.4.md")));
+        StringAssert.Contains(readme, "v0.5.0-beta.5");
+        StringAssert.Contains(readme, "Scanio-0.5.0-beta.5-win-x64-setup.exe");
+        StringAssert.Contains(readme, "Scanio-0.5.0-beta.5-win-x64-portable.zip");
+        Assert.IsTrue(File.Exists(Path.Combine(root, "docs", "releases", "v0.5.0-beta.5.md")));
 
         var fixture = File.ReadAllText(Path.Combine(
             root,
@@ -25,7 +25,7 @@ public sealed class BetaReleasePackagingContractTests
             "Scanio.Presentation.Windows.Tests",
             "Fixtures",
             "CPlusFixtureFactory.cs"));
-        StringAssert.Contains(fixture, "0.5.0-beta.4");
+        StringAssert.Contains(fixture, "0.5.0-beta.5");
         Assert.AreEqual(-1, fixture.IndexOf("0.5.0-alpha.2", StringComparison.Ordinal));
     }
 
@@ -235,6 +235,38 @@ public sealed class BetaReleasePackagingContractTests
             "$leftovers = @(Get-ChildItem -LiteralPath $installDir -Force)",
             "if ($leftovers.Count -gt 0)",
             "Remove-Item -LiteralPath $installDir -Force");
+    }
+
+    [TestMethod]
+    public void ReleaseWorkflow_WaitsBoundedlyForUninstallerSelfDeletionBeforeCheckingLeftovers()
+    {
+        var installerStep = WorkflowStep(
+            ReleaseWorkflow(),
+            "Verify silent installer and retained local data",
+            "Write package checksums");
+
+        StringAssert.Contains(installerStep, "$postUninstallCleanupTimeoutMilliseconds = 15000");
+        StringAssert.Contains(installerStep, "$postUninstallPollMilliseconds = 100");
+        StringAssert.Contains(installerStep, "$postUninstallStopwatch = [System.Diagnostics.Stopwatch]::StartNew()");
+        StringAssert.Contains(installerStep, "$postUninstallStopwatch.ElapsedMilliseconds -ge $postUninstallCleanupTimeoutMilliseconds");
+        StringAssert.Contains(installerStep, "Start-Sleep -Milliseconds $postUninstallPollMilliseconds");
+        Assert.AreEqual(-1, installerStep.IndexOf("Get-Date", StringComparison.Ordinal));
+        Assert.AreEqual(
+            1,
+            CountOccurrences(installerStep, "$leftovers = @(Get-ChildItem -LiteralPath $installDir -Force)"),
+            "The strict leftover assertion must run only once, after the bounded cleanup wait.");
+        AssertAppearsInOrder(
+            installerStep,
+            "if ($uninstallerExitCode -ne 0)",
+            "$postUninstallStopwatch = [System.Diagnostics.Stopwatch]::StartNew()",
+            "if (-not (Test-Path -LiteralPath $installDir))",
+            "$pendingUninstallLeftovers = @(Get-ChildItem -LiteralPath $installDir -Force)",
+            "if ($pendingUninstallLeftovers.Count -eq 0)",
+            "$postUninstallStopwatch.ElapsedMilliseconds -ge $postUninstallCleanupTimeoutMilliseconds",
+            "Start-Sleep -Milliseconds $postUninstallPollMilliseconds",
+            "$postUninstallStopwatch.Stop()",
+            "$leftovers = @(Get-ChildItem -LiteralPath $installDir -Force)",
+            "if ($leftovers.Count -gt 0)");
     }
 
     [TestMethod]

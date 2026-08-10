@@ -310,6 +310,19 @@ jobs:
               "/NORESTART"
             ) -Description "Silent uninstaller"
             if ($uninstallerExitCode -ne 0) { throw "Silent uninstaller failed with exit code $uninstallerExitCode." }
+
+            $postUninstallCleanupTimeoutMilliseconds = 15000
+            $postUninstallPollMilliseconds = 100
+            $postUninstallStopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+            do {
+              if (-not (Test-Path -LiteralPath $installDir)) { break }
+              $pendingUninstallLeftovers = @(Get-ChildItem -LiteralPath $installDir -Force)
+              if ($pendingUninstallLeftovers.Count -eq 0) { break }
+              if ($postUninstallStopwatch.ElapsedMilliseconds -ge $postUninstallCleanupTimeoutMilliseconds) { break }
+              Start-Sleep -Milliseconds $postUninstallPollMilliseconds
+            } while ($true)
+            $postUninstallStopwatch.Stop()
+
             if (Test-Path $installedExe) { throw "Installed Scanio.exe remains after uninstall." }
             if (-not (Test-Path $marker)) { throw "Local data marker was not retained after uninstall." }
             if (Test-Path $installDir) {

@@ -4,7 +4,7 @@ Scanio is a local Windows diagnostic utility for barcode scanners. The current b
 
 ## Download and run
 
-Download `Scanio-0.5.0-beta.4-win-x64-setup.exe` and `SHA256SUMS.txt` from [GitHub Releases](https://github.com/thevladbog/scanio/releases/tag/v0.5.0-beta.4).
+Download `Scanio-0.5.0-beta.5-win-x64-setup.exe` and `SHA256SUMS.txt` from [GitHub Releases](https://github.com/thevladbog/scanio/releases/tag/v0.5.0-beta.5).
 
 1. Verify the setup EXE SHA-256 checksum.
 2. Run the setup. It installs for the current user only, does not request administrator access, and offers an optional desktop shortcut.
@@ -13,7 +13,7 @@ Download `Scanio-0.5.0-beta.4-win-x64-setup.exe` and `SHA256SUMS.txt` from [GitH
 
 The installed package is self-contained and does not require a preinstalled .NET runtime. Local data is stored in `%LOCALAPPDATA%\Scanio` and is retained when the application is uninstalled. Scanio has no automatic updates.
 
-`Scanio-0.5.0-beta.4-win-x64-portable.zip` is the no-install alternative. Verify its SHA-256 checksum, extract the complete ZIP to a writable directory, and run `Scanio.exe`. Keep `portable.flag` and the adjacent `Data` directory with the application; portable Notebook sessions are stored in `Data/scanio.db`.
+`Scanio-0.5.0-beta.5-win-x64-portable.zip` is the no-install alternative. Verify its SHA-256 checksum, extract the complete ZIP to a writable directory, and run `Scanio.exe`. Keep `portable.flag` and the adjacent `Data` directory with the application; portable Notebook sessions are stored in `Data/scanio.db`.
 
 ## Current capabilities
 
