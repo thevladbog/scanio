@@ -57,7 +57,7 @@ jobs:
           finally {
             if (-not $process.HasExited) {
               Stop-Process -Id $process.Id -Force
-              if (-not $process.WaitForExit(10_000)) {
+              if (-not $process.WaitForExit(10000)) {
                 throw "Published Scanio process did not exit within 10 seconds after forced stop."
               }
             }
@@ -85,7 +85,7 @@ jobs:
           finally {
             if (-not $process.HasExited) {
               Stop-Process -Id $process.Id -Force
-              if (-not $process.WaitForExit(10_000)) {
+              if (-not $process.WaitForExit(10000)) {
                 throw "Portable Scanio process did not exit within 10 seconds after forced stop."
               }
             }
@@ -233,7 +233,7 @@ jobs:
             finally {
               if (-not $process.HasExited) {
                 Stop-Process -Id $process.Id -Force
-                if (-not $process.WaitForExit(10_000)) {
+                if (-not $process.WaitForExit(10000)) {
                   throw "Installed Scanio process did not exit within 10 seconds after forced stop."
                 }
               }
