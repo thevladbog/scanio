@@ -11,13 +11,13 @@ public sealed class BetaReleasePackagingContractTests
         var root = RepositoryRoot();
         var props = XDocument.Load(Path.Combine(root, "Directory.Build.props"));
 
-        Assert.AreEqual("0.5.0-beta.1", props.Descendants("Version").Single().Value);
+        Assert.AreEqual("0.5.0-beta.2", props.Descendants("Version").Single().Value);
 
         var readme = File.ReadAllText(Path.Combine(root, "README.md"));
-        StringAssert.Contains(readme, "v0.5.0-beta.1");
-        StringAssert.Contains(readme, "Scanio-0.5.0-beta.1-win-x64-setup.exe");
-        StringAssert.Contains(readme, "Scanio-0.5.0-beta.1-win-x64-portable.zip");
-        Assert.IsTrue(File.Exists(Path.Combine(root, "docs", "releases", "v0.5.0-beta.1.md")));
+        StringAssert.Contains(readme, "v0.5.0-beta.2");
+        StringAssert.Contains(readme, "Scanio-0.5.0-beta.2-win-x64-setup.exe");
+        StringAssert.Contains(readme, "Scanio-0.5.0-beta.2-win-x64-portable.zip");
+        Assert.IsTrue(File.Exists(Path.Combine(root, "docs", "releases", "v0.5.0-beta.2.md")));
 
         var fixture = File.ReadAllText(Path.Combine(
             root,
@@ -25,7 +25,7 @@ public sealed class BetaReleasePackagingContractTests
             "Scanio.Presentation.Windows.Tests",
             "Fixtures",
             "CPlusFixtureFactory.cs"));
-        StringAssert.Contains(fixture, "0.5.0-beta.1");
+        StringAssert.Contains(fixture, "0.5.0-beta.2");
         Assert.AreEqual(-1, fixture.IndexOf("0.5.0-alpha.2", StringComparison.Ordinal));
     }
 
@@ -94,13 +94,19 @@ public sealed class BetaReleasePackagingContractTests
         var portableStep = WorkflowStep(workflow, "Build portable package", "Compile per-user installer");
         var installerStep = WorkflowStep(workflow, "Verify silent installer and retained local data", "Write package checksums");
 
-        Assert.AreEqual(3, CountOccurrences(workflow, "$process.WaitForExit(10_000)"));
+        Assert.IsFalse(
+            System.Text.RegularExpressions.Regex.IsMatch(
+                workflow,
+                @"(?<![\w])\d[\d_]*_\d[\d_]*(?![\w])",
+                System.Text.RegularExpressions.RegexOptions.CultureInvariant),
+            "PowerShell workflow scripts must not contain numeric separators.");
+        Assert.AreEqual(3, CountOccurrences(workflow, "$process.WaitForExit(10000)"));
         StringAssert.Contains(publishStep, "Published Scanio process did not exit within 10 seconds after forced stop.");
         StringAssert.Contains(portableStep, "Portable Scanio process did not exit within 10 seconds after forced stop.");
         StringAssert.Contains(installerStep, "Installed Scanio process did not exit within 10 seconds after forced stop.");
-        AssertAppearsInOrder(publishStep, "Stop-Process -Id $process.Id -Force", "$process.WaitForExit(10_000)");
-        AssertAppearsInOrder(portableStep, "Stop-Process -Id $process.Id -Force", "$process.WaitForExit(10_000)", "Compress-Archive");
-        AssertAppearsInOrder(installerStep, "Stop-Process -Id $process.Id -Force", "$process.WaitForExit(10_000)", "& $uninstaller");
+        AssertAppearsInOrder(publishStep, "Stop-Process -Id $process.Id -Force", "$process.WaitForExit(10000)");
+        AssertAppearsInOrder(portableStep, "Stop-Process -Id $process.Id -Force", "$process.WaitForExit(10000)", "Compress-Archive");
+        AssertAppearsInOrder(installerStep, "Stop-Process -Id $process.Id -Force", "$process.WaitForExit(10000)", "& $uninstaller");
     }
 
     [TestMethod]
