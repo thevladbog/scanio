@@ -51,7 +51,7 @@ Name: "{userdesktop}\Scanio"; Filename: "{app}\Scanio.exe"; WorkingDir: "{app}";
 Filename: "{app}\Scanio.exe"; Description: "{cm:LaunchProgram,Scanio}"; WorkingDir: "{app}"; Flags: nowait postinstall skipifsilent
 
 [Code]
-function PrepareToInstall(): String;
+function PrepareToInstall(var NeedsRestart: Boolean): String;
 begin
   Result := '';
   if FileExists(ExpandConstant('{app}\portable.flag')) then

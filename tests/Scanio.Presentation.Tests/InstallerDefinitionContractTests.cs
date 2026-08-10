@@ -46,7 +46,8 @@ public sealed class InstallerDefinitionContractTests
 
         StringAssert.Contains(script, "english.PortableInstallBlocked=");
         StringAssert.Contains(script, "russian.PortableInstallBlocked=");
-        StringAssert.Contains(script, "function PrepareToInstall(): String;");
+        StringAssert.Contains(script, "function PrepareToInstall(var NeedsRestart: Boolean): String;");
+        Assert.AreEqual(-1, script.IndexOf("function PrepareToInstall(): String;", StringComparison.Ordinal));
         StringAssert.Contains(script, "FileExists(ExpandConstant('{app}\\portable.flag'))");
         StringAssert.Contains(script, "Result := CustomMessage('PortableInstallBlocked')");
     }
