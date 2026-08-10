@@ -57,6 +57,9 @@ jobs:
           finally {
             if (-not $process.HasExited) {
               Stop-Process -Id $process.Id -Force
+              if (-not $process.WaitForExit(10_000)) {
+                throw "Published Scanio process did not exit within 10 seconds after forced stop."
+              }
             }
           }
       - name: Build portable package
@@ -80,6 +83,9 @@ jobs:
           finally {
             if (-not $process.HasExited) {
               Stop-Process -Id $process.Id -Force
+              if (-not $process.WaitForExit(10_000)) {
+                throw "Portable Scanio process did not exit within 10 seconds after forced stop."
+              }
             }
           }
           if (-not (Test-Path $portableDatabase)) {
@@ -97,6 +103,21 @@ jobs:
           )
           $iscc = $isccCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1
           if (-not $iscc) { throw "Inno Setup 6 compiler ISCC.exe was not found on the Windows runner." }
+          $expectedIsccVersion = [Version]"6.7.1.0"
+          $isccVersionInfo = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($iscc)
+          $isccFileVersion = [Version]::new(
+            $isccVersionInfo.FileMajorPart,
+            $isccVersionInfo.FileMinorPart,
+            $isccVersionInfo.FileBuildPart,
+            $isccVersionInfo.FilePrivatePart)
+          $isccProductVersion = [Version]::new(
+            $isccVersionInfo.ProductMajorPart,
+            $isccVersionInfo.ProductMinorPart,
+            $isccVersionInfo.ProductBuildPart,
+            $isccVersionInfo.ProductPrivatePart)
+          if ($isccFileVersion -ne $expectedIsccVersion -or $isccProductVersion -ne $expectedIsccVersion) {
+            throw "Inno Setup compiler version mismatch. Expected FileVersion/ProductVersion $expectedIsccVersion, found FileVersion $isccFileVersion and ProductVersion $isccProductVersion at '$iscc'."
+          }
           & $iscc "/DAppVersion=$version" "/DSourceDir=$publish" "/DOutputDir=$(Join-Path $PWD 'artifacts')" "installer/Scanio.iss"
           if ($LASTEXITCODE -ne 0) { throw "Inno Setup compilation failed with exit code $LASTEXITCODE." }
       - name: Verify silent installer and retained local data
@@ -135,6 +156,9 @@ jobs:
             finally {
               if (-not $process.HasExited) {
                 Stop-Process -Id $process.Id -Force
+                if (-not $process.WaitForExit(10_000)) {
+                  throw "Installed Scanio process did not exit within 10 seconds after forced stop."
+                }
               }
             }
 
@@ -142,13 +166,18 @@ jobs:
             if ($LASTEXITCODE -ne 0) { throw "Silent uninstaller failed with exit code $LASTEXITCODE." }
             if (Test-Path $installedExe) { throw "Installed Scanio.exe remains after uninstall." }
             if (-not (Test-Path $marker)) { throw "Local data marker was not retained after uninstall." }
+            if (Test-Path $installDir) {
+              $leftovers = @(Get-ChildItem -LiteralPath $installDir -Force)
+              if ($leftovers.Count -gt 0) {
+                $leftoverNames = $leftovers.Name | Sort-Object
+                throw "Installer probe retained files after uninstall: $($leftoverNames -join ', ')."
+              }
+              Remove-Item -LiteralPath $installDir -Force
+            }
           }
           finally {
             if (Test-Path $marker) {
               Remove-Item -LiteralPath $marker -Force
-            }
-            if (Test-Path $installDir) {
-              Remove-Item -LiteralPath $installDir -Recurse -Force
             }
           }
       - name: Write package checksums
@@ -159,6 +188,9 @@ jobs:
             (Join-Path $PWD "artifacts/Scanio-$version-win-x64-portable.zip"),
             (Join-Path $PWD "artifacts/Scanio-$version-win-x64-setup.exe")
           ) | Sort-Object
+          if ($packages.Count -ne 2) {
+            throw "Expected exactly two release packages for SHA256SUMS.txt; found $($packages.Count)."
+          }
           $checksums = foreach ($package in $packages) {
             $hash = (Get-FileHash -LiteralPath $package -Algorithm SHA256).Hash.ToLowerInvariant()
             "$hash  $(Split-Path -Leaf $package)"
