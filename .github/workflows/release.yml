@@ -224,6 +224,41 @@ jobs:
         env:
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
+          function Invoke-BoundedProcess {
+            param(
+              [Parameter(Mandatory = $true)]
+              [string] $FilePath,
+              [Parameter(Mandatory = $true)]
+              [string[]] $ArgumentList,
+              [Parameter(Mandatory = $true)]
+              [string] $Description
+            )
+
+            $processTimeoutMilliseconds = 120000
+            $cleanupTimeoutMilliseconds = 10000
+            $externalProcess = Start-Process -FilePath $FilePath -ArgumentList $ArgumentList -PassThru
+            try {
+              if (-not $externalProcess.WaitForExit($processTimeoutMilliseconds)) {
+                try {
+                  $externalProcess.Kill($true)
+                }
+                catch [System.InvalidOperationException] {
+                  if (-not $externalProcess.HasExited) { throw }
+                }
+                if (-not $externalProcess.WaitForExit($cleanupTimeoutMilliseconds)) {
+                  throw "$Description timed out after 120 seconds, and its process tree did not exit within 10 seconds after termination."
+                }
+                throw "$Description timed out after 120 seconds; its process tree was terminated."
+              }
+
+              $exitCode = $externalProcess.ExitCode
+              return $exitCode
+            }
+            finally {
+              $externalProcess.Dispose()
+            }
+          }
+
           $version = $env:RELEASE_TAG.TrimStart('v')
           $installDir = Join-Path $env:RUNNER_TEMP "ScanioInstallerProbe"
           $dataDirectory = Join-Path $env:LOCALAPPDATA "Scanio"
@@ -240,14 +275,13 @@ jobs:
           [System.IO.File]::WriteAllText($marker, "retained", [System.Text.UTF8Encoding]::new($false))
 
           try {
-            $setupProcess = Start-Process -FilePath $setup -ArgumentList @(
+            $setupExitCode = Invoke-BoundedProcess -FilePath $setup -ArgumentList @(
               "/VERYSILENT",
               "/SUPPRESSMSGBOXES",
               "/NORESTART",
               "/SP-",
-              "/DIR=$installDir"
-            ) -Wait -PassThru
-            $setupExitCode = $setupProcess.ExitCode
+              ('/DIR="{0}"' -f $installDir)
+            ) -Description "Silent installer"
             if ($setupExitCode -ne 0) { throw "Silent installer failed with exit code $setupExitCode." }
 
             $installedExe = Join-Path $installDir "Scanio.exe"
@@ -270,12 +304,11 @@ jobs:
               }
             }
 
-            $uninstallerProcess = Start-Process -FilePath $uninstaller -ArgumentList @(
+            $uninstallerExitCode = Invoke-BoundedProcess -FilePath $uninstaller -ArgumentList @(
               "/VERYSILENT",
               "/SUPPRESSMSGBOXES",
               "/NORESTART"
-            ) -Wait -PassThru
-            $uninstallerExitCode = $uninstallerProcess.ExitCode
+            ) -Description "Silent uninstaller"
             if ($uninstallerExitCode -ne 0) { throw "Silent uninstaller failed with exit code $uninstallerExitCode." }
             if (Test-Path $installedExe) { throw "Installed Scanio.exe remains after uninstall." }
             if (-not (Test-Path $marker)) { throw "Local data marker was not retained after uninstall." }

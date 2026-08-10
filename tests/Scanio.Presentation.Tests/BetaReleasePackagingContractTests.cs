@@ -50,7 +50,7 @@ public sealed class BetaReleasePackagingContractTests
         StringAssert.Contains(workflow, "if (-not (Test-Path $marker))");
         StringAssert.Contains(workflow, "$portableDatabase = Join-Path $portable \"Data/scanio.db\"");
         StringAssert.Contains(workflow, "if (-not (Test-Path $portableDatabase))");
-        var uninstallerIndex = workflow.IndexOf("Start-Process -FilePath $uninstaller", StringComparison.Ordinal);
+        var uninstallerIndex = workflow.IndexOf("Invoke-BoundedProcess -FilePath $uninstaller", StringComparison.Ordinal);
         Assert.IsGreaterThanOrEqualTo(0, uninstallerIndex, "The positive installer probe must start the uninstaller as a process.");
         var retainedMarkerIndex = workflow.IndexOf(
             "if (-not (Test-Path $marker))",
@@ -116,7 +116,7 @@ public sealed class BetaReleasePackagingContractTests
         StringAssert.Contains(installerStep, "Installed Scanio process did not exit within 10 seconds after forced stop.");
         AssertAppearsInOrder(publishStep, "Stop-Process -Id $process.Id -Force", "$process.WaitForExit(10000)");
         AssertAppearsInOrder(portableStep, "Stop-Process -Id $process.Id -Force", "$process.WaitForExit(10000)", "Compress-Archive");
-        AssertAppearsInOrder(installerStep, "Stop-Process -Id $process.Id -Force", "$process.WaitForExit(10000)", "Start-Process -FilePath $uninstaller");
+        AssertAppearsInOrder(installerStep, "Stop-Process -Id $process.Id -Force", "$process.WaitForExit(10000)", "Invoke-BoundedProcess -FilePath $uninstaller");
     }
 
     [TestMethod]
@@ -231,50 +231,58 @@ public sealed class BetaReleasePackagingContractTests
         StringAssert.Contains(installerStep, "Remove-Item -LiteralPath $installDir -Force");
         AssertAppearsInOrder(
             installerStep,
-            "Start-Process -FilePath $uninstaller",
+            "Invoke-BoundedProcess -FilePath $uninstaller",
             "$leftovers = @(Get-ChildItem -LiteralPath $installDir -Force)",
             "if ($leftovers.Count -gt 0)",
             "Remove-Item -LiteralPath $installDir -Force");
     }
 
     [TestMethod]
-    public void ReleaseWorkflow_WaitsForGuiInstallerProcessesAndReadsTheirExitCodes()
+    public void ReleaseWorkflow_BoundsGuiInstallerProcessesAndReadsTheirExitCodes()
     {
         var installerStep = WorkflowStep(
             ReleaseWorkflow(),
             "Verify silent installer and retained local data",
             "Write package checksums");
 
-        StringAssert.Contains(installerStep, "$setupProcess = Start-Process -FilePath $setup -ArgumentList @(");
-        StringAssert.Contains(installerStep, ") -Wait -PassThru");
-        StringAssert.Contains(installerStep, "$setupExitCode = $setupProcess.ExitCode");
+        StringAssert.Contains(installerStep, "function Invoke-BoundedProcess");
+        StringAssert.Contains(installerStep, "$processTimeoutMilliseconds = 120000");
+        StringAssert.Contains(installerStep, "$cleanupTimeoutMilliseconds = 10000");
+        StringAssert.Contains(installerStep, "$externalProcess = Start-Process -FilePath $FilePath -ArgumentList $ArgumentList -PassThru");
+        StringAssert.Contains(installerStep, "if (-not $externalProcess.WaitForExit($processTimeoutMilliseconds))");
+        StringAssert.Contains(installerStep, "$externalProcess.Kill($true)");
+        StringAssert.Contains(installerStep, "if (-not $externalProcess.WaitForExit($cleanupTimeoutMilliseconds))");
+        StringAssert.Contains(installerStep, "timed out after 120 seconds, and its process tree did not exit within 10 seconds after termination");
+        StringAssert.Contains(installerStep, "timed out after 120 seconds; its process tree was terminated");
+        StringAssert.Contains(installerStep, "$exitCode = $externalProcess.ExitCode");
+        StringAssert.Contains(installerStep, "$externalProcess.Dispose()");
+        StringAssert.Contains(installerStep, "$setupExitCode = Invoke-BoundedProcess -FilePath $setup -ArgumentList @(");
         StringAssert.Contains(installerStep, "if ($setupExitCode -ne 0)");
-        StringAssert.Contains(installerStep, "$uninstallerProcess = Start-Process -FilePath $uninstaller -ArgumentList @(");
-        StringAssert.Contains(installerStep, "$uninstallerExitCode = $uninstallerProcess.ExitCode");
+        StringAssert.Contains(installerStep, "$uninstallerExitCode = Invoke-BoundedProcess -FilePath $uninstaller -ArgumentList @(");
         StringAssert.Contains(installerStep, "if ($uninstallerExitCode -ne 0)");
-        Assert.AreEqual(2, CountOccurrences(installerStep, ") -Wait -PassThru"));
+        Assert.AreEqual(2, CountOccurrences(installerStep, "Invoke-BoundedProcess -FilePath"));
+        Assert.AreEqual(-1, installerStep.IndexOf(" -Wait", StringComparison.Ordinal));
         Assert.AreEqual(-1, installerStep.IndexOf("& $setup", StringComparison.Ordinal));
         Assert.AreEqual(-1, installerStep.IndexOf("& $uninstaller", StringComparison.Ordinal));
         Assert.AreEqual(-1, installerStep.IndexOf("$LASTEXITCODE", StringComparison.Ordinal));
+        Assert.AreEqual(-1, installerStep.IndexOf("\"/DIR=$installDir\"", StringComparison.Ordinal));
         AssertAppearsInOrder(
             installerStep,
-            "$setupProcess = Start-Process -FilePath $setup",
+            "$setupExitCode = Invoke-BoundedProcess -FilePath $setup",
             "\"/VERYSILENT\"",
             "\"/SUPPRESSMSGBOXES\"",
             "\"/NORESTART\"",
             "\"/SP-\"",
-            "\"/DIR=$installDir\"",
-            ") -Wait -PassThru",
-            "$setupExitCode = $setupProcess.ExitCode",
+            "('/DIR=\"{0}\"' -f $installDir)",
+            "-Description \"Silent installer\"",
             "if ($setupExitCode -ne 0)",
             "if (-not (Test-Path $installedExe))",
             "Start-Process $installedExe -PassThru",
-            "Start-Process -FilePath $uninstaller",
+            "$uninstallerExitCode = Invoke-BoundedProcess -FilePath $uninstaller",
             "\"/VERYSILENT\"",
             "\"/SUPPRESSMSGBOXES\"",
             "\"/NORESTART\"",
-            ") -Wait -PassThru",
-            "$uninstallerExitCode = $uninstallerProcess.ExitCode",
+            "-Description \"Silent uninstaller\"",
             "if ($uninstallerExitCode -ne 0)",
             "if (Test-Path $installedExe)",
             "if (-not (Test-Path $marker))",
