@@ -240,8 +240,15 @@ jobs:
           [System.IO.File]::WriteAllText($marker, "retained", [System.Text.UTF8Encoding]::new($false))
 
           try {
-            & $setup "/VERYSILENT" "/SUPPRESSMSGBOXES" "/NORESTART" "/SP-" "/DIR=$installDir"
-            if ($LASTEXITCODE -ne 0) { throw "Silent installer failed with exit code $LASTEXITCODE." }
+            $setupProcess = Start-Process -FilePath $setup -ArgumentList @(
+              "/VERYSILENT",
+              "/SUPPRESSMSGBOXES",
+              "/NORESTART",
+              "/SP-",
+              "/DIR=$installDir"
+            ) -Wait -PassThru
+            $setupExitCode = $setupProcess.ExitCode
+            if ($setupExitCode -ne 0) { throw "Silent installer failed with exit code $setupExitCode." }
 
             $installedExe = Join-Path $installDir "Scanio.exe"
             $uninstaller = Join-Path $installDir "unins000.exe"
@@ -263,8 +270,13 @@ jobs:
               }
             }
 
-            & $uninstaller "/VERYSILENT" "/SUPPRESSMSGBOXES" "/NORESTART"
-            if ($LASTEXITCODE -ne 0) { throw "Silent uninstaller failed with exit code $LASTEXITCODE." }
+            $uninstallerProcess = Start-Process -FilePath $uninstaller -ArgumentList @(
+              "/VERYSILENT",
+              "/SUPPRESSMSGBOXES",
+              "/NORESTART"
+            ) -Wait -PassThru
+            $uninstallerExitCode = $uninstallerProcess.ExitCode
+            if ($uninstallerExitCode -ne 0) { throw "Silent uninstaller failed with exit code $uninstallerExitCode." }
             if (Test-Path $installedExe) { throw "Installed Scanio.exe remains after uninstall." }
             if (-not (Test-Path $marker)) { throw "Local data marker was not retained after uninstall." }
             if (Test-Path $installDir) {
