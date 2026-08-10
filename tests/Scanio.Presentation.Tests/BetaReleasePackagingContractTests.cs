@@ -11,13 +11,13 @@ public sealed class BetaReleasePackagingContractTests
         var root = RepositoryRoot();
         var props = XDocument.Load(Path.Combine(root, "Directory.Build.props"));
 
-        Assert.AreEqual("0.5.0-beta.2", props.Descendants("Version").Single().Value);
+        Assert.AreEqual("0.5.0-beta.3", props.Descendants("Version").Single().Value);
 
         var readme = File.ReadAllText(Path.Combine(root, "README.md"));
-        StringAssert.Contains(readme, "v0.5.0-beta.2");
-        StringAssert.Contains(readme, "Scanio-0.5.0-beta.2-win-x64-setup.exe");
-        StringAssert.Contains(readme, "Scanio-0.5.0-beta.2-win-x64-portable.zip");
-        Assert.IsTrue(File.Exists(Path.Combine(root, "docs", "releases", "v0.5.0-beta.2.md")));
+        StringAssert.Contains(readme, "v0.5.0-beta.3");
+        StringAssert.Contains(readme, "Scanio-0.5.0-beta.3-win-x64-setup.exe");
+        StringAssert.Contains(readme, "Scanio-0.5.0-beta.3-win-x64-portable.zip");
+        Assert.IsTrue(File.Exists(Path.Combine(root, "docs", "releases", "v0.5.0-beta.3.md")));
 
         var fixture = File.ReadAllText(Path.Combine(
             root,
@@ -25,7 +25,7 @@ public sealed class BetaReleasePackagingContractTests
             "Scanio.Presentation.Windows.Tests",
             "Fixtures",
             "CPlusFixtureFactory.cs"));
-        StringAssert.Contains(fixture, "0.5.0-beta.2");
+        StringAssert.Contains(fixture, "0.5.0-beta.3");
         Assert.AreEqual(-1, fixture.IndexOf("0.5.0-alpha.2", StringComparison.Ordinal));
     }
 
@@ -65,24 +65,33 @@ public sealed class BetaReleasePackagingContractTests
     }
 
     [TestMethod]
-    public void ReleaseWorkflow_PinsTheExactInnoSetupCompilerVersion()
+    public void ReleaseWorkflow_PinsTheExactInstalledInnoSetupProductBeforeInvokingCompiler()
     {
         var workflow = ReleaseWorkflow();
         var compileStep = WorkflowStep(workflow, "Compile per-user installer", "Verify silent installer and retained local data");
 
-        StringAssert.Contains(compileStep, "$expectedIsccVersion = [Version]\"6.7.1.0\"");
-        StringAssert.Contains(compileStep, "[System.Diagnostics.FileVersionInfo]::GetVersionInfo($iscc)");
-        StringAssert.Contains(compileStep, "$isccFileVersion = [Version]::new(");
-        StringAssert.Contains(compileStep, "$isccProductVersion = [Version]::new(");
-        StringAssert.Contains(
-            compileStep,
-            "if ($isccFileVersion -ne $expectedIsccVersion -or $isccProductVersion -ne $expectedIsccVersion)");
-        StringAssert.Contains(compileStep, "Inno Setup compiler version mismatch");
+        StringAssert.Contains(compileStep, "$expectedInnoSetupVersion = \"6.7.1\"");
+        StringAssert.Contains(compileStep, "[Microsoft.Win32.RegistryView]::Registry32");
+        StringAssert.Contains(compileStep, "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Inno Setup 6_is1");
+        StringAssert.Contains(compileStep, "GetValue(\"DisplayVersion\")");
+        StringAssert.Contains(compileStep, "GetValue(\"InstallLocation\")");
+        StringAssert.Contains(compileStep, "[System.IO.Path]::GetFullPath");
+        StringAssert.Contains(compileStep, "[StringComparison]::OrdinalIgnoreCase");
+        StringAssert.Contains(compileStep, "$innoSetupKey.Dispose()");
+        StringAssert.Contains(compileStep, "$uninstallRoot.Dispose()");
+        StringAssert.Contains(compileStep, "Expected version '$expectedInnoSetupVersion'");
+        StringAssert.Contains(compileStep, "selected compiler '$iscc'");
+        Assert.AreEqual(-1, compileStep.IndexOf("FileVersionInfo", StringComparison.Ordinal));
+        Assert.AreEqual(-1, compileStep.IndexOf("FileMajorPart", StringComparison.Ordinal));
+        Assert.AreEqual(-1, compileStep.IndexOf("ProductMajorPart", StringComparison.Ordinal));
         AssertAppearsInOrder(
             compileStep,
-            "$expectedIsccVersion = [Version]\"6.7.1.0\"",
-            "[System.Diagnostics.FileVersionInfo]::GetVersionInfo($iscc)",
-            "if ($isccFileVersion -ne $expectedIsccVersion -or $isccProductVersion -ne $expectedIsccVersion)",
+            "$iscc = $isccCandidates",
+            "$expectedInnoSetupVersion = \"6.7.1\"",
+            "[Microsoft.Win32.RegistryView]::Registry32",
+            "GetValue(\"DisplayVersion\")",
+            "GetValue(\"InstallLocation\")",
+            "$uninstallRoot.Dispose()",
             "& $iscc");
     }
 
