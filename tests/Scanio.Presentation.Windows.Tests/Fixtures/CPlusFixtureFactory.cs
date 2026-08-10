@@ -155,7 +155,7 @@ internal static class CPlusFixtureFactory
                 new FixturePlatformInteractionService(),
                 true,
                 @"C:\Users\Operator\AppData\Local\Scanio\Data\scanio-notebook.sqlite3",
-                "0.5.0-beta.2",
+                "0.5.0-beta.3",
                 new Uri("https://github.com/thevladbog/scanio/releases"));
             var shell = new ShellViewModel(
                 connectionViewModel,
