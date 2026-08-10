@@ -224,17 +224,17 @@ public sealed class BetaReleasePackagingContractTests
         var installerStep = WorkflowStep(workflow, "Verify silent installer and retained local data", "Write package checksums");
 
         Assert.AreEqual(1, CountOccurrences(workflow, "Remove-Item -LiteralPath $installDir -Recurse -Force"));
-        StringAssert.Contains(installerStep, "$leftovers = @(Get-ChildItem -LiteralPath $installDir -Force)");
+        StringAssert.Contains(installerStep, "$leftovers = @(Get-ExactDirectoryChildren -LiteralPath $installDir)");
         StringAssert.Contains(installerStep, "if ($leftovers.Count -gt 0)");
         StringAssert.Contains(installerStep, "$leftoverNames = $leftovers.Name | Sort-Object");
         StringAssert.Contains(installerStep, "Installer probe retained files after uninstall: $($leftoverNames -join ', ')");
-        StringAssert.Contains(installerStep, "Remove-Item -LiteralPath $installDir -Force");
+        StringAssert.Contains(installerStep, "Remove-EmptyExactDirectory -LiteralPath $installDir");
         AssertAppearsInOrder(
             installerStep,
             "Invoke-BoundedProcess -FilePath $uninstaller",
-            "$leftovers = @(Get-ChildItem -LiteralPath $installDir -Force)",
+            "$leftovers = @(Get-ExactDirectoryChildren -LiteralPath $installDir)",
             "if ($leftovers.Count -gt 0)",
-            "Remove-Item -LiteralPath $installDir -Force");
+            "Remove-EmptyExactDirectory -LiteralPath $installDir");
     }
 
     [TestMethod]
@@ -253,20 +253,52 @@ public sealed class BetaReleasePackagingContractTests
         Assert.AreEqual(-1, installerStep.IndexOf("Get-Date", StringComparison.Ordinal));
         Assert.AreEqual(
             1,
-            CountOccurrences(installerStep, "$leftovers = @(Get-ChildItem -LiteralPath $installDir -Force)"),
+            CountOccurrences(installerStep, "$leftovers = @(Get-ExactDirectoryChildren -LiteralPath $installDir)"),
             "The strict leftover assertion must run only once, after the bounded cleanup wait.");
         AssertAppearsInOrder(
             installerStep,
             "if ($uninstallerExitCode -ne 0)",
             "$postUninstallStopwatch = [System.Diagnostics.Stopwatch]::StartNew()",
-            "if (-not (Test-Path -LiteralPath $installDir))",
-            "$pendingUninstallLeftovers = @(Get-ChildItem -LiteralPath $installDir -Force)",
+            "$pendingUninstallLeftovers = @(Get-ExactDirectoryChildren -LiteralPath $installDir)",
             "if ($pendingUninstallLeftovers.Count -eq 0)",
             "$postUninstallStopwatch.ElapsedMilliseconds -ge $postUninstallCleanupTimeoutMilliseconds",
             "Start-Sleep -Milliseconds $postUninstallPollMilliseconds",
             "$postUninstallStopwatch.Stop()",
-            "$leftovers = @(Get-ChildItem -LiteralPath $installDir -Force)",
+            "$leftovers = @(Get-ExactDirectoryChildren -LiteralPath $installDir)",
             "if ($leftovers.Count -gt 0)");
+    }
+
+    [TestMethod]
+    public void ReleaseWorkflow_ToleratesOnlyTheExactProbeDisappearingDuringFinalInspection()
+    {
+        var installerStep = WorkflowStep(
+            ReleaseWorkflow(),
+            "Verify silent installer and retained local data",
+            "Write package checksums");
+
+        StringAssert.Contains(installerStep, "function Get-ExactDirectoryChildren");
+        StringAssert.Contains(installerStep, "Get-ChildItem -LiteralPath $LiteralPath -Force -ErrorAction Stop");
+        StringAssert.Contains(installerStep, "function Remove-EmptyExactDirectory");
+        StringAssert.Contains(installerStep, "Remove-Item -LiteralPath $LiteralPath -Force -ErrorAction Stop");
+        Assert.AreEqual(4, CountOccurrences(installerStep, "if (Test-Path -LiteralPath $LiteralPath -ErrorAction Stop) { throw }"));
+        Assert.AreEqual(2, CountOccurrences(installerStep, "catch [System.Management.Automation.ItemNotFoundException]"));
+        Assert.AreEqual(2, CountOccurrences(installerStep, "catch [System.IO.DirectoryNotFoundException]"));
+
+        var postUninstall = installerStep[installerStep.IndexOf("if ($uninstallerExitCode -ne 0)", StringComparison.Ordinal)..];
+        Assert.AreEqual(-1, postUninstall.IndexOf("if (-not (Test-Path -LiteralPath $installDir))", StringComparison.Ordinal));
+        Assert.AreEqual(-1, postUninstall.IndexOf("if (Test-Path $installDir)", StringComparison.Ordinal));
+        Assert.AreEqual(-1, postUninstall.IndexOf("Get-ChildItem -LiteralPath $installDir", StringComparison.Ordinal));
+        Assert.AreEqual(-1, postUninstall.IndexOf("Remove-Item -LiteralPath $installDir", StringComparison.Ordinal));
+        AssertAppearsInOrder(
+            postUninstall,
+            "$pendingUninstallLeftovers = @(Get-ExactDirectoryChildren -LiteralPath $installDir)",
+            "$postUninstallStopwatch.Stop()",
+            "if (Test-Path $installedExe)",
+            "if (-not (Test-Path $marker))",
+            "$leftovers = @(Get-ExactDirectoryChildren -LiteralPath $installDir)",
+            "if ($leftovers.Count -gt 0)",
+            "Installer probe retained files after uninstall: $($leftoverNames -join ', ')",
+            "Remove-EmptyExactDirectory -LiteralPath $installDir");
     }
 
     [TestMethod]
@@ -318,7 +350,7 @@ public sealed class BetaReleasePackagingContractTests
             "if ($uninstallerExitCode -ne 0)",
             "if (Test-Path $installedExe)",
             "if (-not (Test-Path $marker))",
-            "$leftovers = @(Get-ChildItem -LiteralPath $installDir -Force)");
+            "$leftovers = @(Get-ExactDirectoryChildren -LiteralPath $installDir)");
     }
 
     private static string ReleaseWorkflow() =>

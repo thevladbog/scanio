@@ -259,6 +259,42 @@ jobs:
             }
           }
 
+          function Get-ExactDirectoryChildren {
+            param(
+              [Parameter(Mandatory = $true)]
+              [string] $LiteralPath
+            )
+
+            try {
+              return @(Get-ChildItem -LiteralPath $LiteralPath -Force -ErrorAction Stop)
+            }
+            catch [System.Management.Automation.ItemNotFoundException] {
+              if (Test-Path -LiteralPath $LiteralPath -ErrorAction Stop) { throw }
+              return @()
+            }
+            catch [System.IO.DirectoryNotFoundException] {
+              if (Test-Path -LiteralPath $LiteralPath -ErrorAction Stop) { throw }
+              return @()
+            }
+          }
+
+          function Remove-EmptyExactDirectory {
+            param(
+              [Parameter(Mandatory = $true)]
+              [string] $LiteralPath
+            )
+
+            try {
+              Remove-Item -LiteralPath $LiteralPath -Force -ErrorAction Stop
+            }
+            catch [System.Management.Automation.ItemNotFoundException] {
+              if (Test-Path -LiteralPath $LiteralPath -ErrorAction Stop) { throw }
+            }
+            catch [System.IO.DirectoryNotFoundException] {
+              if (Test-Path -LiteralPath $LiteralPath -ErrorAction Stop) { throw }
+            }
+          }
+
           $version = $env:RELEASE_TAG.TrimStart('v')
           $installDir = Join-Path $env:RUNNER_TEMP "ScanioInstallerProbe"
           $dataDirectory = Join-Path $env:LOCALAPPDATA "Scanio"
@@ -315,8 +351,7 @@ jobs:
             $postUninstallPollMilliseconds = 100
             $postUninstallStopwatch = [System.Diagnostics.Stopwatch]::StartNew()
             do {
-              if (-not (Test-Path -LiteralPath $installDir)) { break }
-              $pendingUninstallLeftovers = @(Get-ChildItem -LiteralPath $installDir -Force)
+              $pendingUninstallLeftovers = @(Get-ExactDirectoryChildren -LiteralPath $installDir)
               if ($pendingUninstallLeftovers.Count -eq 0) { break }
               if ($postUninstallStopwatch.ElapsedMilliseconds -ge $postUninstallCleanupTimeoutMilliseconds) { break }
               Start-Sleep -Milliseconds $postUninstallPollMilliseconds
@@ -325,14 +360,12 @@ jobs:
 
             if (Test-Path $installedExe) { throw "Installed Scanio.exe remains after uninstall." }
             if (-not (Test-Path $marker)) { throw "Local data marker was not retained after uninstall." }
-            if (Test-Path $installDir) {
-              $leftovers = @(Get-ChildItem -LiteralPath $installDir -Force)
-              if ($leftovers.Count -gt 0) {
-                $leftoverNames = $leftovers.Name | Sort-Object
-                throw "Installer probe retained files after uninstall: $($leftoverNames -join ', ')."
-              }
-              Remove-Item -LiteralPath $installDir -Force
+            $leftovers = @(Get-ExactDirectoryChildren -LiteralPath $installDir)
+            if ($leftovers.Count -gt 0) {
+              $leftoverNames = $leftovers.Name | Sort-Object
+              throw "Installer probe retained files after uninstall: $($leftoverNames -join ', ')."
             }
+            Remove-EmptyExactDirectory -LiteralPath $installDir
           }
           finally {
             if (Test-Path $marker) {
