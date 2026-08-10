@@ -55,10 +55,10 @@ public sealed class BetaReleasePackagingContractTests
             "if (-not (Test-Path $marker))",
             uninstallerIndex,
             StringComparison.Ordinal);
-        Assert.IsLessThan(
-            retainedMarkerIndex,
-            uninstallerIndex,
-            "The workflow must verify the retained marker after uninstalling.");
+        if (uninstallerIndex >= retainedMarkerIndex)
+        {
+            Assert.Fail("The workflow must verify the retained marker after uninstalling.");
+        }
         StringAssert.Contains(workflow, "gh release create");
         StringAssert.Contains(workflow, "artifacts/Scanio-$version-win-x64-portable.zip");
         StringAssert.Contains(workflow, "artifacts/Scanio-$version-win-x64-setup.exe");
@@ -127,6 +127,78 @@ public sealed class BetaReleasePackagingContractTests
         StringAssert.Contains(checksumStep, "artifacts/Scanio-$version-win-x64-setup.exe");
         StringAssert.Contains(checksumStep, "if ($packages.Count -ne 2)");
         StringAssert.Contains(checksumStep, "Expected exactly two release packages for SHA256SUMS.txt");
+    }
+
+    [TestMethod]
+    public void ReleaseWorkflow_PassesTheReleaseTagToPowerShellThroughStepEnvironment()
+    {
+        var workflow = ReleaseWorkflow();
+        var expressionLines = workflow
+            .Split('\n')
+            .Where(line => line.Contains("${{ github.ref_name }}", StringComparison.Ordinal))
+            .Select(line => line.Trim())
+            .ToArray();
+
+        Assert.HasCount(5, expressionLines);
+        Assert.IsTrue(expressionLines.All(line => line == "RELEASE_TAG: ${{ github.ref_name }}"));
+
+        foreach (var (stepName, nextStepName) in new[]
+                 {
+                     ("Build portable package", "Compile per-user installer"),
+                     ("Compile per-user installer", "Verify installer refuses a portable directory"),
+                     ("Verify silent installer and retained local data", "Write package checksums"),
+                     ("Write package checksums", "Create GitHub release")
+                 })
+        {
+            var step = WorkflowStep(workflow, stepName, nextStepName);
+            StringAssert.Contains(step, "RELEASE_TAG: ${{ github.ref_name }}");
+            StringAssert.Contains(step, "$env:RELEASE_TAG");
+        }
+
+        var releaseStep = workflow[workflow.IndexOf("      - name: Create GitHub release", StringComparison.Ordinal)..];
+        StringAssert.Contains(releaseStep, "RELEASE_TAG: ${{ github.ref_name }}");
+        StringAssert.Contains(releaseStep, "$releaseTag = $env:RELEASE_TAG");
+        Assert.AreEqual(-1, releaseStep.IndexOf("${{ github.ref_name }}", releaseStep.IndexOf("run: |", StringComparison.Ordinal), StringComparison.Ordinal));
+    }
+
+    [TestMethod]
+    public void ReleaseWorkflow_ProvesInstallerRefusesPortableDirectoryWithoutChangingItsData()
+    {
+        var step = WorkflowStep(
+            ReleaseWorkflow(),
+            "Verify installer refuses a portable directory",
+            "Verify silent installer and retained local data");
+
+        string[] required =
+        [
+            "$runnerTemp = [System.IO.Path]::GetFullPath($env:RUNNER_TEMP)",
+            "ScanioPortableConflictProbe-$([Guid]::NewGuid().ToString('N'))",
+            "$portableConflictDir = Join-Path $runnerTemp $probeName",
+            "if (Test-Path -LiteralPath $portableConflictDir)",
+            "portable.flag",
+            "Data/scanio.db",
+            "Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256",
+            "$manifestBefore = Get-ProbeManifest $portableConflictDir",
+            "/VERYSILENT",
+            "/DIR=$portableConflictDir",
+            "if ($installerExitCode -eq 0)",
+            "$manifestAfter = Get-ProbeManifest $portableConflictDir",
+            "Compare-Object -ReferenceObject $manifestBefore -DifferenceObject $manifestAfter",
+            "Remove-Item -LiteralPath $portableConflictDir -Recurse -Force"
+        ];
+
+        foreach (var token in required)
+        {
+            StringAssert.Contains(step, token);
+        }
+
+        AssertAppearsInOrder(
+            step,
+            "$manifestBefore = Get-ProbeManifest $portableConflictDir",
+            "Start-Process -FilePath $setup",
+            "if ($installerExitCode -eq 0)",
+            "$manifestAfter = Get-ProbeManifest $portableConflictDir",
+            "Compare-Object -ReferenceObject $manifestBefore -DifferenceObject $manifestAfter");
     }
 
     [TestMethod]

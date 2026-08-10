@@ -39,6 +39,18 @@ public sealed class InstallerDefinitionContractTests
         StringAssert.Contains(script, "Excludes: \"portable.flag,Data\\*\"");
     }
 
+    [TestMethod]
+    public void Installer_RefusesToOverwriteAnExistingPortableDirectory()
+    {
+        var script = File.ReadAllText(Path.Combine(RepositoryRoot(), "installer", "Scanio.iss"));
+
+        StringAssert.Contains(script, "english.PortableInstallBlocked=");
+        StringAssert.Contains(script, "russian.PortableInstallBlocked=");
+        StringAssert.Contains(script, "function PrepareToInstall(): String;");
+        StringAssert.Contains(script, "FileExists(ExpandConstant('{app}\\portable.flag'))");
+        StringAssert.Contains(script, "Result := CustomMessage('PortableInstallBlocked')");
+    }
+
     private static string RepositoryRoot()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);

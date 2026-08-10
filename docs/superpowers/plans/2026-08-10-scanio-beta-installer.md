@@ -296,7 +296,7 @@ Verify locked restore, complete Windows tests, rendered screenshots, neutral smo
 
 - [ ] **Step 7: Download and audit the published assets**
 
-Download all three files to a new temporary directory and verify both hashes from `SHA256SUMS.txt`. Inspect the ZIP for `Scanio.exe`, `portable.flag`, `Data/scanio.db`, and README. Inspect setup filename, nonzero size, GitHub digest, and PE signature. The successful Windows release job is the installation evidence.
+Download all three files to a new temporary directory and verify both hashes from `SHA256SUMS.txt`. Inspect the ZIP for `Scanio.exe`, `portable.flag`, `Data/scanio.db`, and README. Inspect the setup filename, nonzero size, GitHub digest, and valid Windows PE header/format; also verify that its Authenticode status is explicitly `NotSigned`, as expected for this unsigned beta. The successful Windows release job is the installation evidence.
 
 - [ ] **Step 8: Deliver beta handoff**
 

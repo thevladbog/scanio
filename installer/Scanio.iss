@@ -33,6 +33,10 @@ ArchitecturesInstallIn64BitMode=x64compatible
 Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "russian"; MessagesFile: "compiler:Languages\Russian.isl"
 
+[CustomMessages]
+english.PortableInstallBlocked=This folder contains the portable version of Scanio. Choose another folder or move the portable version before installing.
+russian.PortableInstallBlocked=В этой папке находится портативная версия Scanio. Выберите другую папку или перенесите портативную версию перед установкой.
+
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
@@ -45,3 +49,11 @@ Name: "{userdesktop}\Scanio"; Filename: "{app}\Scanio.exe"; WorkingDir: "{app}";
 
 [Run]
 Filename: "{app}\Scanio.exe"; Description: "{cm:LaunchProgram,Scanio}"; WorkingDir: "{app}"; Flags: nowait postinstall skipifsilent
+
+[Code]
+function PrepareToInstall(): String;
+begin
+  Result := '';
+  if FileExists(ExpandConstant('{app}\portable.flag')) then
+    Result := CustomMessage('PortableInstallBlocked');
+end;
